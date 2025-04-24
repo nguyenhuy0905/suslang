@@ -1,0 +1,19 @@
+on:
+  push:
+    branches:
+      - master
+    pull-request:
+      branches:
+        - master
+name: Clippy check
+
+env:
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
