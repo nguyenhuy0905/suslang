@@ -3,9 +3,9 @@
 version = 4
 
 [[package]]
-name = "suslang"
-version = "0.0.0"
+name = "cli"
+version = "0.0.1"
 
 [[package]]
 name = "tokenize"
-version = "0.1.0"
+version = "0.0.1"
