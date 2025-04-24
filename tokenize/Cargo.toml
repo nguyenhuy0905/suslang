@@ -9,6 +9,7 @@ license-file.workspace = true
 publish.workspace = true
 
 [dependencies]
+unicode-segmentation = "1.12"
 
 [lints]
 workspace = true
