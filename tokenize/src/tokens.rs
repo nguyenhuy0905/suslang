@@ -1,5 +1,10 @@
 /// All the possible tokens.
 /// String-type owns its string.
+///
+/// While it's certainly possible for this enum to only hold references,
+/// letting it own the string allows more flexible ways of receiving
+/// input, such as line-by-line (which, the non-owning scheme forces one to
+/// hold each line until the end of time).
 #[derive(Debug, PartialEq)]
 pub enum TokenType {
     /// Just an identifier. ASCII.

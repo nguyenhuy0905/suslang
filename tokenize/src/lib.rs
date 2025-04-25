@@ -177,8 +177,20 @@ impl TokDfa {
     ) -> Result<Self, TokenizeError> {
         if grapheme == "\"" {
             let mut old_tok = std::mem::take(&mut self.curr_tok);
-            debug_assert!(old_tok.is_some());
-            self.tok_vec.push(old_tok.unwrap());
+            match old_tok {
+                None => self.tok_vec.push(Token::new(
+                    TokenType::String(String::new()),
+                    line,
+                    pos,
+                )),
+                Some(tok) => {
+                    if let TokenType::String(_) = tok.token_type() {
+                        self.tok_vec.push(tok);
+                    } else {
+                        panic!("string_state: token type is NOT string")
+                    }
+                }
+            }
             self.state_fn = Self::init_state;
             return Ok(self);
         }
