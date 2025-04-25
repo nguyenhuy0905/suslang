@@ -12,12 +12,10 @@ pub use tokens::{Token, TokenType};
 
 use unicode_segmentation::UnicodeSegmentation;
 
-/// Tokenizes the input string.
-///
-/// * `input`:
+/// Tokenizes `input`. Returns a vector of [`Token`]s on success.
 ///
 /// # Errors
-/// - If we meet a dumb token, report an error.
+/// - If tokenization fails, returns a [`TokenizeError`].
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     // (line-number, pos-in-line, grapheme)
     let input_iter = input.lines().enumerate().flat_map(|(lnum, s)| {
@@ -27,7 +25,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     });
     let mut dfa = TokDfa::default();
     for (line, pos, grapheme) in input_iter {
-        dfa = dfa.call(line, pos, grapheme)?;
+        dfa = dfa.transition(line, pos, grapheme)?;
     }
 
     Ok(dfa.tok_vec)
@@ -56,6 +54,7 @@ impl Display for TokenizeErrorType {
 
 impl Error for TokenizeErrorType {}
 
+/// Error-reporting when [`tokenize`] fails.
 #[derive(Debug)]
 pub struct TokenizeError {
     err_type: TokenizeErrorType,
@@ -66,7 +65,7 @@ pub struct TokenizeError {
 
 impl TokenizeError {
     #[must_use]
-    pub fn new(
+    fn new(
         err_type: TokenizeErrorType,
         cause: Option<impl Error + 'static>,
         line: usize,
@@ -125,7 +124,17 @@ impl Default for TokDfa {
 }
 
 impl TokDfa {
-    pub fn call(
+    /// Transition from the current state to the appropriate state given the
+    /// input `grapheme`, or to a fail state.
+    ///
+    /// The two indices `line` and `pos` are used for error-reporting.
+    ///
+    /// If successful, always return the same `self` passed in.
+    ///
+    /// # Errors:
+    /// - When the state machine reaches a fail state, it returns a
+    ///   ``TokenizeError``
+    pub fn transition(
         mut self,
         line: usize,
         pos: usize,
@@ -138,6 +147,30 @@ impl TokDfa {
         state_func(self, line, pos, grapheme)
     }
 
+    /// Returns whether the current state is an accepting state.
+    ///
+    /// Currently, the only accepting state is init-state.
+    pub fn is_at_accepting_state(&self) -> bool {
+        std::ptr::fn_addr_eq(self.state_fn, Self::init_state as StateFn)
+    }
+
+    /// The initial state.
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    ///
+    /// # Transitions:
+    /// - States preceded by "fwd" indicate the input is forwarded to that
+    ///   state. Otherwise, the input is consumed by the current state.
+    ///
+    /// | input | next-state |
+    /// | ----- | ---------- |
+    /// | \[a-zA-z_\] | fwd [`TokDfa::identifier_state`] |
+    /// | \[0-9\] | fwd [`TokDfa::number_state`] |
+    /// | """ | [`TokDfa::string_state`] |
+    /// | <whitespace>+ | [`TokDfa::init_state`] |
+    ///
+    /// # Extra rules
+    /// - \<whitespace\> ::= LF, SPACE, TAB, FF, CR
     fn init_state(
         mut self,
         line: usize,
@@ -167,8 +200,6 @@ impl TokDfa {
         }
     }
 
-    // the wrap is the mandatory interface.
-    #[allow(clippy::unnecessary_wraps)]
     fn string_state(
         mut self,
         line: usize,
@@ -176,7 +207,7 @@ impl TokDfa {
         grapheme: &str,
     ) -> Result<Self, TokenizeError> {
         if grapheme == "\"" {
-            let mut old_tok = std::mem::take(&mut self.curr_tok);
+            let old_tok = std::mem::take(&mut self.curr_tok);
             match old_tok {
                 None => self.tok_vec.push(Token::new(
                     TokenType::String(String::new()),
@@ -195,7 +226,7 @@ impl TokDfa {
             return Ok(self);
         }
 
-        let mut old_tok = std::mem::take(&mut self.curr_tok);
+        let old_tok = std::mem::take(&mut self.curr_tok);
         match old_tok {
             None => {
                 self.curr_tok = Some(Token::new(
@@ -203,6 +234,7 @@ impl TokDfa {
                     line,
                     pos,
                 ));
+                self.state_fn = Self::init_state;
                 Ok(self)
             }
             Some(tok) => {
@@ -212,6 +244,7 @@ impl TokDfa {
                         Some(Token::new(TokenType::String(s), line, pos));
                     return Ok(self);
                 }
+                // maybe this shoulda just been a panic
                 Err(TokenizeError::new(
                     TokenizeErrorType::InternalErr("while tokenizing string"),
                     // using some dummy generics.

@@ -8,75 +8,83 @@
 #[derive(Debug, PartialEq)]
 pub enum TokenType {
     /// Just an identifier. ASCII.
-    /// Rule:
-    /// <identifier> ::= \[a-zA-Z_\]\[a-zA-Z0-9_\]*
+    /// # Rule
+    /// \<identifier\> ::= \[a-zA-Z_\]\[a-zA-Z0-9_\]*
     Identifier(String),
     /// Holds an i64
-    /// Rule:
-    /// <integer> ::= ("+" | "-")? \[0-9\]+
+    /// # Rule
+    /// \<integer\> ::= ("+" | "-")? \[0-9\]+
     /// Integer and Double hold a string.
     Integer(String),
     /// Holds a f64
-    /// Rule:
-    /// <double> ::= ("+" | "-")? \[0-9\]* "." \[0-9\]+
+    /// # Rule
+    /// \<double\> ::= ("+" | "-")? \[0-9\]* "." \[0-9\]+
     /// Integer and Double hold a string.
     Double(String),
     /// Literal string, Unicode.
-    /// Rule:
-    /// <string> ::= """ <char>* """
+    /// # Rule
+    /// \<string\> ::= """ \<char\>* """
     String(String),
     /// single character, one or more Unicode code points.
     /// Rule:
-    /// <char>
+    /// \<char\> ::= \<unicode-code-point\>{1, 4}
+    /// \<unicode-code-point\> ::= \
+    /// \[0b10000000-0b11111111\]{0, 3}[0b00000000-0b01111111]
     Char(char),
     // single-character symbols, <symbol>
-    /// +
+    /// Literal symbol "+"
     Plus,
-    /// -
+    /// Literal symbol "-"
     Dash,
-    /// *
+    /// Literal symbol "*"
     Star,
-    /// /
+    /// Literal symbol "/"
     Slash,
-    /// \
+    /// Literal symbol "\"
     Backslash,
-    /// (
+    /// Literal symbol "("
     LParen,
-    /// )
+    /// Literal symbol ")"
     RParen,
-    /// .
+    /// Literal symbol "."
     Dot,
-    /// :
+    /// Literal symbol ":"
     Colon,
-    /// ;
+    /// Literal symbol ";"
     Semicolon,
-    /// ,
+    /// Literal symbol ","
     Comma,
-    /// =
+    /// Literal symbol "="
     Equal,
-    /// !
+    /// Literal symbol "!"
     Bang,
-    /// <
+    /// Literal symbol "<"
     LPBrace,
-    /// >
+    /// Literal symbol ">"
     RPBrace,
     // multiple-character symbols, <symbol>
-    /// !=
+    /// Literal symbol "!="
     BangEqual,
-    /// <=
+    /// Literal symbol "<="
     LPBraceEqual,
-    /// >=
+    /// Literal symbol ">="
     RPBraceEqual,
-    /// ==
+    /// Literal symbol "=="
     EqualEqual,
-    /// //
+    /// Literal symbol "//"
     SlashSlash,
     // keywords
+    /// Keyword "ya"
     Ya,
+    /// Keyword "na"
     Na,
+    /// Keyword "let"
     Let,
+    /// Keyword "static"
     Static,
+    /// Keyword "proc"
     Proc,
+    /// Keyword "return"
     Return,
 }
 
