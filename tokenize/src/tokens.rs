@@ -4,16 +4,18 @@
 pub enum TokenType {
     /// Just an identifier. ASCII.
     /// Rule:
-    /// <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
+    /// <identifier> ::= \[a-zA-Z_\]\[a-zA-Z0-9_\]*
     Identifier(String),
     /// Holds an i64
     /// Rule:
-    /// <integer> ::= [0-9]+
-    Integer(i64),
+    /// <integer> ::= ("+" | "-")? \[0-9\]+
+    /// Integer and Double hold a string.
+    Integer(String),
     /// Holds a f64
     /// Rule:
-    /// <double> ::= [0-9]* "." [0-9]+
-    Double(f64),
+    /// <double> ::= ("+" | "-")? \[0-9\]* "." \[0-9\]+
+    /// Integer and Double hold a string.
+    Double(String),
     /// Literal string, Unicode.
     /// Rule:
     /// <string> ::= """ <char>* """
@@ -62,6 +64,8 @@ pub enum TokenType {
     RPBraceEqual,
     /// ==
     EqualEqual,
+    /// //
+    SlashSlash,
     // keywords
     Ya,
     Na,
@@ -106,6 +110,11 @@ impl Token {
         &self.token_type
     }
 
+    #[must_use]
+    pub fn move_token_type(self) -> TokenType {
+        self.token_type
+    }
+
     /// Gets the line number of the current token.
     #[must_use]
     pub fn line_number(&self) -> usize {
@@ -116,5 +125,10 @@ impl Token {
     #[must_use]
     pub fn line_position(&self) -> usize {
         self.line_position
+    }
+
+    #[must_use]
+    pub fn bind(self) -> (TokenType, usize, usize) {
+        (self.token_type, self.line_number, self.line_position)
     }
 }

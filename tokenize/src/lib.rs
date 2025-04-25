@@ -1,11 +1,14 @@
 // TODO: remove allow unused when done
 #![allow(unused)]
 
+#[cfg(test)]
+mod test;
 pub mod tokens;
+
 use std::error::Error;
 use std::fmt::Display;
 
-pub use tokens::TokenType;
+pub use tokens::{Token, TokenType};
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -15,56 +18,63 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// # Errors
 /// - If we meet a dumb token, report an error.
-#[must_use]
-pub fn tokenize(input: &str) -> Vec<TokenType> {
-    let input_iter = UnicodeSegmentation::graphemes(input, true).enumerate();
-    let ret = Vec::new();
-    let mut line: usize = 0;
-    let mut state = TokenizerState::default();
-    for (idx, grapheme) in input_iter {
-        match grapheme {
-            "\n" => {
-                line += 1;
-            }
-            _ => todo!(),
-        }
+pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
+    // (line-number, pos-in-line, grapheme)
+    let input_iter = input.lines().enumerate().flat_map(|(lnum, s)| {
+        s.graphemes(true)
+            .enumerate()
+            .map(move |(idx, gr)| (lnum + 1, idx + 1, gr))
+    });
+    let mut dfa = TokDfa::default();
+    for (line, pos, grapheme) in input_iter {
+        dfa = dfa.call(line, pos, grapheme)?;
     }
-    ret
+
+    Ok(dfa.tok_vec)
 }
 
 #[derive(Debug, Clone)]
-pub enum TokenizeErrorType<'a> {
-    InvalidToken(&'a str),
+pub enum TokenizeErrorType {
+    InvalidToken(String),
+    InternalErr(&'static str),
 }
 
-impl Display for TokenizeErrorType<'_> {
+impl Display for TokenizeErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[allow(clippy::enum_glob_use)]
+        use TokenizeErrorType::*;
         match self {
-            TokenizeErrorType::InvalidToken(s) => {
+            InvalidToken(s) => {
                 write!(f, "Invalid token {s}")
+            }
+            InternalErr(s) => {
+                write!(f, "Internal tokenization error {s}")
             }
         }
     }
 }
 
-impl Error for TokenizeErrorType<'_> {}
+impl Error for TokenizeErrorType {}
 
 #[derive(Debug)]
-pub struct TokenizeError<'a> {
-    err_type: TokenizeErrorType<'a>,
+pub struct TokenizeError {
+    err_type: TokenizeErrorType,
+    cause: Option<Box<dyn Error>>,
     line: usize,
     pos: usize,
 }
 
-impl<'a> TokenizeError<'a> {
+impl TokenizeError {
     #[must_use]
     pub fn new(
-        err_type: TokenizeErrorType<'a>,
+        err_type: TokenizeErrorType,
+        cause: Option<impl Error + 'static>,
         line: usize,
         pos: usize,
     ) -> Self {
         Self {
             err_type,
+            cause: cause.map(std::convert::Into::into),
             line,
             pos,
         }
@@ -80,7 +90,7 @@ impl<'a> TokenizeError<'a> {
     }
 }
 
-impl Display for TokenizeError<'_> {
+impl Display for TokenizeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -90,62 +100,186 @@ impl Display for TokenizeError<'_> {
     }
 }
 
-impl Error for TokenizeError<'_> {}
-
-#[allow(dead_code)]
-struct TokenizerState {
-    transit_func:
-        fn(usize, usize, &str) -> Result<TokenizerState, TokenizeError>,
-}
-
-/// Basically a DFA.
-#[allow(dead_code)]
-impl TokenizerState {
-    pub fn new(
-        transit_func: fn(
-            usize,
-            usize,
-            &str,
-        ) -> Result<TokenizerState, TokenizeError>,
-    ) -> Self {
-        Self { transit_func }
-    }
-
-    /// The initial state's transit function.
-    /// ASCII only.
-    /// Match input:
-    ///
-    /// # Errors
-    /// - ``InvalidToken`` if non-ASCII.
-    fn init_transit(
-        line: usize,
-        pos: usize,
-        input: &str,
-    ) -> Result<TokenizerState, TokenizeError> {
-        if (!input.is_ascii()) {
-            return Err(TokenizeError::new(
-                TokenizeErrorType::InvalidToken(input),
-                line,
-                pos,
-            ));
-        }
-
-        match input.parse::<char>().unwrap() {
-            // TODO: write a num_transit function.
-            '0'..='9' => Ok(Self::new(Self::init_transit)),
-            _ => Err(TokenizeError::new(
-                TokenizeErrorType::InvalidToken(input),
-                line,
-                pos,
-            )),
-        }
+impl Error for TokenizeError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.cause.as_deref()
     }
 }
 
-impl Default for TokenizerState {
+type StateFn = fn(TokDfa, usize, usize, &str) -> Result<TokDfa, TokenizeError>;
+
+struct TokDfa {
+    tok_vec: Vec<Token>,
+    curr_tok: Option<Token>,
+    state_fn: StateFn,
+}
+
+impl Default for TokDfa {
     fn default() -> Self {
         Self {
-            transit_func: TokenizerState::init_transit,
+            tok_vec: Vec::new(),
+            curr_tok: None,
+            state_fn: TokDfa::init_state,
         }
+    }
+}
+
+impl TokDfa {
+    pub fn call(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<Self, TokenizeError> {
+        // fuck you borrow checker
+        let state_func =
+            std::mem::replace(&mut self.state_fn, Self::init_state);
+        self.state_fn = state_func;
+        state_func(self, line, pos, grapheme)
+    }
+
+    fn init_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<Self, TokenizeError> {
+        let chr = grapheme.parse::<char>().map_err(|e| {
+            TokenizeError::new(
+                TokenizeErrorType::InvalidToken(grapheme.into()),
+                Some(e),
+                line,
+                pos,
+            )
+        })?;
+
+        if chr.is_ascii_alphabetic() || chr as u8 == b'_' {
+            self.identifier_state(line, pos, grapheme)
+        } else if chr.is_ascii_digit() {
+            self.number_state(line, pos, grapheme)
+        } else if chr as u8 == b'"' {
+            self.state_fn = Self::string_state;
+            Ok(self)
+        } else if chr.is_ascii_whitespace() {
+            Ok(self)
+        } else {
+            self.symbol_state(line, pos, grapheme)
+        }
+    }
+
+    // the wrap is the mandatory interface.
+    #[allow(clippy::unnecessary_wraps)]
+    fn string_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<Self, TokenizeError> {
+        if grapheme == "\"" {
+            let mut old_tok = std::mem::take(&mut self.curr_tok);
+            debug_assert!(old_tok.is_some());
+            self.tok_vec.push(old_tok.unwrap());
+            self.state_fn = Self::init_state;
+            return Ok(self);
+        }
+
+        let mut old_tok = std::mem::take(&mut self.curr_tok);
+        match old_tok {
+            None => {
+                self.curr_tok = Some(Token::new(
+                    TokenType::String(String::from(grapheme)),
+                    line,
+                    pos,
+                ));
+                Ok(self)
+            }
+            Some(tok) => {
+                if let (TokenType::String(mut s), line, pos) = tok.bind() {
+                    s.push_str(grapheme);
+                    self.curr_tok =
+                        Some(Token::new(TokenType::String(s), line, pos));
+                    return Ok(self);
+                }
+                Err(TokenizeError::new(
+                    TokenizeErrorType::InternalErr("while tokenizing string"),
+                    // using some dummy generics.
+                    Option::<std::fmt::Error>::None,
+                    line,
+                    pos,
+                ))
+            }
+        }
+    }
+
+    fn number_state(
+        self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<Self, TokenizeError> {
+        todo!()
+    }
+
+    fn identifier_state(
+        self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<Self, TokenizeError> {
+        todo!()
+    }
+
+    fn symbol_state(
+        self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<Self, TokenizeError> {
+        todo!()
+    }
+
+    fn equal_state(
+        &mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<(), TokenizeError> {
+        todo!()
+    }
+
+    fn lpbrace_state(
+        &mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<(), TokenizeError> {
+        todo!()
+    }
+
+    fn rpbrace_state(
+        &mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<(), TokenizeError> {
+        todo!()
+    }
+
+    fn slash_state(
+        &mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<(), TokenizeError> {
+        todo!()
+    }
+
+    fn bang_state(
+        &mut self,
+        line: usize,
+        pos: usize,
+        grapheme: &str,
+    ) -> Result<(), TokenizeError> {
+        todo!()
     }
 }
