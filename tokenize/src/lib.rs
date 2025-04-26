@@ -286,7 +286,10 @@ impl TokDfa {
                     if let TokenType::String(_) = tok.token_type() {
                         self.tok_vec.push(tok);
                     } else {
-                        panic!("string_state: token type is NOT string")
+                        panic!(
+                            "Internal error: tokenize string_state:
+                            token type is NOT string"
+                        )
                     }
                 }
             }
