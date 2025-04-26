@@ -608,11 +608,14 @@ impl TokDfa {
     /// Equal state
     ///
     /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
     ///
     /// # Transition
     ///
     /// | input | next-state |
-    ///
+    /// | "=" | [`TokDfa::init_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
     fn equal_state(
         mut self,
         line: usize,
@@ -628,6 +631,17 @@ impl TokDfa {
         self.init_state(line, pos, grapheme)
     }
 
+    /// Left-pointy-brace state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | "=" | [`TokDfa::init_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
     fn lpbrace_state(
         mut self,
         line: usize,
@@ -643,6 +657,17 @@ impl TokDfa {
         self.init_state(line, pos, grapheme)
     }
 
+    /// Right-pointy-brace state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | "=" | [`TokDfa::init_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
     fn rpbrace_state(
         mut self,
         line: usize,
@@ -658,6 +683,17 @@ impl TokDfa {
         self.init_state(line, pos, grapheme)
     }
 
+    /// Slash state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | "/" | [`TokDfa::comment_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
     fn slash_state(
         mut self,
         line: usize,
@@ -673,6 +709,17 @@ impl TokDfa {
         self.init_state(line, pos, grapheme)
     }
 
+    /// Bang state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | "=" | [`TokDfa::init_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
     fn bang_state(
         mut self,
         line: usize,
@@ -688,6 +735,22 @@ impl TokDfa {
         self.init_state(line, pos, grapheme)
     }
 
+    /// Comment state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | LF or CRLF | [`TokDfa::init_state`] |
+    /// | else | [`TokDfa::comment_state`] |
+    ///
+    /// # Extra rules
+    /// - We check the line number to determine whether we did meet a LF or
+    ///   CRLF. We don't have the newline character because we trimmed it in
+    ///   the main tokenize function.
     #[allow(clippy::unnecessary_wraps)]
     fn comment_state(
         mut self,
