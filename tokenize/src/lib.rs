@@ -149,10 +149,7 @@ impl TokDfa {
         pos: usize,
         grapheme: &str,
     ) -> Result<Self, TokenizeError> {
-        // fuck you borrow checker
-        let state_func = mem::replace(&mut self.state_fn, Self::init_state);
-        self.state_fn = state_func;
-        state_func(self, line, pos, grapheme)
+        (self.state_fn)(self, line, pos, grapheme)
     }
 
     /// Returns whether the current state is an accepting state.
