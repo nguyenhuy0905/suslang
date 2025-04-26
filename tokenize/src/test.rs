@@ -89,3 +89,18 @@ fn keyword_and_identifier() {
         assert_eq!(s, "hello");
     }
 }
+
+#[test]
+fn number() {
+    let ret = tokenize("69420");
+    let ur = ret.unwrap();
+    assert!(!ur.is_empty());
+    let Some(Token {
+        token_type: TokenType::Integer(int_str),
+        ..
+    }) = ur.first()
+    else {
+        panic!("tokenize::test::number: ur wrong");
+    };
+    assert_eq!(int_str, "69420");
+}

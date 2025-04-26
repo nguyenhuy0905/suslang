@@ -324,12 +324,51 @@ impl TokDfa {
     }
 
     fn number_state(
-        self,
+        mut self,
         line: usize,
         pos: usize,
         grapheme: &str,
     ) -> Result<Self, TokenizeError> {
-        todo!()
+        // ensure grapheme is 1 ASCII character.
+        debug_assert!(grapheme.is_ascii() && grapheme.len() == 1);
+        let chr = grapheme.parse::<char>().map_err(|e| {
+            panic!("Internal error: identifier_state: char conversion failed")
+        })?;
+
+        if chr.is_ascii_whitespace() {
+            debug_assert!(self.curr_tok.is_some());
+            self.tok_vec.push(mem::take(&mut self.curr_tok).unwrap());
+            self.state_fn = Self::init_state;
+            return Ok(self);
+        }
+        if chr.is_ascii_digit() {
+            if let Some(tok) = &mut self.curr_tok {
+                let Token {
+                    token_type:
+                        TokenType::Integer(num_str) | TokenType::Double(num_str),
+                    ..
+                } = tok
+                else {
+                    panic!("Internal error: number_state: wrong token type");
+                };
+                num_str.push(chr);
+                return Ok(self);
+            }
+            self.curr_tok = Some(Token::new(
+                TokenType::Integer(String::from(chr)),
+                line,
+                pos,
+            ));
+            return Ok(self);
+        }
+        // for now, characters like e, u, and such, still return error.
+
+        Err(TokenizeError::new(
+            TokenizeErrorType::InvalidToken(String::from(chr)),
+            TokenizeError::INNOCENCE,
+            line,
+            pos,
+        ))
     }
 
     /// Identifier state.
