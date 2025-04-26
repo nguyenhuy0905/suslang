@@ -140,3 +140,10 @@ fn number() {
     };
     assert_eq!(int_str, "69420");
 }
+
+#[test]
+fn one_symbol() {
+    let ret = tokenize("+").unwrap();
+    assert!(!ret.is_empty());
+    assert!(matches!(ret.first().unwrap().token_type, TokenType::Plus));
+}

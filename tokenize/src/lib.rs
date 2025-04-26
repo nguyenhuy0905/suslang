@@ -466,7 +466,108 @@ impl TokDfa {
     }
 
     fn symbol_state(
-        self,
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: char,
+    ) -> Result<Self, TokenizeError> {
+
+        let mut push_curr_tok = || {
+            if let Some(tok) = mem::take(&mut self.curr_tok) {
+                self.tok_vec.push(tok);
+            }
+        };
+
+        let tok_type = match grapheme {
+            '+' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Plus)
+            }
+            '-' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Dash)
+            }
+            '*' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Star)
+            }
+            '/' => {
+                push_curr_tok();
+                self.state_fn = Self::slash_state;
+                Ok(TokenType::Dash)
+            }
+            '\\' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Backslash)
+            }
+            '(' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::LParen)
+            }
+            ')' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::RParen)
+            }
+            '.' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Dot)
+            }
+            ':' => {
+                push_curr_tok();
+                // TODO: do I want namespace resolution with ::?
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Colon)
+            }
+            ';' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Semicolon)
+            }
+            ';' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::Colon)
+            }
+            '=' => {
+                push_curr_tok();
+                self.state_fn = Self::equal_state;
+                Ok(TokenType::Equal)
+            }
+            '!' => {
+                push_curr_tok();
+                self.state_fn = Self::bang_state;
+                Ok(TokenType::Bang)
+            }
+            '<' => {
+                push_curr_tok();
+                self.state_fn = Self::lpbrace_state;
+                Ok(TokenType::LPBrace)
+            }
+            '>' => {
+                push_curr_tok();
+                self.state_fn = Self::rpbrace_state;
+                Ok(TokenType::RPBrace)
+            }
+            _ => Err(TokenizeError::new(
+                TokenizeErrorType::InvalidToken(grapheme.into()),
+                TokenizeError::INNOCENCE,
+                line,
+                pos,
+            )),
+        }?;
+        self.tok_vec.push(Token::new(tok_type, line, pos));
+        Ok(self)
+    }
+
+    fn equal_state(
+        mut self,
         line: usize,
         pos: usize,
         grapheme: char,
@@ -474,48 +575,39 @@ impl TokDfa {
         todo!()
     }
 
-    fn equal_state(
-        &mut self,
-        line: usize,
-        pos: usize,
-        grapheme: char,
-    ) -> Result<(), TokenizeError> {
-        todo!()
-    }
-
     fn lpbrace_state(
-        &mut self,
+        mut self,
         line: usize,
         pos: usize,
         grapheme: char,
-    ) -> Result<(), TokenizeError> {
+    ) -> Result<Self, TokenizeError> {
         todo!()
     }
 
     fn rpbrace_state(
-        &mut self,
+        mut self,
         line: usize,
         pos: usize,
         grapheme: char,
-    ) -> Result<(), TokenizeError> {
+    ) -> Result<Self, TokenizeError> {
         todo!()
     }
 
     fn slash_state(
-        &mut self,
+        mut self,
         line: usize,
         pos: usize,
         grapheme: char,
-    ) -> Result<(), TokenizeError> {
+    ) -> Result<Self, TokenizeError> {
         todo!()
     }
 
     fn bang_state(
-        &mut self,
+        mut self,
         line: usize,
         pos: usize,
         grapheme: char,
-    ) -> Result<(), TokenizeError> {
+    ) -> Result<Self, TokenizeError> {
         todo!()
     }
 }
