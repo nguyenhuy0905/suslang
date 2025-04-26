@@ -189,6 +189,20 @@ fn one_symbol() {
 }
 
 #[test]
+fn symbols_on_multi_line() {
+    let ret = tokenize("=\n=").unwrap();
+    assert_eq!(ret.len(), 2);
+    assert!(matches!(
+        ret.get(1).unwrap(),
+        Token {
+            token_type: TokenType::Equal,
+            line_number: 2,
+            ..
+        }
+    ));
+}
+
+#[test]
 fn comparisons() {
     let ret = tokenize("<= >= !=").unwrap();
     assert_eq!(ret.len(), 3);

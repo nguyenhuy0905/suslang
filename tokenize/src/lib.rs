@@ -597,7 +597,7 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        if grapheme == '=' {
+        if grapheme == '=' && self.tok_vec.last().unwrap().line_number == line {
             *self.tok_vec.last_mut().unwrap() =
                 Token::new(TokenType::EqualEqual, line, pos);
             self.state_fn = Self::init_state;
@@ -612,7 +612,7 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        if grapheme == '=' {
+        if grapheme == '=' && self.tok_vec.last().unwrap().line_number == line {
             *self.tok_vec.last_mut().unwrap() =
                 Token::new(TokenType::LPBraceEqual, line, pos);
             self.state_fn = Self::init_state;
@@ -627,7 +627,7 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        if grapheme == '=' {
+        if grapheme == '=' && self.tok_vec.last().unwrap().line_number == line {
             *self.tok_vec.last_mut().unwrap() =
                 Token::new(TokenType::RPBraceEqual, line, pos);
             self.state_fn = Self::init_state;
@@ -642,7 +642,7 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        if grapheme == '/' {
+        if grapheme == '/' && self.tok_vec.last().unwrap().line_number == line {
             *self.tok_vec.last_mut().unwrap() =
                 Token::new(TokenType::SlashSlash, line, pos);
             self.state_fn = Self::comment_state;
