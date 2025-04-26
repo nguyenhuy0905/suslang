@@ -27,7 +27,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     for (line, pos, grapheme) in input_iter {
         dfa = dfa.transition(line, pos, grapheme)?;
     }
-    dfa.finalize();
+    dfa.finalize()?;
 
     Ok(dfa.tok_vec)
 }
