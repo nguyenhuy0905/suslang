@@ -242,6 +242,14 @@ impl TokDfa {
                 pos,
             )
         })?;
+        if !chr.is_ascii() {
+            return Err(TokenizeError::new(
+                TokenizeErrorType::InvalidToken(chr.into()),
+                TokenizeError::INNOCENCE,
+                line,
+                pos,
+            ));
+        }
 
         if chr.is_ascii_alphabetic() || chr as u8 == b'_' {
             self.state_fn = Self::identifier_state;
@@ -417,10 +425,17 @@ impl TokDfa {
         grapheme: &str,
     ) -> Result<Self, TokenizeError> {
         // ensure grapheme is 1 ASCII character.
-        debug_assert!(grapheme.is_ascii() && grapheme.len() == 1);
         let chr = grapheme.parse::<char>().map_err(|e| {
             panic!("Internal error: identifier_state: char conversion failed")
         })?;
+        if !chr.is_ascii() {
+            return Err(TokenizeError::new(
+                TokenizeErrorType::InvalidToken(chr.into()),
+                TokenizeError::INNOCENCE,
+                line,
+                pos,
+            ));
+        }
         #[cfg(debug_assertions)]
         if self.curr_tok.is_none() {
             debug_assert!(chr.is_ascii_alphabetic() || chr == '_');

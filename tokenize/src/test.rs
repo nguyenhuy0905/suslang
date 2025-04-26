@@ -8,6 +8,16 @@ fn ignore_space() {
 }
 
 #[test]
+fn non_ascii_begin_token() {
+    let ret = tokenize("\u{f4a2} russ \u{f4a2}");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret.err().unwrap().err_type,
+        TokenizeErrorType::InvalidToken(_)
+    ));
+}
+
+#[test]
 fn simple_string() {
     let ret = tokenize("\"hello\"");
     assert!(ret.is_ok());
@@ -83,6 +93,16 @@ fn simple_identifier() {
         assert!(!s.is_empty());
         assert_eq!(s, "hello");
     }
+}
+
+#[test]
+fn non_ascii_identifier() {
+    let ret = tokenize("hello\u{eee2}");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret.err().unwrap().err_type,
+        TokenizeErrorType::InvalidToken(_)
+    ));
 }
 
 #[test]
