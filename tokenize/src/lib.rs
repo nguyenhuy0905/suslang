@@ -555,10 +555,10 @@ impl TokDfa {
                 self.state_fn = Self::init_state;
                 Ok(TokenType::Semicolon)
             }
-            ';' => {
+            ',' => {
                 push_curr_tok();
                 self.state_fn = Self::init_state;
-                Ok(TokenType::Colon)
+                Ok(TokenType::Comma)
             }
             '=' => {
                 push_curr_tok();
