@@ -271,3 +271,26 @@ fn multiple_exprs() {
         cmp_arr
     );
 }
+
+#[test]
+fn funny_looking_code() {
+    let ret = tokenize("proc hello() {\nlet goodbye_1 = 1;\n}").unwrap();
+    let cmp_arr = [
+        TokenType::Proc,
+        TokenType::Identifier("hello".into()),
+        TokenType::LParen,
+        TokenType::RParen,
+        TokenType::LCParen,
+        TokenType::Let,
+        TokenType::Identifier("goodbye_1".into()),
+        TokenType::Equal,
+        TokenType::Integer("1".into()),
+        TokenType::Semicolon,
+        TokenType::RCParen,
+    ];
+    assert_eq!(ret.len(), cmp_arr.len());
+    assert_eq!(
+        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
+}

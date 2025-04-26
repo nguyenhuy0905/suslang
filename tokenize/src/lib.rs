@@ -558,6 +558,16 @@ impl TokDfa {
                 self.state_fn = Self::init_state;
                 Ok(TokenType::RParen)
             }
+            '{' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::LCParen)
+            }
+            '}' => {
+                push_curr_tok();
+                self.state_fn = Self::init_state;
+                Ok(TokenType::RCParen)
+            }
             '.' => {
                 push_curr_tok();
                 self.state_fn = Self::init_state;

@@ -50,6 +50,10 @@ pub enum TokenType {
     LParen,
     /// Literal symbol ")"
     RParen,
+    /// Literal symbol "{"
+    LCParen,
+    /// Literal symbol "}"
+    RCParen,
     /// Literal symbol "."
     Dot,
     /// Literal symbol ":"
