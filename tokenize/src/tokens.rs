@@ -17,12 +17,12 @@ pub enum TokenType {
     Identifier(String) = 0,
     /// Holds an i64
     /// # Rule
-    /// \<integer\> ::= ("+" | "-")? \[0-9\]+
+    /// \<integer\> ::= \[0-9\]+
     /// Integer and Double hold a string.
     Integer(String),
     /// Holds a f64
     /// # Rule
-    /// \<double\> ::= ("+" | "-")? \[0-9\]* "." \[0-9\]+
+    /// \<double\> ::= \[0-9\]* "." \[0-9\]+
     /// Integer and Double hold a string.
     Double(String),
     /// Literal string, Unicode.
