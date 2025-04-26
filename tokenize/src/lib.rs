@@ -69,6 +69,9 @@ pub struct TokenizeError {
 }
 
 impl TokenizeError {
+    /// Pass to `cause` in [`new`] when there's no cause.
+    const INNOCENCE: Option<std::fmt::Error> = None;
+
     #[must_use]
     fn new(
         err_type: TokenizeErrorType,
@@ -164,15 +167,17 @@ impl TokDfa {
             if let Some(tok) = &self.curr_tok {
                 return Err(TokenizeError::new(
                     TokenizeErrorType::UnfinishedToken,
-                    None::<std::fmt::Error>,
+                    TokenizeError::INNOCENCE,
                     tok.line_number(),
                     tok.line_position(),
                 ));
             }
-            todo!(
-                r#""finalize: handle case where state machine is not accepting
-                and there's no current token"#
-            )
+            return Err(TokenizeError::new(
+                TokenizeErrorType::UnfinishedToken,
+                TokenizeError::INNOCENCE,
+                1,
+                0,
+            ));
         }
         let old_tok = std::mem::take(&mut self.curr_tok);
         if old_tok.is_none() {
@@ -318,21 +323,14 @@ impl TokDfa {
         // ensure grapheme is 1 ASCII character.
         debug_assert!(grapheme.is_ascii() && grapheme.len() == 1);
         let chr = grapheme.parse::<char>().map_err(|e| {
-            TokenizeError::new(
-                TokenizeErrorType::InternalErr(
-                    "identifier_state: char conversion failed",
-                ),
-                Some(e),
-                line,
-                pos,
-            )
+            panic!("Internal error: identifier_state: char conversion failed")
         })?;
         #[cfg(debug_assertions)]
         if self.curr_tok.is_none() {
             debug_assert!(chr.is_ascii_alphabetic() || chr == '_');
         }
 
-        if chr == ' ' {
+        if chr.is_ascii_whitespace() {
             debug_assert!(self.curr_tok.is_some());
             let old_tok = std::mem::take(&mut self.curr_tok).unwrap();
 
@@ -344,14 +342,7 @@ impl TokDfa {
                     self.tok_vec.push(old_tok);
                 }
             } else {
-                return Err(TokenizeError::new(
-                    TokenizeErrorType::InternalErr(
-                        "identifier_state: wrong token type",
-                    ),
-                    None::<std::fmt::Error>,
-                    line,
-                    pos,
-                ));
+                panic!("Internal error: identifier_state: wrong token type")
             }
             self.state_fn = Self::init_state;
             return Ok(self);
@@ -372,14 +363,7 @@ impl TokDfa {
                 Some(Token::new(TokenType::Identifier(s), line, pos));
             Ok(self)
         } else {
-            Err(TokenizeError::new(
-                TokenizeErrorType::InternalErr(
-                    "identifier_state: wrong token type",
-                ),
-                None::<std::fmt::Error>,
-                line,
-                pos,
-            ))
+            panic!("Internal error: identifier_state: wrong token type")
         }
     }
 
