@@ -189,6 +189,21 @@ fn one_symbol() {
 }
 
 #[test]
+fn comparisons() {
+    let ret = tokenize("<= >= !=").unwrap();
+    assert_eq!(ret.len(), 3);
+    let cmp_arr = [
+        TokenType::LPBraceEqual,
+        TokenType::RPBraceEqual,
+        TokenType::BangEqual,
+    ];
+    assert_eq!(
+        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
+}
+
+#[test]
 fn multi_word_symbol() {
     let ret = tokenize("===").unwrap();
     assert_eq!(ret.len(), 2);
