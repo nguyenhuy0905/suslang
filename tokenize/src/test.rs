@@ -65,6 +65,21 @@ fn string_error() {
 }
 
 #[test]
+fn unfinished_string() {
+    let ret = tokenize("\"hello");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::UnfinishedToken,
+            line: 1,
+            pos: 2, // the position of the 'h'
+            ..
+        })
+    ));
+}
+
+#[test]
 fn empty_string() {
     let ret = tokenize("\"\"");
     assert!(ret.is_ok());
@@ -146,4 +161,13 @@ fn one_symbol() {
     let ret = tokenize("+").unwrap();
     assert!(!ret.is_empty());
     assert!(matches!(ret.first().unwrap().token_type, TokenType::Plus));
+}
+
+#[test]
+fn multi_word_symbol() {
+    let ret = tokenize("===").unwrap();
+    assert_eq!(ret.len(), 2);
+    let ret = ret.into_iter().map(|tt| tt.token_type).collect::<Vec<_>>();
+    let cmp_vec = [TokenType::EqualEqual, TokenType::Equal];
+    assert_eq!(ret, cmp_vec);
 }

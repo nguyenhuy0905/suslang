@@ -471,7 +471,6 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-
         let mut push_curr_tok = || {
             if let Some(tok) = mem::take(&mut self.curr_tok) {
                 self.tok_vec.push(tok);
@@ -572,7 +571,13 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        todo!()
+        if grapheme == '=' {
+            *self.tok_vec.last_mut().unwrap() =
+                Token::new(TokenType::EqualEqual, line, pos);
+            self.state_fn = Self::init_state;
+            return Ok(self);
+        }
+        self.init_state(line, pos, grapheme)
     }
 
     fn lpbrace_state(
