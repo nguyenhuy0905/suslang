@@ -31,9 +31,9 @@ pub enum TokenType {
     String(String),
     /// single character, one or more Unicode code points.
     /// Rule:
-    /// \<char\> ::= \<unicode-code-point\>{1, 4}
+    /// \<char\> ::= \<unicode-code-points\>
     /// \<unicode-code-point\> ::= \
-    /// \[0b10000000-0b11111111\]{0, 3}[0b00000000-0b01111111]
+    /// \[0b10000000-0b11111111\]{0, 3}\[0b00000000-0b01111111\]
     Char(char),
     // single-character symbols, <symbol>
     /// Literal symbol "+"
