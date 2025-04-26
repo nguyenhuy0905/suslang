@@ -24,6 +24,22 @@ fn simple_string() {
 }
 
 #[test]
+fn unicode_string() {
+    let ret = tokenize("\"hello\u{f4a2}!\"");
+    assert!(ret.is_ok());
+    let ur = ret.unwrap();
+    assert!(!ur.is_empty());
+    assert!(matches!(
+        ur.first().unwrap().token_type(),
+        TokenType::String(_)
+    ));
+    if let TokenType::String(s) = ur.first().unwrap().token_type() {
+        assert_eq!(s, "hello\u{f4a2}!");
+        assert_ne!(s, "hell");
+    }
+}
+
+#[test]
 fn string_error() {
     let ret = tokenize("\"");
     assert!(ret.is_err());
