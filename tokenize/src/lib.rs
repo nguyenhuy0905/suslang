@@ -159,6 +159,13 @@ impl TokDfa {
         !std::ptr::fn_addr_eq(self.state_fn, Self::string_state as StateFn)
     }
 
+    /// Checks to see if:
+    /// 1. The state machine stops at an accepting state
+    ///    [`TokDfa::is_at_accepting_state`].
+    /// 2. There's any non-empty token left not put into the token vector.
+    ///
+    /// If 1, return an error of type [`TokenizeErrorType::UnfinishedToken`].
+    /// If 2, simply push that token onto the vector.
     pub fn finalize(&mut self) -> Result<(), TokenizeError> {
         if !self.is_at_accepting_state() {
             if let Some(tok) = &self.curr_tok {
@@ -320,6 +327,25 @@ impl TokDfa {
         }
     }
 
+    /// Number state.
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    ///
+    /// # Transition
+    /// | input | next-state |
+    /// | ----- | ---------- |
+    /// | [0-9] | [`TokDfa::number_state`] |
+    /// | "." | todo: ``double_state`` |
+    /// | <whitespace> | [`TokDfa::init_state`] |
+    ///
+    /// # Extra rules
+    /// - \<whitespace\> ::= LF, SPACE, TAB, FF, CR
+    ///
+    /// TODO: add a ``double_state`` to tokenize a double (in integer state then
+    /// receive a dot).
+    ///
+    /// # Note
+    /// - Some special symbols (dot, e) not handled yet.
     fn number_state(
         mut self,
         line: usize,
@@ -377,7 +403,13 @@ impl TokDfa {
     /// | input | next-state |
     /// | ----- | ---------- |
     /// | [a-zA-z0-9_] | [`TokDfa::identifier_state`] |
-    /// | <space> | [`TokDfa::init_state`] |
+    /// | <whitespace> | [`TokDfa::init_state`] |
+    ///
+    /// # Extra rules
+    /// - When processing a \<whitespace\>, performs a keyword lookup for the
+    ///   currently held identifier.
+    ///   - If the identifier matches a keyword (e.g. "let"), change the token
+    ///     type to the corresponding keyword type (e.g. [`TokenType::Let`]).
     fn identifier_state(
         mut self,
         line: usize,
