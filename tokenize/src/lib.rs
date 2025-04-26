@@ -186,6 +186,15 @@ impl TokDfa {
                 0,
             ));
         }
+        if let Some(Token {
+            token_type: TokenType::SlashSlash,
+            ..
+        }) = self.tok_vec.last()
+        {
+            debug_assert!(self.curr_tok.is_none());
+            self.tok_vec.pop();
+            return Ok(());
+        }
         let old_tok = mem::take(&mut self.curr_tok);
         if old_tok.is_none() {
             return Ok(());
@@ -363,16 +372,33 @@ impl TokDfa {
             return Ok(self);
         }
         if grapheme.is_ascii_digit() {
-            if let Some(tok) = &mut self.curr_tok {
+            if let Some(tok) = mem::take(&mut self.curr_tok) {
                 let Token {
-                    token_type:
-                        TokenType::Integer(num_str) | TokenType::Double(num_str),
+                    token_type: TokenType::Integer(mut num_str),
                     ..
                 } = tok
                 else {
                     panic!("Internal error: number_state: wrong token type");
                 };
-                num_str.push(grapheme);
+                if line == tok.line_number {
+                    num_str.push(grapheme);
+                    self.curr_tok = Some(Token::new(
+                        TokenType::Integer(num_str),
+                        tok.line_number,
+                        tok.line_position,
+                    ));
+                } else {
+                    self.tok_vec.push(Token::new(
+                        TokenType::Integer(num_str),
+                        tok.line_number,
+                        tok.line_position,
+                    ));
+                    self.curr_tok = Some(Token::new(
+                        TokenType::Integer(grapheme.into()),
+                        line,
+                        pos,
+                    ));
+                }
                 return Ok(self);
             }
             self.curr_tok = Some(Token::new(
@@ -586,7 +612,13 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        todo!()
+        if grapheme == '=' {
+            *self.tok_vec.last_mut().unwrap() =
+                Token::new(TokenType::LPBraceEqual, line, pos);
+            self.state_fn = Self::init_state;
+            return Ok(self);
+        }
+        self.init_state(line, pos, grapheme)
     }
 
     fn rpbrace_state(
@@ -595,7 +627,13 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        todo!()
+        if grapheme == '=' {
+            *self.tok_vec.last_mut().unwrap() =
+                Token::new(TokenType::RPBraceEqual, line, pos);
+            self.state_fn = Self::init_state;
+            return Ok(self);
+        }
+        self.init_state(line, pos, grapheme)
     }
 
     fn slash_state(
@@ -604,7 +642,13 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        todo!()
+        if grapheme == '/' {
+            *self.tok_vec.last_mut().unwrap() =
+                Token::new(TokenType::SlashSlash, line, pos);
+            self.state_fn = Self::comment_state;
+            return Ok(self);
+        }
+        self.init_state(line, pos, grapheme)
     }
 
     fn bang_state(
@@ -613,6 +657,36 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        todo!()
+        if grapheme == '=' {
+            *self.tok_vec.last_mut().unwrap() =
+                Token::new(TokenType::BangEqual, line, pos);
+            self.state_fn = Self::init_state;
+            return Ok(self);
+        }
+        self.init_state(line, pos, grapheme)
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn comment_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: char,
+    ) -> Result<Self, TokenizeError> {
+        // we trim newlines anyways
+        debug_assert_ne!(grapheme, '\n');
+
+        debug_assert!(self.tok_vec.last().is_some());
+        debug_assert_eq!(
+            self.tok_vec.last().unwrap().token_type,
+            TokenType::SlashSlash
+        );
+        let curr_line = self.tok_vec.last().unwrap().line_number;
+        if line > curr_line {
+            self.tok_vec.pop();
+            self.init_state(line, pos, grapheme)
+        } else {
+            Ok(self)
+        }
     }
 }

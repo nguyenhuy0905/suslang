@@ -95,6 +95,16 @@ fn empty_string() {
 }
 
 #[test]
+fn multiline_string() {
+    let ret = tokenize("\"hell\no\"").unwrap();
+    assert_eq!(ret.len(), 1);
+    assert_eq!(
+        ret.first().unwrap().token_type,
+        TokenType::String("hello".into())
+    );
+}
+
+#[test]
 fn simple_identifier() {
     let ret = tokenize("hello");
     assert!(ret.is_ok());
@@ -157,6 +167,21 @@ fn number() {
 }
 
 #[test]
+fn multiline_number() {
+    let ret = tokenize("69420\n66666\n424242").unwrap();
+    assert_eq!(ret.len(), 3);
+    let cmp_arr = [
+        TokenType::Integer("69420".into()),
+        TokenType::Integer("66666".into()),
+        TokenType::Integer("424242".into()),
+    ];
+    assert_eq!(
+        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
+}
+
+#[test]
 fn one_symbol() {
     let ret = tokenize("+").unwrap();
     assert!(!ret.is_empty());
@@ -170,4 +195,35 @@ fn multi_word_symbol() {
     let ret = ret.into_iter().map(|tt| tt.token_type).collect::<Vec<_>>();
     let cmp_vec = [TokenType::EqualEqual, TokenType::Equal];
     assert_eq!(ret, cmp_vec);
+}
+
+#[test]
+fn comment() {
+    let ret = tokenize("// hello this is a comment").unwrap();
+    assert!(ret.is_empty());
+}
+
+#[test]
+fn comment_and_line() {
+    let ret = tokenize("// hello this is a comment\n\"hello\"").unwrap();
+    assert_eq!(ret.len(), 1);
+    assert_eq!(
+        ret.first().unwrap().token_type,
+        TokenType::String("hello".into())
+    );
+}
+
+#[test]
+fn multiple_exprs() {
+    let ret = tokenize("\"hello\";\"goodbye\"").unwrap();
+    assert_eq!(ret.len(), 3);
+    let cmp_arr = [
+        TokenType::String("hello".into()),
+        TokenType::Semicolon,
+        TokenType::String("goodbye".into()),
+    ];
+    assert_eq!(
+        ret.into_iter().map(|tt| tt.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
 }
