@@ -471,24 +471,29 @@ impl TokDfa {
             self.state_fn = Self::init_state;
             return Ok(self);
         }
-        let old_tok = mem::take(&mut self.curr_tok);
-        if old_tok.is_none() {
-            self.curr_tok = Some(Token::new(
-                TokenType::Identifier(grapheme.into()),
-                line,
-                pos,
-            ));
-            return Ok(self);
-        }
-        let old_tok = old_tok.unwrap();
-        if let (TokenType::Identifier(mut s), line, pos) = old_tok.bind() {
-            s.push(grapheme);
-            self.curr_tok =
-                Some(Token::new(TokenType::Identifier(s), line, pos));
-            Ok(self)
-        } else {
+        if grapheme.is_ascii_alphanumeric() || grapheme == '_' {
+            let old_tok = mem::take(&mut self.curr_tok);
+            if old_tok.is_none() {
+                self.curr_tok = Some(Token::new(
+                    TokenType::Identifier(grapheme.into()),
+                    line,
+                    pos,
+                ));
+                return Ok(self);
+            }
+            let old_tok = old_tok.unwrap();
+            if let (TokenType::Identifier(mut s), line, pos) = old_tok.bind() {
+                s.push(grapheme);
+                self.curr_tok =
+                    Some(Token::new(TokenType::Identifier(s), line, pos));
+                return Ok(self);
+            }
             panic!("Internal error: identifier_state: wrong token type")
         }
+        if let Some(tok) = mem::take(&mut self.curr_tok) {
+            self.tok_vec.push(tok);
+        }
+        self.init_state(line, pos, grapheme)
     }
 
     /// Symbol state
@@ -561,7 +566,7 @@ impl TokDfa {
             ':' => {
                 push_curr_tok();
                 // TODO: do I want namespace resolution with ::?
-                self.state_fn = Self::init_state;
+                self.state_fn = Self::colon_state;
                 Ok(TokenType::Colon)
             }
             ';' => {
@@ -704,6 +709,32 @@ impl TokDfa {
             *self.tok_vec.last_mut().unwrap() =
                 Token::new(TokenType::SlashSlash, line, pos);
             self.state_fn = Self::comment_state;
+            return Ok(self);
+        }
+        self.init_state(line, pos, grapheme)
+    }
+
+    /// Colon state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | ":" | [`TokDfa::init_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
+    fn colon_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: char,
+    ) -> Result<Self, TokenizeError> {
+        if grapheme == ':' && self.tok_vec.last().unwrap().line_number == line {
+            *self.tok_vec.last_mut().unwrap() =
+                Token::new(TokenType::ColonColon, line, pos);
+            self.state_fn = Self::init_state;
             return Ok(self);
         }
         self.init_state(line, pos, grapheme)

@@ -77,6 +77,8 @@ pub enum TokenType {
     EqualEqual,
     /// Literal symbol "//"
     SlashSlash,
+    /// Literal symbol "::"
+    ColonColon,
     // keywords
     /// Keyword "ya"
     Ya,
