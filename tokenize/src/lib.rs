@@ -7,6 +7,7 @@ pub mod tokens;
 
 use std::error::Error;
 use std::fmt::Display;
+use std::mem;
 
 pub use tokens::{Token, TokenType};
 
@@ -149,8 +150,7 @@ impl TokDfa {
         grapheme: &str,
     ) -> Result<Self, TokenizeError> {
         // fuck you borrow checker
-        let state_func =
-            std::mem::replace(&mut self.state_fn, Self::init_state);
+        let state_func = mem::replace(&mut self.state_fn, Self::init_state);
         self.state_fn = state_func;
         state_func(self, line, pos, grapheme)
     }
@@ -179,7 +179,7 @@ impl TokDfa {
                 0,
             ));
         }
-        let old_tok = std::mem::take(&mut self.curr_tok);
+        let old_tok = mem::take(&mut self.curr_tok);
         if old_tok.is_none() {
             return Ok(());
         }
@@ -256,7 +256,7 @@ impl TokDfa {
         grapheme: &str,
     ) -> Result<Self, TokenizeError> {
         if grapheme == "\"" {
-            let old_tok = std::mem::take(&mut self.curr_tok);
+            let old_tok = mem::take(&mut self.curr_tok);
             match old_tok {
                 None => self.tok_vec.push(Token::new(
                     TokenType::String(String::new()),
@@ -275,7 +275,7 @@ impl TokDfa {
             return Ok(self);
         }
 
-        let old_tok = std::mem::take(&mut self.curr_tok);
+        let old_tok = mem::take(&mut self.curr_tok);
         match old_tok {
             None => {
                 self.curr_tok = Some(Token::new(
@@ -332,7 +332,7 @@ impl TokDfa {
 
         if chr.is_ascii_whitespace() {
             debug_assert!(self.curr_tok.is_some());
-            let old_tok = std::mem::take(&mut self.curr_tok).unwrap();
+            let old_tok = mem::take(&mut self.curr_tok).unwrap();
 
             // in case the token is a reserved keyword
             if let (TokenType::Identifier(s), line, pos) = old_tok.bind_ref() {
@@ -347,7 +347,7 @@ impl TokDfa {
             self.state_fn = Self::init_state;
             return Ok(self);
         }
-        let old_tok = std::mem::take(&mut self.curr_tok);
+        let old_tok = mem::take(&mut self.curr_tok);
         if old_tok.is_none() {
             self.curr_tok = Some(Token::new(
                 TokenType::Identifier(String::from(chr)),
