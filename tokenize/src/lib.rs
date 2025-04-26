@@ -202,6 +202,11 @@ impl TokDfa {
         Ok(())
     }
 
+    // TODO: tryna also document the (side) state changes. E,g, when
+    // transitioning, a character/grapheme is pushed into a buffer sometimes,
+    // and sometimes it converts that into a token and then pushes that into
+    // the vector of tokens.
+
     /// The initial state.
     ///
     /// Parameter passing follows the rule defined in [`TokDfa::transition`].
@@ -249,6 +254,20 @@ impl TokDfa {
         }
     }
 
+    // must maintain interface.
+    /// String state.
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    ///
+    /// # Transition
+    /// - States preceded by "fwd" indicate the input is forwarded to that
+    ///   state. Otherwise, the input is consumed by the current state.
+    ///
+    /// | input | next-state |
+    /// | ----- | ---------- |
+    /// | [<char>](tokens::TokenType::Char) | [`TokDfa::string_state`] |
+    /// | """ | [`TokDfa::init_state`] |
+    #[allow(clippy::unnecessary_wraps)]
     fn string_state(
         mut self,
         line: usize,
@@ -293,14 +312,10 @@ impl TokDfa {
                         Some(Token::new(TokenType::String(s), line, pos));
                     return Ok(self);
                 }
-                // maybe this shoulda just been a panic
-                Err(TokenizeError::new(
-                    TokenizeErrorType::InternalErr("while tokenizing string"),
-                    // using some dummy generics.
-                    Option::<std::fmt::Error>::None,
-                    line,
-                    pos,
-                ))
+                panic!(
+                    "Internal error: string_state: old token type is NOT
+                    string"
+                )
             }
         }
     }
@@ -314,6 +329,16 @@ impl TokDfa {
         todo!()
     }
 
+    /// Identifier state.
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | ----- | ---------- |
+    /// | [a-zA-z0-9_] | [`TokDfa::identifier_state`] |
+    /// | <space> | [`TokDfa::init_state`] |
     fn identifier_state(
         mut self,
         line: usize,
