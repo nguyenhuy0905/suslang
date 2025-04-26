@@ -17,12 +17,15 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// # Errors
 /// - If tokenization fails, returns a [`TokenizeError`].
+///
+/// # Panics
+/// - Shouldn't happen unless ``graphemes`` works incorrectly.
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     // (line-number, pos-in-line, grapheme)
     let input_iter = input.lines().enumerate().flat_map(|(lnum, s)| {
-        s.graphemes(true)
-            .enumerate()
-            .map(move |(idx, gr)| (lnum + 1, idx + 1, gr))
+        s.graphemes(true).enumerate().map(move |(idx, gr)| {
+            (lnum + 1, idx + 1, gr.parse::<char>().unwrap())
+        })
     });
     let mut dfa = TokDfa::default();
     for (line, pos, grapheme) in input_iter {
@@ -114,7 +117,7 @@ impl Error for TokenizeError {
     }
 }
 
-type StateFn = fn(TokDfa, usize, usize, &str) -> Result<TokDfa, TokenizeError>;
+type StateFn = fn(TokDfa, usize, usize, char) -> Result<TokDfa, TokenizeError>;
 
 struct TokDfa {
     tok_vec: Vec<Token>,
@@ -147,7 +150,7 @@ impl TokDfa {
         mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<Self, TokenizeError> {
         (self.state_fn)(self, line, pos, grapheme)
     }
@@ -232,34 +235,26 @@ impl TokDfa {
         mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        let chr = grapheme.parse::<char>().map_err(|e| {
-            TokenizeError::new(
-                TokenizeErrorType::InvalidToken(grapheme.into()),
-                Some(e),
-                line,
-                pos,
-            )
-        })?;
-        if !chr.is_ascii() {
+        if !grapheme.is_ascii() {
             return Err(TokenizeError::new(
-                TokenizeErrorType::InvalidToken(chr.into()),
+                TokenizeErrorType::InvalidToken(grapheme.into()),
                 TokenizeError::INNOCENCE,
                 line,
                 pos,
             ));
         }
 
-        if chr.is_ascii_alphabetic() || chr as u8 == b'_' {
+        if grapheme.is_ascii_alphabetic() || grapheme == '_' {
             self.state_fn = Self::identifier_state;
             self.identifier_state(line, pos, grapheme)
-        } else if chr.is_ascii_digit() {
+        } else if grapheme.is_ascii_digit() {
             self.number_state(line, pos, grapheme)
-        } else if chr as u8 == b'"' {
+        } else if grapheme as u8 == b'"' {
             self.state_fn = Self::string_state;
             Ok(self)
-        } else if chr.is_ascii_whitespace() {
+        } else if grapheme.is_ascii_whitespace() {
             Ok(self)
         } else {
             self.symbol_state(line, pos, grapheme)
@@ -284,9 +279,9 @@ impl TokDfa {
         mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        if grapheme == "\"" {
+        if grapheme == '"' {
             let old_tok = mem::take(&mut self.curr_tok);
             match old_tok {
                 None => self.tok_vec.push(Token::new(
@@ -322,7 +317,7 @@ impl TokDfa {
             }
             Some(tok) => {
                 if let (TokenType::String(mut s), line, pos) = tok.bind() {
-                    s.push_str(grapheme);
+                    s.push(grapheme);
                     self.curr_tok =
                         Some(Token::new(TokenType::String(s), line, pos));
                     return Ok(self);
@@ -358,21 +353,16 @@ impl TokDfa {
         mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<Self, TokenizeError> {
         // ensure grapheme is 1 ASCII character.
-        debug_assert!(grapheme.is_ascii() && grapheme.len() == 1);
-        let chr = grapheme.parse::<char>().map_err(|e| {
-            panic!("Internal error: identifier_state: char conversion failed")
-        })?;
-
-        if chr.is_ascii_whitespace() {
+        if grapheme.is_ascii_whitespace() {
             debug_assert!(self.curr_tok.is_some());
             self.tok_vec.push(mem::take(&mut self.curr_tok).unwrap());
             self.state_fn = Self::init_state;
             return Ok(self);
         }
-        if chr.is_ascii_digit() {
+        if grapheme.is_ascii_digit() {
             if let Some(tok) = &mut self.curr_tok {
                 let Token {
                     token_type:
@@ -382,11 +372,11 @@ impl TokDfa {
                 else {
                     panic!("Internal error: number_state: wrong token type");
                 };
-                num_str.push(chr);
+                num_str.push(grapheme);
                 return Ok(self);
             }
             self.curr_tok = Some(Token::new(
-                TokenType::Integer(String::from(chr)),
+                TokenType::Integer(grapheme.into()),
                 line,
                 pos,
             ));
@@ -395,7 +385,7 @@ impl TokDfa {
         // for now, characters like e, u, and such, still return error.
 
         Err(TokenizeError::new(
-            TokenizeErrorType::InvalidToken(String::from(chr)),
+            TokenizeErrorType::InvalidToken(grapheme.into()),
             TokenizeError::INNOCENCE,
             line,
             pos,
@@ -422,15 +412,12 @@ impl TokDfa {
         mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<Self, TokenizeError> {
         // ensure grapheme is 1 ASCII character.
-        let chr = grapheme.parse::<char>().map_err(|e| {
-            panic!("Internal error: identifier_state: char conversion failed")
-        })?;
-        if !chr.is_ascii() {
+        if !grapheme.is_ascii() {
             return Err(TokenizeError::new(
-                TokenizeErrorType::InvalidToken(chr.into()),
+                TokenizeErrorType::InvalidToken(grapheme.into()),
                 TokenizeError::INNOCENCE,
                 line,
                 pos,
@@ -438,10 +425,10 @@ impl TokDfa {
         }
         #[cfg(debug_assertions)]
         if self.curr_tok.is_none() {
-            debug_assert!(chr.is_ascii_alphabetic() || chr == '_');
+            debug_assert!(grapheme.is_ascii_alphabetic() || grapheme == '_');
         }
 
-        if chr.is_ascii_whitespace() {
+        if grapheme.is_ascii_whitespace() {
             debug_assert!(self.curr_tok.is_some());
             let old_tok = mem::take(&mut self.curr_tok).unwrap();
 
@@ -461,7 +448,7 @@ impl TokDfa {
         let old_tok = mem::take(&mut self.curr_tok);
         if old_tok.is_none() {
             self.curr_tok = Some(Token::new(
-                TokenType::Identifier(String::from(chr)),
+                TokenType::Identifier(grapheme.into()),
                 line,
                 pos,
             ));
@@ -469,7 +456,7 @@ impl TokDfa {
         }
         let old_tok = old_tok.unwrap();
         if let (TokenType::Identifier(mut s), line, pos) = old_tok.bind() {
-            s.push(chr);
+            s.push(grapheme);
             self.curr_tok =
                 Some(Token::new(TokenType::Identifier(s), line, pos));
             Ok(self)
@@ -482,7 +469,7 @@ impl TokDfa {
         self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<Self, TokenizeError> {
         todo!()
     }
@@ -491,7 +478,7 @@ impl TokDfa {
         &mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<(), TokenizeError> {
         todo!()
     }
@@ -500,7 +487,7 @@ impl TokDfa {
         &mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<(), TokenizeError> {
         todo!()
     }
@@ -509,7 +496,7 @@ impl TokDfa {
         &mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<(), TokenizeError> {
         todo!()
     }
@@ -518,7 +505,7 @@ impl TokDfa {
         &mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<(), TokenizeError> {
         todo!()
     }
@@ -527,7 +514,7 @@ impl TokDfa {
         &mut self,
         line: usize,
         pos: usize,
-        grapheme: &str,
+        grapheme: char,
     ) -> Result<(), TokenizeError> {
         todo!()
     }
