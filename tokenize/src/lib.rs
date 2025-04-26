@@ -491,6 +491,20 @@ impl TokDfa {
         }
     }
 
+    /// Symbol state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | ----- | ---------- |
+    /// | \[+\-*/\(\)"\\;,:.\] | [`TokDfa::init_state`] |
+    /// | "/" | [`TokDfa::slash_state`] |
+    /// | "!" | [`TokDfa::bang_state`] |
+    /// | "<" | [`TokDfa::lpbrace_state`] |
+    /// | ">" | [`TokDfa::rpbrace_state`] |
+    /// | "=" | [`TokDfa::equal_state`] |
     fn symbol_state(
         mut self,
         line: usize,
@@ -591,6 +605,14 @@ impl TokDfa {
         Ok(self)
     }
 
+    /// Equal state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    ///
     fn equal_state(
         mut self,
         line: usize,
