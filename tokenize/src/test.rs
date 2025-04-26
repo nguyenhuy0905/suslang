@@ -24,6 +24,21 @@ fn simple_string() {
 }
 
 #[test]
+fn string_error() {
+    let ret = tokenize("\"");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::UnfinishedToken,
+            line: 1,
+            pos: 0,
+            ..
+        })
+    ));
+}
+
+#[test]
 fn empty_string() {
     let ret = tokenize("\"\"");
     assert!(ret.is_ok());
