@@ -27,6 +27,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     for (line, pos, grapheme) in input_iter {
         dfa = dfa.transition(line, pos, grapheme)?;
     }
+    dfa.finalize();
 
     Ok(dfa.tok_vec)
 }
@@ -34,6 +35,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
 #[derive(Debug, Clone)]
 pub enum TokenizeErrorType {
     InvalidToken(String),
+    UnfinishedToken,
     InternalErr(&'static str),
 }
 
@@ -47,6 +49,9 @@ impl Display for TokenizeErrorType {
             }
             InternalErr(s) => {
                 write!(f, "Internal tokenization error {s}")
+            }
+            UnfinishedToken => {
+                write!(f, "Unfinished expression")
             }
         }
     }
@@ -149,9 +154,47 @@ impl TokDfa {
 
     /// Returns whether the current state is an accepting state.
     ///
-    /// Currently, the only accepting state is init-state.
+    /// Currently, the only non-accepting state is ``string_state``.
     pub fn is_at_accepting_state(&self) -> bool {
-        std::ptr::fn_addr_eq(self.state_fn, Self::init_state as StateFn)
+        !std::ptr::fn_addr_eq(self.state_fn, Self::string_state as StateFn)
+    }
+
+    pub fn finalize(&mut self) -> Result<(), TokenizeError> {
+        if !self.is_at_accepting_state() {
+            if let Some(tok) = &self.curr_tok {
+                return Err(TokenizeError::new(
+                    TokenizeErrorType::UnfinishedToken,
+                    None::<std::fmt::Error>,
+                    tok.line_number(),
+                    tok.line_position(),
+                ));
+            }
+            todo!(
+                r#""finalize: handle case where state machine is not accepting
+                and there's no current token"#
+            )
+        }
+        let old_tok = std::mem::take(&mut self.curr_tok);
+        if old_tok.is_none() {
+            return Ok(());
+        }
+        let old_tok = old_tok.unwrap();
+        let kw = if let TokenType::Identifier(s) = old_tok.token_type() {
+            tokens::keyword_lookup(s.as_str())
+        } else {
+            None
+        };
+        if let Some(kw) = kw {
+            self.tok_vec.push(Token::new(
+                kw,
+                old_tok.line_number(),
+                old_tok.line_position(),
+            ));
+        } else {
+            self.tok_vec.push(old_tok);
+        }
+
+        Ok(())
     }
 
     /// The initial state.
@@ -187,6 +230,7 @@ impl TokDfa {
         })?;
 
         if chr.is_ascii_alphabetic() || chr as u8 == b'_' {
+            self.state_fn = Self::identifier_state;
             self.identifier_state(line, pos, grapheme)
         } else if chr.is_ascii_digit() {
             self.number_state(line, pos, grapheme)
@@ -234,7 +278,7 @@ impl TokDfa {
                     line,
                     pos,
                 ));
-                self.state_fn = Self::init_state;
+                // self.state_fn = Self::init_state;
                 Ok(self)
             }
             Some(tok) => {
@@ -266,12 +310,77 @@ impl TokDfa {
     }
 
     fn identifier_state(
-        self,
+        mut self,
         line: usize,
         pos: usize,
         grapheme: &str,
     ) -> Result<Self, TokenizeError> {
-        todo!()
+        // ensure grapheme is 1 ASCII character.
+        debug_assert!(grapheme.is_ascii() && grapheme.len() == 1);
+        let chr = grapheme.parse::<char>().map_err(|e| {
+            TokenizeError::new(
+                TokenizeErrorType::InternalErr(
+                    "identifier_state: char conversion failed",
+                ),
+                Some(e),
+                line,
+                pos,
+            )
+        })?;
+        #[cfg(debug_assertions)]
+        if self.curr_tok.is_none() {
+            debug_assert!(chr.is_ascii_alphabetic() || chr == '_');
+        }
+
+        if chr == ' ' {
+            debug_assert!(self.curr_tok.is_some());
+            let old_tok = std::mem::take(&mut self.curr_tok).unwrap();
+
+            // in case the token is a reserved keyword
+            if let (TokenType::Identifier(s), line, pos) = old_tok.bind_ref() {
+                if let Some(kw) = tokens::keyword_lookup(s.as_str()) {
+                    self.tok_vec.push(Token::new(kw, line, pos));
+                } else {
+                    self.tok_vec.push(old_tok);
+                }
+            } else {
+                return Err(TokenizeError::new(
+                    TokenizeErrorType::InternalErr(
+                        "identifier_state: wrong token type",
+                    ),
+                    None::<std::fmt::Error>,
+                    line,
+                    pos,
+                ));
+            }
+            self.state_fn = Self::init_state;
+            return Ok(self);
+        }
+        let old_tok = std::mem::take(&mut self.curr_tok);
+        if old_tok.is_none() {
+            self.curr_tok = Some(Token::new(
+                TokenType::Identifier(String::from(chr)),
+                line,
+                pos,
+            ));
+            return Ok(self);
+        }
+        let old_tok = old_tok.unwrap();
+        if let (TokenType::Identifier(mut s), line, pos) = old_tok.bind() {
+            s.push(chr);
+            self.curr_tok =
+                Some(Token::new(TokenType::Identifier(s), line, pos));
+            Ok(self)
+        } else {
+            Err(TokenizeError::new(
+                TokenizeErrorType::InternalErr(
+                    "identifier_state: wrong token type",
+                ),
+                None::<std::fmt::Error>,
+                line,
+                pos,
+            ))
+        }
     }
 
     fn symbol_state(

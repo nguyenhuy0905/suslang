@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
 /// All the possible tokens.
 /// String-type owns its string.
 ///
@@ -5,12 +8,13 @@
 /// letting it own the string allows more flexible ways of receiving
 /// input, such as line-by-line (which, the non-owning scheme forces one to
 /// hold each line until the end of time).
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
+#[repr(u8)]
 pub enum TokenType {
     /// Just an identifier. ASCII.
     /// # Rule
     /// \<identifier\> ::= \[a-zA-Z_\]\[a-zA-Z0-9_\]*
-    Identifier(String),
+    Identifier(String) = 0,
     /// Holds an i64
     /// # Rule
     /// \<integer\> ::= ("+" | "-")? \[0-9\]+
@@ -88,6 +92,25 @@ pub enum TokenType {
     Return,
 }
 
+#[must_use]
+pub fn keyword_lookup(key: &str) -> Option<TokenType> {
+    static LOOKUP_TBL: LazyLock<HashMap<&'static str, TokenType>> =
+        LazyLock::new(|| {
+            HashMap::<&'static str, TokenType>::from([
+                ("ya", TokenType::Ya),
+                ("na", TokenType::Na),
+                ("let", TokenType::Let),
+                ("static", TokenType::Static),
+                ("proc", TokenType::Proc),
+                ("return", TokenType::Return),
+            ])
+        });
+
+    // none of the enum in here contains anything inside, so Imma just clone
+    // them.
+    LOOKUP_TBL.get(key).cloned()
+}
+
 /// A token. Duh.
 /// A tokenizer reads an input string and spits out smaller chunks, which are
 /// these.
@@ -143,5 +166,10 @@ impl Token {
     #[must_use]
     pub fn bind(self) -> (TokenType, usize, usize) {
         (self.token_type, self.line_number, self.line_position)
+    }
+
+    #[must_use]
+    pub fn bind_ref(&self) -> (&TokenType, usize, usize) {
+        (&self.token_type, self.line_number, self.line_position)
     }
 }
