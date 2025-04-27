@@ -113,7 +113,11 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
             HashMap::<&'static str, TokenType>::from([
                 ("ya", TokenType::Ya),
                 ("na", TokenType::Na),
+                ("if", TokenType::If),
+                ("elif", TokenType::Elif),
+                ("else", TokenType::Else),
                 ("let", TokenType::Let),
+                ("ref", TokenType::Ref),
                 ("static", TokenType::Static),
                 ("proc", TokenType::Proc),
                 ("return", TokenType::Return),
