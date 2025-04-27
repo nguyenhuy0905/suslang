@@ -88,8 +88,16 @@ pub enum TokenType {
     Ya,
     /// Keyword "na"
     Na,
+    /// Keyword "if"
+    If,
+    /// Keyword "elif"
+    Elif,
+    /// Keyword "else"
+    Else,
     /// Keyword "let"
     Let,
+    /// Keyword "ref"
+    Ref,
     /// Keyword "static"
     Static,
     /// Keyword "proc"
