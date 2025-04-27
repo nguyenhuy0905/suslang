@@ -38,6 +38,19 @@ fn empty_char() {
 }
 
 #[test]
+fn too_many_chars() {
+    let ret = tokenize("'coc'");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidToken(_),
+            ..
+        })
+    ));
+}
+
+#[test]
 fn unicode_char() {
     let ret = tokenize("'\u{eb54}'").unwrap();
     assert_eq!(ret.len(), 1);
