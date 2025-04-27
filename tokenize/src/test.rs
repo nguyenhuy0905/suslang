@@ -18,6 +18,39 @@ fn non_ascii_begin_token() {
 }
 
 #[test]
+fn simple_char() {
+    let ret = tokenize("' '").unwrap();
+    assert_eq!(ret.len(), 1);
+    assert_eq!(ret.first().unwrap().token_type, TokenType::Char(' '));
+}
+
+#[test]
+fn empty_char() {
+    let ret = tokenize("''");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidToken(_),
+            ..
+        })
+    ));
+}
+
+#[test]
+fn unicode_char() {
+    let ret = tokenize("'\u{eb54}'").unwrap();
+    assert_eq!(ret.len(), 1);
+    assert!(matches!(
+        ret.first(),
+        Some(Token {
+            token_type: TokenType::Char('\u{eb54}'),
+            ..
+        })
+    ));
+}
+
+#[test]
 fn simple_string() {
     let ret = tokenize("\"hello\"");
     assert!(ret.is_ok());
@@ -101,6 +134,16 @@ fn multiline_string() {
     assert_eq!(
         ret.first().unwrap().token_type,
         TokenType::String("hello".into())
+    );
+}
+
+#[test]
+fn single_quote_inside_string() {
+    let ret = tokenize("\"'hello'\"").unwrap();
+    assert_eq!(ret.len(), 1);
+    assert_eq!(
+        ret.first().unwrap().token_type,
+        TokenType::String("'hello'".into())
     );
 }
 

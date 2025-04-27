@@ -260,14 +260,49 @@ impl TokDfa {
             self.identifier_state(line, pos, grapheme)
         } else if grapheme.is_ascii_digit() {
             self.number_state(line, pos, grapheme)
-        } else if grapheme as u8 == b'"' {
+        } else if grapheme == '"' {
             self.state_fn = Self::string_state;
+            Ok(self)
+        } else if grapheme == '\'' {
+            self.state_fn = Self::char_state;
             Ok(self)
         } else if grapheme.is_ascii_whitespace() {
             Ok(self)
         } else {
             self.symbol_state(line, pos, grapheme)
         }
+    }
+
+    fn char_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: char,
+    ) -> Result<Self, TokenizeError> {
+        if grapheme == '\'' && self.curr_tok.is_none() {
+            return Err(TokenizeError::new(
+                TokenizeErrorType::InvalidToken(grapheme.into()),
+                TokenizeError::INNOCENCE,
+                line,
+                pos,
+            ));
+        }
+        if self.curr_tok.is_none() {
+            self.curr_tok =
+                Some(Token::new(TokenType::Char(grapheme), line, pos));
+            return Ok(self);
+        }
+        if grapheme == '\'' {
+            debug_assert!(self.curr_tok.is_some());
+            self.tok_vec.push(mem::take(&mut self.curr_tok).unwrap());
+            return Ok(self);
+        }
+        Err(TokenizeError::new(
+            TokenizeErrorType::InvalidToken(grapheme.into()),
+            TokenizeError::INNOCENCE,
+            line,
+            pos,
+        ))
     }
 
     // must maintain interface.
