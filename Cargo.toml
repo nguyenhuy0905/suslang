@@ -1,5 +1,5 @@
 [workspace]
-members = ["tokenize", "cli"]
+members = ["tokenize", "cli", "parse"]
 resolver = "3"
 
 [workspace.package]

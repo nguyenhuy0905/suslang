@@ -1,5 +1,5 @@
 // TODO: remove allow unused when done
-#![allow(unused)]
+// #![allow(unused)]
 
 #[cfg(test)]
 mod test;
@@ -147,7 +147,7 @@ impl TokDfa {
     /// - When the state machine reaches a fail state, it returns a
     ///   ``TokenizeError``
     pub fn transition(
-        mut self,
+        self,
         line: usize,
         pos: usize,
         grapheme: char,

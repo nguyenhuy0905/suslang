@@ -1,0 +1,16 @@
+[package]
+name = "parse"
+description.workspace = true
+version.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+repository.workspace = true
+edition.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokenize = { path = "../tokenize" }
+
+[lints]
+workspace = true
