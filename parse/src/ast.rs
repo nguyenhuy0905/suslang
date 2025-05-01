@@ -2,13 +2,19 @@
 #![allow(unused)]
 
 use std::collections::VecDeque;
+use std::fmt::Debug;
 use tokenize::{Token, TokenType};
+#[cfg(test)]
+mod test;
 
+#[derive(Debug)]
 #[repr(u8)]
 pub enum ParseErrorType {
     UnexpectedToken(tokenize::TokenType),
+    ExpectedExpr,
 }
 
+#[derive(Debug)]
 pub struct ParseError {
     typ: ParseErrorType,
     line: usize,
@@ -36,6 +42,7 @@ macro_rules! decl_nodes {
     ($($(#[$attr:meta])* $name:ident $blk:tt)+) => (
         // swapped around so that highlighting works as intended.
         $($(#[$attr])*
+            #[derive(Debug, Clone, PartialEq, Eq)]
             pub struct $name $blk)*
 
         /// All the node types, flagged. Only useful as a way to check the type
@@ -163,14 +170,10 @@ PrimaryExpr {
 // a bunch of variants.
 // God damn it, where is my anonymous enum?
 
-/// Types of literals supported by the language.
-enum Literal {
-    Num(u64),
-    String(String),
-}
-
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum PrimaryExprType {
-    Literal(Literal),
+    LiteralNum(u64),
+    LiteralString(String),
     // must be a box otherwise it's an infinite definition recursion.
     GroupedExpr(Box<Expr>),
 }
@@ -179,6 +182,7 @@ enum PrimaryExprType {
 ///
 /// # Rule
 /// \<term-op\> ::= "+" | "-"
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(u8)]
 enum TermOp {
     Plus,
@@ -189,6 +193,7 @@ enum TermOp {
 ///
 /// # Rule
 /// \<factor-op\> ::= "*" | "/"
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(u8)]
 enum FacOp {
     Multiply,
@@ -196,9 +201,87 @@ enum FacOp {
 }
 
 #[repr(u8)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum ArithUnOp {
     Negate,
     Plus,
 }
 
 // TODO: actually start recursively descending. Let's go.
+
+impl AstNode for PrimaryExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let Some((tok_type, line, pos)) = tokens.pop_front().map(Token::bind)
+        else {
+            return Err(None);
+        };
+
+        match tok_type {
+            TokenType::Integer(s_in) => {
+                debug_assert!(s_in.parse::<u64>().is_ok());
+                Ok(Self {
+                    typ: PrimaryExprType::LiteralNum(s_in.parse().unwrap()),
+                })
+            }
+            TokenType::String(s) => Ok(Self {
+                typ: PrimaryExprType::LiteralString(s),
+            }),
+            TokenType::LPBrace => todo!(
+                "PrimaryExpr parse: Grouped expression not implemented yet"
+            ),
+            _ => Err(Some(ParseError {
+                typ: ParseErrorType::UnexpectedToken(tok_type),
+                line,
+                pos,
+            })),
+        }
+    }
+}
+
+impl AstNode for ArithUnaryExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let Some((tok_type, line, pos)) = tokens.pop_front().map(Token::bind)
+        else {
+            return Err(None);
+        };
+
+        // TODO: change this sloppy type-checking once I have a nicer
+        // type-checking trait.
+        let primary = PrimaryExpr::parse(tokens)
+            .and_then(|exp| match exp.typ {
+                PrimaryExprType::LiteralNum(_)
+                | PrimaryExprType::GroupedExpr(_) => Ok(exp),
+                PrimaryExprType::LiteralString(_) => Err(Some(ParseError {
+                    typ: ParseErrorType::UnexpectedToken(tok_type.clone()),
+                    line,
+                    pos,
+                })),
+            })
+            .map_err(|e| {
+                if e.is_none() {
+                    Some(ParseError {
+                        typ: ParseErrorType::ExpectedExpr,
+                        line,
+                        pos,
+                    })
+                } else {
+                    e
+                }
+            })?;
+
+        if tok_type == TokenType::Dash {
+            Ok(Self {
+                unary_op: ArithUnOp::Negate,
+                primary,
+            })
+        } else if tok_type == TokenType::Plus {
+            Ok(Self {
+                unary_op: ArithUnOp::Plus,
+                primary,
+            })
+        } else {
+            tokens.push_front(Token::new(tok_type, line, pos));
+            todo!()
+        }
+    }
+}
