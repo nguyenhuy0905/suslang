@@ -1,11 +1,11 @@
 // TODO: remove allow dead_code on top of file
 #![allow(unused)]
 
+use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
 
 #[repr(u8)]
 pub enum ParseErrorType {
-    Eof, // not exactly an error, but it's convenient
     UnexpectedToken(tokenize::TokenType),
 }
 
@@ -77,6 +77,14 @@ trait AstNodeTypeCmp<T: AstNodeType> {
 
 /// Node.rs. No vtable allowed.
 trait AstNode: AstNodeType + std::marker::Sized {
+    /// Parses the list of [`Token`]s. If succeed, returns an instance of
+    /// `Self`, otherwise:
+    /// - If parse fails due to end-of-file, the error is `None`.
+    /// - Otherwise, it's an actual error.
+    ///
+    /// * `tokens`: A [`VecDeque`] of tokens. Obtained from calling
+    ///   [`tokenize::tokenize`].
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>>;
 }
 
 decl_nodes!(
