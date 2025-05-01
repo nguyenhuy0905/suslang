@@ -24,22 +24,6 @@ pub enum ParseError {
 /// - The usefulness of the [`AstNode`] and the comparison derive is,
 ///   questionable. If they are not actually necessary, this macro will be
 ///   removed.
-///
-/// # Example
-/// ```rust
-/// decl_nodes!(
-/// /// Some docs
-/// #[derive(Copy)]
-/// Statement {
-///     sussy: Vec<u8>,
-/// }
-///
-/// /// Some more docs
-/// Expression {
-///    more_sussy: Vec<i16>,
-/// }
-/// )
-/// ```
 macro_rules! decl_nodes {
     ($($(#[$attr:meta])* $name:ident $blk:tt)+) => (
         // swapped around so that highlighting works as intended.
