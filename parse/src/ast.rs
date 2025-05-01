@@ -1,10 +1,18 @@
 // TODO: remove allow dead_code on top of file
-#![allow(dead_code)]
+#![allow(unused)]
+
+use tokenize::{Token, TokenType};
 
 #[repr(u8)]
-pub enum ParseError {
-    Done, // not exactly an error, but it's convenient
-    UnexpectedToken,
+pub enum ParseErrorType {
+    Eof, // not exactly an error, but it's convenient
+    UnexpectedToken(tokenize::TokenType),
+}
+
+pub struct ParseError {
+    typ: ParseErrorType,
+    line: usize,
+    pos: usize,
 }
 
 /// Peak programming
@@ -37,7 +45,7 @@ macro_rules! decl_nodes {
         pub enum NodeType {
             $($name),*
         }
-        $(impl AstNode for $name {
+        $(impl AstNodeType for $name {
             fn node_type(&self) -> NodeType {
                 NodeType::$name
             }
@@ -51,16 +59,24 @@ macro_rules! decl_nodes {
 }
 
 /// A simple trait to get the node type.
-trait AstNode {
+///
+/// Auto-implemented by [`decl_nodes!`] macro.
+trait AstNodeType {
     fn node_type(&self) -> NodeType;
 }
 
 /// A less simple trait to check if a node if of a specified type.
-trait AstNodeTypeCmp<T: AstNode> {
+///
+/// Auto-implemented by [`decl_nodes!`] macro.
+trait AstNodeTypeCmp<T: AstNodeType> {
     #[must_use]
     fn is(&self) -> bool {
         false
     }
+}
+
+/// Node.rs. No vtable allowed.
+trait AstNode: AstNodeType + std::marker::Sized {
 }
 
 decl_nodes!(

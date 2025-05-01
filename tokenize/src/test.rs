@@ -21,7 +21,7 @@ fn non_ascii_begin_token() {
 fn simple_char() {
     let ret = tokenize("' '").unwrap();
     assert_eq!(ret.len(), 1);
-    assert_eq!(ret.first().unwrap().token_type, TokenType::Char(' '));
+    assert_eq!(ret.front().unwrap().token_type, TokenType::Char(' '));
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn unicode_char() {
     let ret = tokenize("'\u{eb54}'").unwrap();
     assert_eq!(ret.len(), 1);
     assert!(matches!(
-        ret.first(),
+        ret.front(),
         Some(Token {
             token_type: TokenType::Char('\u{eb54}'),
             ..
@@ -70,10 +70,10 @@ fn simple_string() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     assert!(matches!(
-        ur.first().unwrap().token_type(),
+        ur.front().unwrap().token_type(),
         TokenType::String(_)
     ));
-    if let TokenType::String(s) = ur.first().unwrap().token_type() {
+    if let TokenType::String(s) = ur.front().unwrap().token_type() {
         assert_eq!(s, "hello");
         assert_ne!(s, "hell");
     }
@@ -86,10 +86,10 @@ fn unicode_string() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     assert!(matches!(
-        ur.first().unwrap().token_type(),
+        ur.front().unwrap().token_type(),
         TokenType::String(_)
     ));
-    if let TokenType::String(s) = ur.first().unwrap().token_type() {
+    if let TokenType::String(s) = ur.front().unwrap().token_type() {
         assert_eq!(s, "hello\u{f4a2}!");
         assert_ne!(s, "hell");
     }
@@ -132,10 +132,10 @@ fn empty_string() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     assert!(matches!(
-        ur.first().unwrap().token_type(),
+        ur.front().unwrap().token_type(),
         TokenType::String(_)
     ));
-    if let TokenType::String(s) = ur.first().unwrap().token_type() {
+    if let TokenType::String(s) = ur.front().unwrap().token_type() {
         assert!(s.is_empty());
     }
 }
@@ -145,7 +145,7 @@ fn multiline_string() {
     let ret = tokenize("\"hell\no\"").unwrap();
     assert_eq!(ret.len(), 1);
     assert_eq!(
-        ret.first().unwrap().token_type,
+        ret.front().unwrap().token_type,
         TokenType::String("hello".into())
     );
 }
@@ -155,7 +155,7 @@ fn single_quote_inside_string() {
     let ret = tokenize("\"'hello'\"").unwrap();
     assert_eq!(ret.len(), 1);
     assert_eq!(
-        ret.first().unwrap().token_type,
+        ret.front().unwrap().token_type,
         TokenType::String("'hello'".into())
     );
 }
@@ -167,10 +167,10 @@ fn simple_identifier() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     assert!(matches!(
-        ur.first().unwrap().token_type(),
+        ur.front().unwrap().token_type(),
         TokenType::Identifier(_)
     ));
-    if let TokenType::Identifier(s) = ur.first().unwrap().token_type() {
+    if let TokenType::Identifier(s) = ur.front().unwrap().token_type() {
         assert!(!s.is_empty());
         assert_eq!(s, "hello");
     }
@@ -191,7 +191,7 @@ fn keyword() {
     let ret = tokenize("let");
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
-    assert!(matches!(ur.first().unwrap().token_type(), TokenType::Let));
+    assert!(matches!(ur.front().unwrap().token_type(), TokenType::Let));
 }
 
 #[test]
@@ -199,7 +199,7 @@ fn keyword_and_identifier() {
     let ret = tokenize("let hello");
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
-    assert!(matches!(ur.first().unwrap().token_type(), TokenType::Let));
+    assert!(matches!(ur.front().unwrap().token_type(), TokenType::Let));
     assert!(ur.get(1).is_some());
     if let TokenType::Identifier(s) = ur.get(1).unwrap().token_type() {
         assert!(!s.is_empty());
@@ -215,7 +215,7 @@ fn number() {
     let Some(Token {
         token_type: TokenType::Integer(int_str),
         ..
-    }) = ur.first()
+    }) = ur.front()
     else {
         panic!("tokenize::test::number: ur wrong");
     };
@@ -241,7 +241,7 @@ fn multiline_number() {
 fn one_symbol() {
     let ret = tokenize("+").unwrap();
     assert!(!ret.is_empty());
-    assert!(matches!(ret.first().unwrap().token_type, TokenType::Plus));
+    assert!(matches!(ret.front().unwrap().token_type, TokenType::Plus));
 }
 
 #[test]
@@ -308,7 +308,7 @@ fn comment_and_line() {
     let ret = tokenize("// hello this is a comment\n\"hello\"").unwrap();
     assert_eq!(ret.len(), 1);
     assert_eq!(
-        ret.first().unwrap().token_type,
+        ret.front().unwrap().token_type,
         TokenType::String("hello".into())
     );
 }

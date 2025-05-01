@@ -182,6 +182,7 @@ impl Token {
         self.line_position
     }
 
+    // TODO: use a struct to better name these 2 usizes
     #[must_use]
     pub fn bind(self) -> (TokenType, usize, usize) {
         (self.token_type, self.line_number, self.line_position)
