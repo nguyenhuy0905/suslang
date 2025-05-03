@@ -53,12 +53,7 @@ macro_rules! decl_nodes {
         pub enum NodeType {
             $($name),*
         }
-        $(impl AstNodeType for $name {
-            fn node_type(&self) -> NodeType {
-                NodeType::$name
-            }
-        })*
-        $(impl AstNodeTypeCmp<Self> for $name {
+        $(impl AstNodeCmp<Self> for $name {
             fn is(&self) -> bool {
                 true
             }
@@ -66,17 +61,10 @@ macro_rules! decl_nodes {
     )
 }
 
-/// A simple trait to get the node type.
-///
-/// Auto-implemented by [`decl_nodes!`] macro.
-trait AstNodeType {
-    fn node_type(&self) -> NodeType;
-}
-
 /// A less simple trait to check if a node if of a specified type.
 ///
 /// Auto-implemented by [`decl_nodes!`] macro.
-trait AstNodeTypeCmp<T: AstNodeType> {
+trait AstNodeCmp<T> {
     #[must_use]
     fn is(&self) -> bool {
         false
@@ -84,7 +72,7 @@ trait AstNodeTypeCmp<T: AstNodeType> {
 }
 
 /// Node.rs. No vtable allowed.
-trait AstNode: AstNodeType + std::marker::Sized {
+trait AstNode: std::marker::Sized {
     /// Parses the list of [`Token`]s. If succeed, returns an instance of
     /// `Self`, otherwise:
     /// - If parse fails due to end-of-file, the error is `None`.
@@ -176,6 +164,8 @@ FactorExpr {
 //
 // Most of the expression types will just forward the type request to its child
 // anyways.
+
+// TODO: add support for boolean expressions.
 
 /// Either just a wrapper around a primary expression, or a numerical primary
 /// expression with an unary operator.

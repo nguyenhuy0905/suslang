@@ -46,3 +46,39 @@ fn unary_expected_tok_err() {
         }))
     ));
 }
+
+#[test]
+fn unary_wrong_type() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Plus, 0, 0),
+        Token::new(TokenType::String("surprise mf".to_string()), 0, 1),
+    ]);
+    let unar = UnaryExpr::parse(&mut deque);
+    assert!(matches!(
+        unar,
+        Err(Some(ParseError {
+            typ: ParseErrorType::WrongType(TypeTag::String),
+            ..
+        }))
+    ));
+}
+
+#[test]
+fn unary_right_type() {
+    let mut deque = VecDeque::from([Token::new(
+        TokenType::String("hello".to_string()),
+        0,
+        1,
+    )]);
+    let unar = UnaryExpr::parse(&mut deque);
+    assert!(unar.is_ok());
+    assert!(matches!(
+        unar,
+        Ok(UnaryExpr {
+            primary: PrimaryExpr {
+                typ: PrimaryExprType::LiteralString(_)
+            },
+            ..
+        })
+    ));
+}
