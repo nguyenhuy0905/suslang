@@ -22,45 +22,6 @@ pub struct ParseError {
     pos: usize,
 }
 
-/// Peak programming
-///
-/// For each defined node, do the following:
-/// - Define the struct using ``$name`` and ``$blk``, with the defined
-///   attributes.
-/// - Define a variant in the enum [`NodeType`] that has the name of the
-///   struct.
-/// - Implement trait [`AstNode`] where [`AstNode::node_type`] simply returns
-///   ``NodeType::$name``
-/// - Implement trait [`AstNodeTypeCmp`] whose function just returns ``true``
-///   for the ``Self`` overload.
-///
-/// # Note
-/// - All structs are ``pub`` here.
-/// - The usefulness of the [`AstNode`] and the comparison derive is,
-///   questionable. If they are not actually necessary, this macro will be
-///   removed.
-macro_rules! decl_nodes {
-    ($($(#[$attr:meta])* $name:ident $blk:tt)+) => (
-        // swapped around so that highlighting works as intended.
-        $($(#[$attr])*
-            #[derive(Debug, Clone, PartialEq, Eq)]
-            pub struct $name $blk)*
-
-        /// All the node types, flagged. Only useful as a way to check the type
-        /// of node without relying on downcasting.
-        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        #[repr(u8)]
-        pub enum NodeType {
-            $($name),*
-        }
-        $(impl AstNodeCmp<Self> for $name {
-            fn is(&self) -> bool {
-                true
-            }
-        })*
-    )
-}
-
 /// A less simple trait to check if a node if of a specified type.
 ///
 /// Auto-implemented by [`decl_nodes!`] macro.
@@ -100,8 +61,6 @@ pub enum TypeTag {
     Custom(String),
 }
 
-decl_nodes!(
-
 /// A program consists of one or more statements, for now.
 ///
 /// Of course, only certain types of statements may (or must) not be inside a
@@ -114,19 +73,22 @@ decl_nodes!(
 /// # See also
 ///
 /// [`Stmt`]
-Program {
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct Program {
     stmts: Vec<Stmt>,
 }
 
 /// A statement evaluates to the void type, if it ends with a semicolon.
 ///
 /// A statement without semicolon is, for now, an expression. Hah.
-Stmt {}
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct Stmt {}
 
 /// An expression evaluates to a specific type.
 ///
 /// Sometimes, that may include the void type.
-Expr {
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct Expr {
     term: TermExpr,
 }
 
@@ -141,7 +103,8 @@ Expr {
 ///
 /// # See also
 /// - [`FactorExpr`]
-TermExpr {
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct TermExpr {
     first_term: FactorExpr,
     follow_terms: Vec<(TermOp, FactorExpr)>
 }
@@ -156,7 +119,8 @@ TermExpr {
 ///
 /// # See also
 /// - [`ArithUnaryExpr`]
-FactorExpr {
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct FactorExpr {
     first_factor: UnaryExpr,
     follow_factors: Vec<(FacOp, UnaryExpr)>,
 }
@@ -185,18 +149,18 @@ FactorExpr {
 ///
 /// # See also
 /// [`PrimaryExpr`]
-UnaryExpr {
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct UnaryExpr {
     primary: PrimaryExpr,
     unary_op: Option<UnaryOp>,
     tag: TypeTag,
 }
 
-PrimaryExpr {
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct PrimaryExpr {
     typ: PrimaryExprType,
     tag: TypeTag,
 }
-
-);
 
 // a bunch of variants.
 // God damn it, where is my anonymous enum?
