@@ -46,7 +46,7 @@ trait AstNode: std::marker::Sized {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeTag {
     Integer,
-    Float,
+    Double,
     String,
     Custom(String),
 }
@@ -63,7 +63,7 @@ pub enum TypeTag {
 /// # See also
 ///
 /// [`Stmt`]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct Program {
     stmts: Vec<Stmt>,
 }
@@ -71,14 +71,13 @@ struct Program {
 /// A statement evaluates to the void type, if it ends with a semicolon.
 ///
 /// A statement without semicolon is, for now, an expression. Hah.
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct Stmt {
-}
+#[derive(Debug, PartialEq, Clone)]
+struct Stmt {}
 
 /// An expression evaluates to a specific type.
 ///
 /// Sometimes, that may include the void type.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct Expr {
     term: TermExpr,
 }
@@ -94,7 +93,7 @@ struct Expr {
 ///
 /// # See also
 /// - [`FactorExpr`]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct TermExpr {
     first_term: FactorExpr,
     follow_terms: Vec<(TermOp, FactorExpr)>,
@@ -110,7 +109,7 @@ struct TermExpr {
 ///
 /// # See also
 /// - [`ArithUnaryExpr`]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct FactorExpr {
     first_factor: UnaryExpr,
     follow_factors: Vec<(FacOp, UnaryExpr)>,
@@ -140,13 +139,13 @@ struct FactorExpr {
 ///
 /// # See also
 /// [`PrimaryExpr`]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct UnaryExpr {
     primary: PrimaryExpr,
     unary_op: Option<UnaryOp>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct PrimaryExpr {
     typ: PrimaryExprType,
     tag: TypeTag,
@@ -155,9 +154,10 @@ struct PrimaryExpr {
 // a bunch of variants.
 // God damn it, where is my anonymous enum?
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 enum PrimaryExprType {
-    LiteralNum(u64),
+    LiteralInteger(u64),
+    LiteralDouble(f64),
     LiteralString(String),
     // must be a box otherwise it's an infinite definition recursion.
     GroupedExpr(Box<Expr>),
@@ -222,7 +222,7 @@ impl AstNode for UnaryExpr {
                 if unary_op.is_none()
                     || matches!(
                         expr.type_tag(),
-                        TypeTag::Integer | TypeTag::Float
+                        TypeTag::Integer | TypeTag::Double
                     )
                 {
                     Ok(expr)
@@ -246,10 +246,7 @@ impl AstNode for UnaryExpr {
                 }
             })?;
 
-        Ok(Self {
-            primary,
-            unary_op,
-        })
+        Ok(Self { primary, unary_op })
     }
 
     #[inline]
@@ -269,8 +266,17 @@ impl AstNode for PrimaryExpr {
             TokenType::Integer(s_in) => {
                 debug_assert!(s_in.parse::<u64>().is_ok());
                 Ok(Self {
-                    typ: PrimaryExprType::LiteralNum(s_in.parse().unwrap()),
+                    typ: PrimaryExprType::LiteralInteger(s_in.parse().unwrap()),
                     tag: TypeTag::Integer,
+                })
+            }
+            TokenType::Double(s_dbl) => {
+                debug_assert!(s_dbl.parse::<f64>().is_ok());
+                Ok(Self {
+                    typ: PrimaryExprType::LiteralDouble(
+                        s_dbl.parse::<f64>().unwrap(),
+                    ),
+                    tag: TypeTag::Double,
                 })
             }
             TokenType::String(s) => Ok(Self {
