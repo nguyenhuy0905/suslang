@@ -22,16 +22,6 @@ pub struct ParseError {
     pos: usize,
 }
 
-/// A less simple trait to check if a node if of a specified type.
-///
-/// Auto-implemented by [`decl_nodes!`] macro.
-trait AstNodeCmp<T> {
-    #[must_use]
-    fn is(&self) -> bool {
-        false
-    }
-}
-
 /// Node.rs. No vtable allowed.
 trait AstNode: std::marker::Sized {
     /// Parses the list of [`Token`]s. If succeed, returns an instance of
