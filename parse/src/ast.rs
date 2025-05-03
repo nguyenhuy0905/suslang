@@ -252,6 +252,7 @@ impl AstNode for UnaryExpr {
         })
     }
 
+    #[inline]
     fn type_tag(&self) -> &TypeTag {
         self.primary.type_tag()
     }
@@ -287,6 +288,7 @@ impl AstNode for PrimaryExpr {
         }
     }
 
+    #[inline]
     fn type_tag(&self) -> &TypeTag {
         // the way I deal with custom type is, use its entire identifier,
         // as a string.
