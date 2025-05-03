@@ -12,6 +12,7 @@ mod test;
 pub enum ParseErrorType {
     UnexpectedToken(tokenize::TokenType),
     ExpectedExpr,
+    WrongType(TypeTag),
 }
 
 #[derive(Debug)]
@@ -92,6 +93,17 @@ trait AstNode: AstNodeType + std::marker::Sized {
     /// * `tokens`: A [`VecDeque`] of tokens. Obtained from calling
     ///   [`tokenize::tokenize`].
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>>;
+    fn type_tag(&self) -> TypeTag;
+}
+
+/// A version of [`tokenize::TokenType`] but without the value and other cruft.
+/// Just the types.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeTag {
+    Integer,
+    Float,
+    String,
+    Custom(String),
 }
 
 decl_nodes!(
@@ -151,8 +163,8 @@ TermExpr {
 /// # See also
 /// - [`ArithUnaryExpr`]
 FactorExpr {
-    first_factor: ArithUnaryExpr,
-    follow_factors: Vec<(FacOp, ArithUnaryExpr)>,
+    first_factor: UnaryExpr,
+    follow_factors: Vec<(FacOp, UnaryExpr)>,
 }
 
 // TODO: finish writing the docs
@@ -177,9 +189,9 @@ FactorExpr {
 ///
 /// # See also
 /// [`PrimaryExpr`]
-ArithUnaryExpr {
+UnaryExpr {
     primary: PrimaryExpr,
-    unary_op: ArithUnOp,
+    unary_op: Option<UnaryOp>,
 }
 
 PrimaryExpr {
@@ -223,7 +235,7 @@ enum FacOp {
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum ArithUnOp {
+enum UnaryOp {
     Negate,
     Plus,
 }
@@ -257,26 +269,57 @@ impl AstNode for PrimaryExpr {
             })),
         }
     }
+
+    fn type_tag(&self) -> TypeTag {
+        match self.typ {
+            PrimaryExprType::LiteralNum(_) => TypeTag::Integer,
+            PrimaryExprType::LiteralString(_) => TypeTag::String,
+            PrimaryExprType::GroupedExpr(_) => {
+                todo!("type_tag PrimaryExpr: come back when done with Expr")
+            }
+        }
+    }
 }
 
-impl AstNode for ArithUnaryExpr {
+impl AstNode for UnaryExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
-        let Some((tok_type, line, pos)) = tokens.pop_front().map(Token::bind)
+        let Some((unary_op, line, pos)) = tokens
+            .front()
+            .map(Token::bind_ref)
+            .map(|(tok_type, line, pos)| {
+                (
+                    match tok_type {
+                        TokenType::Dash => Some(UnaryOp::Negate),
+                        TokenType::Plus => Some(UnaryOp::Plus),
+                        _ => None,
+                    },
+                    line,
+                    pos,
+                )
+            })
         else {
             return Err(None);
         };
+        if unary_op.is_some() {
+            tokens.pop_front();
+        }
 
-        // TODO: change this sloppy type-checking once I have a nicer
-        // type-checking trait.
         let primary = PrimaryExpr::parse(tokens)
-            .and_then(|exp| match exp.typ {
-                PrimaryExprType::LiteralNum(_)
-                | PrimaryExprType::GroupedExpr(_) => Ok(exp),
-                PrimaryExprType::LiteralString(_) => Err(Some(ParseError {
-                    typ: ParseErrorType::UnexpectedToken(tok_type.clone()),
-                    line,
-                    pos,
-                })),
+            .and_then(|expr| {
+                if unary_op.is_none()
+                    || matches!(
+                        expr.type_tag(),
+                        TypeTag::Integer | TypeTag::Float
+                    )
+                {
+                    Ok(expr)
+                } else {
+                    Err(Some(ParseError {
+                        typ: ParseErrorType::WrongType(expr.type_tag()),
+                        line,
+                        pos,
+                    }))
+                }
             })
             .map_err(|e| {
                 if e.is_none() {
@@ -290,19 +333,10 @@ impl AstNode for ArithUnaryExpr {
                 }
             })?;
 
-        if tok_type == TokenType::Dash {
-            Ok(Self {
-                unary_op: ArithUnOp::Negate,
-                primary,
-            })
-        } else if tok_type == TokenType::Plus {
-            Ok(Self {
-                unary_op: ArithUnOp::Plus,
-                primary,
-            })
-        } else {
-            tokens.push_front(Token::new(tok_type, line, pos));
-            todo!()
-        }
+        Ok(Self { primary, unary_op })
+    }
+
+    fn type_tag(&self) -> TypeTag {
+        self.primary.type_tag()
     }
 }

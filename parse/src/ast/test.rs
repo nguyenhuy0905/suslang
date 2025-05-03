@@ -22,11 +22,11 @@ fn unary_simple() {
         Token::new(TokenType::Dash, 0, 0),
         Token::new(TokenType::Integer("420".to_string()), 0, 1),
     ]);
-    let unar = ArithUnaryExpr::parse(&mut deque).unwrap();
+    let unar = UnaryExpr::parse(&mut deque).unwrap();
     assert!(matches!(
         unar,
-        ArithUnaryExpr {
-            unary_op: ArithUnOp::Negate,
+        UnaryExpr {
+            unary_op: Some(UnaryOp::Negate),
             primary: PrimaryExpr {
                 typ: PrimaryExprType::LiteralNum(420),
             }
@@ -37,7 +37,7 @@ fn unary_simple() {
 #[test]
 fn unary_expected_tok_err() {
     let mut deque = VecDeque::from([Token::new(TokenType::Dash, 0, 0)]);
-    let unar = ArithUnaryExpr::parse(&mut deque);
+    let unar = UnaryExpr::parse(&mut deque);
     assert!(matches!(
         unar,
         Err(Some(ParseError {
