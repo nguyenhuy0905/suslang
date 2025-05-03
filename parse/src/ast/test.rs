@@ -29,7 +29,9 @@ fn unary_simple() {
             unary_op: Some(UnaryOp::Negate),
             primary: PrimaryExpr {
                 typ: PrimaryExprType::LiteralNum(420),
-            }
+                ..
+            },
+            ..
         }
     ));
 }
@@ -76,7 +78,8 @@ fn unary_right_type() {
         unar,
         Ok(UnaryExpr {
             primary: PrimaryExpr {
-                typ: PrimaryExprType::LiteralString(_)
+                typ: PrimaryExprType::LiteralString(_),
+                ..
             },
             ..
         })

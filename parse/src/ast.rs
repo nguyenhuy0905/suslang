@@ -81,11 +81,17 @@ trait AstNode: std::marker::Sized {
     /// * `tokens`: A [`VecDeque`] of tokens. Obtained from calling
     ///   [`tokenize::tokenize`].
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>>;
-    fn type_tag(&self) -> TypeTag;
+    /// Returns the [`TypeTag`] of the current node.
+    ///
+    /// To avoid repeating work, it's best for each node to hold the type tag
+    /// as a struct member.
+    fn type_tag(&self) -> &TypeTag;
 }
 
 /// A version of [`tokenize::TokenType`] but without the value and other cruft.
 /// Just the types.
+///
+/// The custom types are stored literally. As a string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeTag {
     Integer,
@@ -182,10 +188,12 @@ FactorExpr {
 UnaryExpr {
     primary: PrimaryExpr,
     unary_op: Option<UnaryOp>,
+    tag: TypeTag,
 }
 
 PrimaryExpr {
     typ: PrimaryExprType,
+    tag: TypeTag,
 }
 
 );
@@ -244,10 +252,12 @@ impl AstNode for PrimaryExpr {
                 debug_assert!(s_in.parse::<u64>().is_ok());
                 Ok(Self {
                     typ: PrimaryExprType::LiteralNum(s_in.parse().unwrap()),
+                    tag: TypeTag::Integer,
                 })
             }
             TokenType::String(s) => Ok(Self {
                 typ: PrimaryExprType::LiteralString(s),
+                tag: TypeTag::String,
             }),
             TokenType::LPBrace => todo!(
                 "PrimaryExpr parse: Grouped expression not implemented yet"
@@ -260,14 +270,10 @@ impl AstNode for PrimaryExpr {
         }
     }
 
-    fn type_tag(&self) -> TypeTag {
-        match self.typ {
-            PrimaryExprType::LiteralNum(_) => TypeTag::Integer,
-            PrimaryExprType::LiteralString(_) => TypeTag::String,
-            PrimaryExprType::GroupedExpr(_) => {
-                todo!("type_tag PrimaryExpr: come back when done with Expr")
-            }
-        }
+    fn type_tag(&self) -> &TypeTag {
+        // the way I deal with custom type is, use its entire identifier,
+        // as a string.
+        &self.tag
     }
 }
 
@@ -294,7 +300,7 @@ impl AstNode for UnaryExpr {
             tokens.pop_front();
         }
 
-        let primary = PrimaryExpr::parse(tokens)
+        let (tag, primary) = PrimaryExpr::parse(tokens)
             .and_then(|expr| {
                 if unary_op.is_none()
                     || matches!(
@@ -302,10 +308,10 @@ impl AstNode for UnaryExpr {
                         TypeTag::Integer | TypeTag::Float
                     )
                 {
-                    Ok(expr)
+                    Ok((expr.type_tag().clone(), expr))
                 } else {
                     Err(Some(ParseError {
-                        typ: ParseErrorType::WrongType(expr.type_tag()),
+                        typ: ParseErrorType::WrongType(expr.type_tag().clone()),
                         line,
                         pos,
                     }))
@@ -323,10 +329,14 @@ impl AstNode for UnaryExpr {
                 }
             })?;
 
-        Ok(Self { primary, unary_op })
+        Ok(Self {
+            primary,
+            unary_op,
+            tag,
+        })
     }
 
-    fn type_tag(&self) -> TypeTag {
-        self.primary.type_tag()
+    fn type_tag(&self) -> &TypeTag {
+        &self.tag
     }
 }
