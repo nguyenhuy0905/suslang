@@ -194,6 +194,83 @@ enum UnaryOp {
 
 // TODO: actually start recursively descending. Let's go.
 
+impl AstNode for FactorExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_factor = UnaryExpr::parse(tokens)?;
+        let first_factor_typ = first_factor.type_tag();
+        let follow_factors = {
+            let mut ret = Vec::new();
+            while let Some((Some(fac_op), line, pos)) =
+                tokens.front().map(|tok| {
+                    (
+                        match tok.bind_ref().0 {
+                            TokenType::Star => Some(FacOp::Multiply),
+                            TokenType::Slash => Some(FacOp::Divide),
+                            _ => None,
+                        },
+                        tok.bind_ref().1,
+                        tok.bind_ref().2,
+                    )
+                })
+            {
+                // TODO: when Rust stabilizes unlikely, change this.
+                if !matches!(
+                    first_factor_typ,
+                    TypeTag::Integer | TypeTag::Double
+                ) {
+                    return Err(Some(ParseError {
+                        typ: ParseErrorType::WrongType(
+                            first_factor_typ.clone(),
+                        ),
+                        line,
+                        pos,
+                    }));
+                }
+                // remove the token matching the factor operator
+                tokens.pop_front();
+                // parse the next unary expression.
+                ret.push((
+                    fac_op,
+                    UnaryExpr::parse(tokens)
+                        // make sure all unary exprs are of the same type.
+                        .and_then(|expr| {
+                            if expr.type_tag() == first_factor_typ {
+                                Ok(expr)
+                            } else {
+                                Err(Some(ParseError {
+                                    typ: ParseErrorType::WrongType(
+                                        first_factor_typ.clone(),
+                                    ),
+                                    line,
+                                    pos,
+                                }))
+                            }
+                        })
+                        .map_err(|e| match e {
+                            Some(e) => e,
+                            None => ParseError {
+                                typ: ParseErrorType::ExpectedExpr,
+                                line,
+                                pos,
+                            },
+                        })?,
+                ));
+            }
+            ret
+        };
+
+        Ok(Self {
+            first_factor,
+            follow_factors,
+        })
+    }
+
+    #[inline]
+    fn type_tag(&self) -> &TypeTag {
+        self.first_factor.type_tag()
+    }
+}
+
 impl AstNode for UnaryExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
         let Some((unary_op, line, pos)) = tokens

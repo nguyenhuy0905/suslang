@@ -5,7 +5,7 @@ fn literal_number() {
     let mut lit_num =
         VecDeque::from([Token::new(TokenType::Integer("69".into()), 0, 0)]);
     let prim = PrimaryExpr::parse(&mut lit_num).unwrap();
-    assert_eq!(prim.typ, PrimaryExprType::LiteralNum(69));
+    assert_eq!(prim.typ, PrimaryExprType::LiteralInteger(69));
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn unary_simple() {
         UnaryExpr {
             unary_op: Some(UnaryOp::Negate),
             primary: PrimaryExpr {
-                typ: PrimaryExprType::LiteralNum(420),
+                typ: PrimaryExprType::LiteralInteger(420),
                 ..
             },
             ..
@@ -83,5 +83,90 @@ fn unary_right_type() {
             },
             ..
         })
+    ));
+}
+
+#[test]
+fn factor_simple() {
+    let mut deque = VecDeque::from([Token::new(
+        TokenType::String("hello".to_string()),
+        0,
+        1,
+    )]);
+    let fact = FactorExpr::parse(&mut deque);
+    assert!(fact.is_ok());
+    // assert_matches is unstable ATM
+    assert!(matches!(
+        fact,
+        Ok(FactorExpr {
+            first_factor: UnaryExpr {
+                primary: PrimaryExpr {
+                    typ: PrimaryExprType::LiteralString(_),
+                    ..
+                },
+                ..
+            },
+            ..
+        })
+    ));
+}
+
+#[test]
+fn factor_right_type() {
+    // 2 * 3
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Dash, 0, 1),
+        Token::new(TokenType::Integer("2".to_string()), 0, 2),
+        Token::new(TokenType::Star, 0, 3),
+        Token::new(TokenType::Integer("3".to_string()), 0, 4),
+    ]);
+    let fact = FactorExpr::parse(&mut deque).unwrap();
+    // 2
+    assert!(matches!(
+        fact,
+        FactorExpr {
+            first_factor: UnaryExpr {
+                primary: PrimaryExpr {
+                    typ: PrimaryExprType::LiteralInteger(2),
+                    ..
+                },
+                unary_op: Some(UnaryOp::Negate),
+            },
+            ..
+        }
+    ));
+    // * 3
+    assert_eq!(
+        fact.follow_factors,
+        vec![(
+            FacOp::Multiply,
+            UnaryExpr {
+                primary: PrimaryExpr {
+                    typ: PrimaryExprType::LiteralInteger(3),
+                    tag: TypeTag::Integer,
+                },
+                unary_op: None
+            }
+        )]
+    );
+}
+
+#[test]
+fn factor_wrong_type() {
+    // 2 * 3.0
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Dash, 0, 1),
+        Token::new(TokenType::Integer("2".to_string()), 0, 2),
+        Token::new(TokenType::Star, 0, 3),
+        Token::new(TokenType::Double("3.0".to_string()), 0, 4),
+    ]);
+    let fact = FactorExpr::parse(&mut deque);
+    assert!(fact.is_err());
+    assert!(matches!(
+        fact,
+        Err(Some(ParseError {
+            typ: ParseErrorType::WrongType(_),
+            ..
+        }))
     ));
 }
