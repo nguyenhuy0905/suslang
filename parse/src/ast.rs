@@ -96,7 +96,7 @@ struct Expr {
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct TermExpr {
     first_term: FactorExpr,
-    follow_terms: Vec<(TermOp, FactorExpr)>
+    follow_terms: Vec<(TermOp, FactorExpr)>,
 }
 
 /// Multiply or divide
@@ -194,43 +194,6 @@ enum UnaryOp {
 
 // TODO: actually start recursively descending. Let's go.
 
-impl AstNode for PrimaryExpr {
-    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
-        let Some((tok_type, line, pos)) = tokens.pop_front().map(Token::bind)
-        else {
-            return Err(None);
-        };
-
-        match tok_type {
-            TokenType::Integer(s_in) => {
-                debug_assert!(s_in.parse::<u64>().is_ok());
-                Ok(Self {
-                    typ: PrimaryExprType::LiteralNum(s_in.parse().unwrap()),
-                    tag: TypeTag::Integer,
-                })
-            }
-            TokenType::String(s) => Ok(Self {
-                typ: PrimaryExprType::LiteralString(s),
-                tag: TypeTag::String,
-            }),
-            TokenType::LPBrace => todo!(
-                "PrimaryExpr parse: Grouped expression not implemented yet"
-            ),
-            _ => Err(Some(ParseError {
-                typ: ParseErrorType::UnexpectedToken(tok_type),
-                line,
-                pos,
-            })),
-        }
-    }
-
-    fn type_tag(&self) -> &TypeTag {
-        // the way I deal with custom type is, use its entire identifier,
-        // as a string.
-        &self.tag
-    }
-}
-
 impl AstNode for UnaryExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
         let Some((unary_op, line, pos)) = tokens
@@ -291,6 +254,43 @@ impl AstNode for UnaryExpr {
     }
 
     fn type_tag(&self) -> &TypeTag {
+        &self.tag
+    }
+}
+
+impl AstNode for PrimaryExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let Some((tok_type, line, pos)) = tokens.pop_front().map(Token::bind)
+        else {
+            return Err(None);
+        };
+
+        match tok_type {
+            TokenType::Integer(s_in) => {
+                debug_assert!(s_in.parse::<u64>().is_ok());
+                Ok(Self {
+                    typ: PrimaryExprType::LiteralNum(s_in.parse().unwrap()),
+                    tag: TypeTag::Integer,
+                })
+            }
+            TokenType::String(s) => Ok(Self {
+                typ: PrimaryExprType::LiteralString(s),
+                tag: TypeTag::String,
+            }),
+            TokenType::LPBrace => todo!(
+                "PrimaryExpr parse: Grouped expression not implemented yet"
+            ),
+            _ => Err(Some(ParseError {
+                typ: ParseErrorType::UnexpectedToken(tok_type),
+                line,
+                pos,
+            })),
+        }
+    }
+
+    fn type_tag(&self) -> &TypeTag {
+        // the way I deal with custom type is, use its entire identifier,
+        // as a string.
         &self.tag
     }
 }
