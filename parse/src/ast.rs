@@ -72,7 +72,8 @@ struct Program {
 ///
 /// A statement without semicolon is, for now, an expression. Hah.
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Stmt {}
+struct Stmt {
+}
 
 /// An expression evaluates to a specific type.
 ///
@@ -80,6 +81,7 @@ struct Stmt {}
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Expr {
     term: TermExpr,
+    tag: TypeTag,
 }
 
 // TODO: rules for LHS of either arithmetic or boolean expression,
@@ -97,6 +99,7 @@ struct Expr {
 struct TermExpr {
     first_term: FactorExpr,
     follow_terms: Vec<(TermOp, FactorExpr)>,
+    tag: TypeTag,
 }
 
 /// Multiply or divide
@@ -113,6 +116,7 @@ struct TermExpr {
 struct FactorExpr {
     first_factor: UnaryExpr,
     follow_factors: Vec<(FacOp, UnaryExpr)>,
+    tag: TypeTag,
 }
 
 // TODO: finish writing the docs
