@@ -5,10 +5,10 @@
 mod test;
 pub mod tokens;
 
+use std::collections::VecDeque;
 use std::error::Error;
 use std::fmt::Display;
 use std::mem;
-use std::collections::VecDeque;
 
 pub use tokens::{Token, TokenType};
 
@@ -260,6 +260,7 @@ impl TokDfa {
             self.state_fn = Self::identifier_state;
             self.identifier_state(line, pos, grapheme)
         } else if grapheme.is_ascii_digit() {
+            self.state_fn = Self::number_state;
             self.number_state(line, pos, grapheme)
         } else if grapheme == '"' {
             self.state_fn = Self::string_state;
@@ -400,10 +401,10 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        // ensure grapheme is 1 ASCII character.
         if grapheme.is_ascii_whitespace() {
             debug_assert!(self.curr_tok.is_some());
-            self.tok_vec.push(mem::take(&mut self.curr_tok).unwrap());
+            let curr_tok = mem::take(&mut self.curr_tok).unwrap();
+            self.tok_vec.push(curr_tok);
             self.state_fn = Self::init_state;
             return Ok(self);
         }
@@ -444,14 +445,120 @@ impl TokDfa {
             ));
             return Ok(self);
         }
-        // for now, characters like e, u, and such, still return error.
+        if grapheme == '.' {
+            let (tok_type, line, pos) =
+                mem::take(&mut self.curr_tok).unwrap().bind();
+            self.curr_tok = Some(Token::new(
+                TokenType::Double(format!(
+                    "{}.",
+                    match tok_type {
+                        TokenType::Integer(s) => s,
+                        _ => panic!(
+                            "Internal error: number_state: expected integer"
+                        ),
+                    }
+                )),
+                line,
+                pos,
+            ));
+            self.state_fn = Self::double_state;
+            return Ok(self);
+        }
+        // // for now, characters like e, u, and such, still return error.
+        //
+        // Err(TokenizeError::new(
+        //     TokenizeErrorType::InvalidToken(grapheme.into()),
+        //     TokenizeError::INNOCENCE,
+        //     line,
+        //     pos,
+        // ))
+        self.init_state(line, pos, grapheme)
+    }
 
-        Err(TokenizeError::new(
-            TokenizeErrorType::InvalidToken(grapheme.into()),
-            TokenizeError::INNOCENCE,
-            line,
-            pos,
-        ))
+    #[allow(unused)]
+    fn double_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: char,
+    ) -> Result<Self, TokenizeError> {
+        // the assumption is that one can only call double_state if they have
+        // been parsing an integer, then meet a dot.
+        debug_assert!(self.curr_tok.as_ref().is_some_and(|tok| {
+            match &tok.token_type {
+                TokenType::Double(s) => {
+                    s.chars().filter(|&c| c == '.').count() == 1
+                }
+                _ => false,
+            }
+        }));
+        if let Some((TokenType::Double(mut s), curr_line, curr_pos)) =
+            mem::take(&mut self.curr_tok).map(Token::bind)
+        {
+            // NOTE: if planning to support number suffixes (eg, e, u), remember
+            // to modify double_state.
+            if grapheme.is_ascii_digit() && curr_line != line {
+                // expecting more numbers after the dot.
+                if s.ends_with('.') {
+                    return Err(TokenizeError::new(
+                        TokenizeErrorType::InvalidToken(s),
+                        TokenizeError::INNOCENCE,
+                        curr_line,
+                        curr_pos,
+                    ));
+                }
+                self.tok_vec.push(Token::new(
+                    TokenType::Double(s),
+                    curr_line,
+                    curr_pos,
+                ));
+                self.state_fn = Self::number_state;
+                return self.number_state(line, pos, grapheme);
+            } else if grapheme.is_ascii_digit() && curr_line == line {
+                s.push(grapheme);
+                self.curr_tok =
+                    Some(Token::new(TokenType::Double(s), curr_line, curr_pos));
+                return Ok(self);
+            } else if grapheme.is_ascii_whitespace() {
+                // expecting more numbers after the dot.
+                if s.ends_with('.') {
+                    return Err(TokenizeError::new(
+                        TokenizeErrorType::InvalidToken(s),
+                        TokenizeError::INNOCENCE,
+                        curr_line,
+                        curr_pos,
+                    ));
+                }
+                self.tok_vec.push(Token::new(
+                    TokenType::Double(s),
+                    curr_line,
+                    curr_pos,
+                ));
+                return Ok(self);
+            } else if grapheme == '.' {
+                return Err(TokenizeError::new(
+                    TokenizeErrorType::InvalidToken(grapheme.to_string()),
+                    TokenizeError::INNOCENCE,
+                    curr_line,
+                    curr_pos,
+                ));
+            }
+            // expecting more numbers after the dot.
+            if s.ends_with('.') {
+                return Err(TokenizeError::new(
+                    TokenizeErrorType::InvalidToken(s),
+                    TokenizeError::INNOCENCE,
+                    curr_line,
+                    curr_pos,
+                ));
+            }
+            self.curr_tok =
+                Some(Token::new(TokenType::Double(s), curr_line, curr_pos));
+            self.state_fn = Self::init_state;
+            return self.init_state(line, pos, grapheme);
+        }
+
+        panic!("Internal error: double_state: called when type is not double")
     }
 
     /// Identifier state.

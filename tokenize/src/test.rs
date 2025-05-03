@@ -223,6 +223,47 @@ fn number() {
 }
 
 #[test]
+fn simple_double() {
+    let ret = tokenize("420.69");
+    let ur = ret.unwrap();
+    assert!(!ur.is_empty());
+    let Some(Token {
+        token_type: TokenType::Double(dbl),
+        ..
+    }) = ur.front()
+    else {
+        panic!("tokenize::test::simple_double: ur wrong");
+    };
+    assert_eq!(dbl, "420.69");
+}
+
+#[test]
+fn too_many_dot_double() {
+    let ret = tokenize("420.69.111");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidToken(_),
+            ..
+        })
+    ));
+}
+
+#[test]
+fn double_multiline_err() {
+    let ret = tokenize("420.\n69");
+    assert!(ret.is_err());
+    assert!(matches!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidToken(_),
+            ..
+        })
+    ));
+}
+
+#[test]
 fn multiline_number() {
     let ret = tokenize("69420\n66666\n424242").unwrap();
     assert_eq!(ret.len(), 3);
