@@ -81,7 +81,6 @@ struct Stmt {
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Expr {
     term: TermExpr,
-    tag: TypeTag,
 }
 
 // TODO: rules for LHS of either arithmetic or boolean expression,
@@ -99,7 +98,6 @@ struct Expr {
 struct TermExpr {
     first_term: FactorExpr,
     follow_terms: Vec<(TermOp, FactorExpr)>,
-    tag: TypeTag,
 }
 
 /// Multiply or divide
@@ -116,7 +114,6 @@ struct TermExpr {
 struct FactorExpr {
     first_factor: UnaryExpr,
     follow_factors: Vec<(FacOp, UnaryExpr)>,
-    tag: TypeTag,
 }
 
 // TODO: finish writing the docs
@@ -147,7 +144,6 @@ struct FactorExpr {
 struct UnaryExpr {
     primary: PrimaryExpr,
     unary_op: Option<UnaryOp>,
-    tag: TypeTag,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -221,7 +217,7 @@ impl AstNode for UnaryExpr {
             tokens.pop_front();
         }
 
-        let (tag, primary) = PrimaryExpr::parse(tokens)
+        let primary = PrimaryExpr::parse(tokens)
             .and_then(|expr| {
                 if unary_op.is_none()
                     || matches!(
@@ -229,7 +225,7 @@ impl AstNode for UnaryExpr {
                         TypeTag::Integer | TypeTag::Float
                     )
                 {
-                    Ok((expr.type_tag().clone(), expr))
+                    Ok(expr)
                 } else {
                     Err(Some(ParseError {
                         typ: ParseErrorType::WrongType(expr.type_tag().clone()),
@@ -253,12 +249,11 @@ impl AstNode for UnaryExpr {
         Ok(Self {
             primary,
             unary_op,
-            tag,
         })
     }
 
     fn type_tag(&self) -> &TypeTag {
-        &self.tag
+        self.primary.type_tag()
     }
 }
 
