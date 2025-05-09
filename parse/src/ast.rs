@@ -143,7 +143,6 @@ struct UnaryExpr {
 #[derive(Debug, PartialEq, Clone)]
 struct PrimaryExpr {
     typ: PrimaryExprType,
-    tag: TypeTag,
 }
 
 // a bunch of variants.
@@ -283,7 +282,6 @@ impl AstNode for PrimaryExpr {
                 debug_assert!(s_in.parse::<u64>().is_ok());
                 Ok(Self {
                     typ: PrimaryExprType::LiteralInteger(s_in.parse().unwrap()),
-                    tag: TypeTag::Integer,
                 })
             }
             TokenType::Double(s_dbl) => {
@@ -292,12 +290,10 @@ impl AstNode for PrimaryExpr {
                     typ: PrimaryExprType::LiteralDouble(
                         s_dbl.parse::<f64>().unwrap(),
                     ),
-                    tag: TypeTag::Double,
                 })
             }
             TokenType::String(s) => Ok(Self {
                 typ: PrimaryExprType::LiteralString(s),
-                tag: TypeTag::String,
             }),
             TokenType::LPBrace => todo!(
                 "PrimaryExpr parse: Grouped expression not implemented yet"
