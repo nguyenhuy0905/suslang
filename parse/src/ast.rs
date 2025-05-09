@@ -188,6 +188,39 @@ enum UnaryOp {
 
 // TODO: actually start recursively descending. Let's go.
 
+impl AstNode for TermExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_term = FactorExpr::parse(tokens)?;
+        let follow_terms = {
+            let mut ret = Vec::new();
+            while let Some((Some(term_op), line, pos)) = tokens
+                .front()
+                .map(Token::bind_ref)
+                .map(|(some_op, line, pos)| {
+                    (
+                        match some_op {
+                            TokenType::Plus => Some(TermOp::Plus),
+                            TokenType::Dash => Some(TermOp::Minus),
+                            _ => None,
+                        },
+                        line,
+                        pos,
+                    )
+                })
+            {
+                // remove the term_op token
+                tokens.pop_front();
+                ret.push((term_op, FactorExpr::parse(tokens)?));
+            }
+            ret
+        };
+        Ok(Self {
+            first_term,
+            follow_terms,
+        })
+    }
+}
+
 impl AstNode for FactorExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
         let first_factor = UnaryExpr::parse(tokens)?;

@@ -127,10 +127,79 @@ fn factor_simple_mult() {
             UnaryExpr {
                 primary: PrimaryExpr {
                     typ: PrimaryExprType::LiteralInteger(3),
-                    tag: TypeTag::Integer,
                 },
                 unary_op: None
             }
         )]
     );
+}
+
+#[test]
+fn term_simple() {
+    let mut deque = VecDeque::from([Token::new(
+        TokenType::String("hello".to_string()),
+        0,
+        1,
+    )]);
+    let term = TermExpr::parse(&mut deque).unwrap();
+    if let TermExpr {
+        first_term:
+            FactorExpr {
+                first_factor:
+                    UnaryExpr {
+                        primary:
+                            PrimaryExpr {
+                                typ: PrimaryExprType::LiteralString(s),
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            },
+        ..
+    } = term
+    {
+        assert_eq!(s, "hello");
+    } else {
+        panic!("Type {term:?} doesn't match literal string expression");
+    }
+}
+
+#[test]
+fn term_simple_plus() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("1".to_string()), 0, 1),
+        Token::new(TokenType::Plus, 0, 3),
+        Token::new(TokenType::Integer("3".to_string()), 0, 5),
+    ]);
+    let term = TermExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let first_prim = PrimaryExpr {
+            typ: PrimaryExprType::LiteralInteger(1),
+        };
+        let second_prim = PrimaryExpr {
+            typ: PrimaryExprType::LiteralInteger(3),
+        };
+        let first_unary = UnaryExpr {
+            primary: first_prim,
+            unary_op: None,
+        };
+        let second_unary = UnaryExpr {
+            primary: second_prim,
+            unary_op: None,
+        };
+        let first_fac = FactorExpr {
+            first_factor: first_unary,
+            follow_factors: Vec::new(),
+        };
+        let second_fac = FactorExpr {
+            first_factor: second_unary,
+            follow_factors: Vec::new(),
+        };
+        TermExpr {
+            first_term: first_fac,
+            follow_terms: vec![(TermOp::Plus, second_fac)],
+        }
+    };
+    assert_eq!(term, cmp);
 }
