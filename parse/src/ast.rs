@@ -32,11 +32,6 @@ trait AstNode: std::marker::Sized {
     /// * `tokens`: A [`VecDeque`] of tokens. Obtained from calling
     ///   [`tokenize::tokenize`].
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>>;
-    /// Returns the [`TypeTag`] of the current node.
-    ///
-    /// To avoid repeating work, it's best for each node to hold the type tag
-    /// as a struct member.
-    fn type_tag(&self) -> &TypeTag;
 }
 
 /// A version of [`tokenize::TokenType`] but without the value and other cruft.
@@ -197,7 +192,6 @@ enum UnaryOp {
 impl AstNode for FactorExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
         let first_factor = UnaryExpr::parse(tokens)?;
-        let first_factor_typ = first_factor.type_tag();
         let follow_factors = {
             let mut ret = Vec::new();
             while let Some((Some(fac_op), line, pos)) =
@@ -213,47 +207,19 @@ impl AstNode for FactorExpr {
                     )
                 })
             {
-                // TODO: when Rust stabilizes unlikely, change this.
-                if !matches!(
-                    first_factor_typ,
-                    TypeTag::Integer | TypeTag::Double
-                ) {
-                    return Err(Some(ParseError {
-                        typ: ParseErrorType::WrongType(
-                            first_factor_typ.clone(),
-                        ),
-                        line,
-                        pos,
-                    }));
-                }
                 // remove the token matching the factor operator
                 tokens.pop_front();
                 // parse the next unary expression.
                 ret.push((
                     fac_op,
-                    UnaryExpr::parse(tokens)
-                        // make sure all unary exprs are of the same type.
-                        .and_then(|expr| {
-                            if expr.type_tag() == first_factor_typ {
-                                Ok(expr)
-                            } else {
-                                Err(Some(ParseError {
-                                    typ: ParseErrorType::WrongType(
-                                        first_factor_typ.clone(),
-                                    ),
-                                    line,
-                                    pos,
-                                }))
-                            }
-                        })
-                        .map_err(|e| match e {
-                            Some(e) => e,
-                            None => ParseError {
-                                typ: ParseErrorType::ExpectedExpr,
-                                line,
-                                pos,
-                            },
-                        })?,
+                    UnaryExpr::parse(tokens).map_err(|e| match e {
+                        Some(e) => e,
+                        None => ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        },
+                    })?,
                 ));
             }
             ret
@@ -263,11 +229,6 @@ impl AstNode for FactorExpr {
             first_factor,
             follow_factors,
         })
-    }
-
-    #[inline]
-    fn type_tag(&self) -> &TypeTag {
-        self.first_factor.type_tag()
     }
 }
 
@@ -294,41 +255,19 @@ impl AstNode for UnaryExpr {
             tokens.pop_front();
         }
 
-        let primary = PrimaryExpr::parse(tokens)
-            .and_then(|expr| {
-                if unary_op.is_none()
-                    || matches!(
-                        expr.type_tag(),
-                        TypeTag::Integer | TypeTag::Double
-                    )
-                {
-                    Ok(expr)
-                } else {
-                    Err(Some(ParseError {
-                        typ: ParseErrorType::WrongType(expr.type_tag().clone()),
-                        line,
-                        pos,
-                    }))
-                }
-            })
-            .map_err(|e| {
-                if e.is_none() {
-                    Some(ParseError {
-                        typ: ParseErrorType::ExpectedExpr,
-                        line,
-                        pos,
-                    })
-                } else {
-                    e
-                }
-            })?;
+        let primary = PrimaryExpr::parse(tokens).map_err(|e| {
+            if e.is_none() {
+                Some(ParseError {
+                    typ: ParseErrorType::ExpectedExpr,
+                    line,
+                    pos,
+                })
+            } else {
+                e
+            }
+        })?;
 
         Ok(Self { primary, unary_op })
-    }
-
-    #[inline]
-    fn type_tag(&self) -> &TypeTag {
-        self.primary.type_tag()
     }
 }
 
@@ -369,12 +308,5 @@ impl AstNode for PrimaryExpr {
                 pos,
             })),
         }
-    }
-
-    #[inline]
-    fn type_tag(&self) -> &TypeTag {
-        // the way I deal with custom type is, use its entire identifier,
-        // as a string.
-        &self.tag
     }
 }

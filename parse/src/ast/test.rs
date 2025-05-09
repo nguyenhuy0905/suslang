@@ -17,7 +17,7 @@ fn literal_string() {
 }
 
 #[test]
-fn unary_simple() {
+fn unary_simple_num() {
     let mut deque = VecDeque::from([
         Token::new(TokenType::Dash, 0, 0),
         Token::new(TokenType::Integer("420".to_string()), 0, 1),
@@ -50,23 +50,7 @@ fn unary_expected_tok_err() {
 }
 
 #[test]
-fn unary_wrong_type() {
-    let mut deque = VecDeque::from([
-        Token::new(TokenType::Plus, 0, 0),
-        Token::new(TokenType::String("surprise mf".to_string()), 0, 1),
-    ]);
-    let unar = UnaryExpr::parse(&mut deque);
-    assert!(matches!(
-        unar,
-        Err(Some(ParseError {
-            typ: ParseErrorType::WrongType(TypeTag::String),
-            ..
-        }))
-    ));
-}
-
-#[test]
-fn unary_right_type() {
+fn unary_simple_string() {
     let mut deque = VecDeque::from([Token::new(
         TokenType::String("hello".to_string()),
         0,
@@ -87,7 +71,7 @@ fn unary_right_type() {
 }
 
 #[test]
-fn factor_simple() {
+fn factor_simple_string() {
     let mut deque = VecDeque::from([Token::new(
         TokenType::String("hello".to_string()),
         0,
@@ -112,7 +96,7 @@ fn factor_simple() {
 }
 
 #[test]
-fn factor_right_type() {
+fn factor_simple_mult() {
     // 2 * 3
     let mut deque = VecDeque::from([
         Token::new(TokenType::Dash, 0, 1),
@@ -149,24 +133,4 @@ fn factor_right_type() {
             }
         )]
     );
-}
-
-#[test]
-fn factor_wrong_type() {
-    // 2 * 3.0
-    let mut deque = VecDeque::from([
-        Token::new(TokenType::Dash, 0, 1),
-        Token::new(TokenType::Integer("2".to_string()), 0, 2),
-        Token::new(TokenType::Star, 0, 3),
-        Token::new(TokenType::Double("3.0".to_string()), 0, 4),
-    ]);
-    let fact = FactorExpr::parse(&mut deque);
-    assert!(fact.is_err());
-    assert!(matches!(
-        fact,
-        Err(Some(ParseError {
-            typ: ParseErrorType::WrongType(_),
-            ..
-        }))
-    ));
 }
