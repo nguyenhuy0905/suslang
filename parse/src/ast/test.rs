@@ -151,6 +151,37 @@ fn factor_simple_mult() {
 }
 
 #[test]
+fn factor_priority() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Star, 0, 2),
+        Token::new(TokenType::Dash, 0, 3),
+        Token::new(TokenType::Integer("2".to_string()), 0, 4),
+    ]);
+    let fact = FactorExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (first_un, second_un) = [3, 2]
+            .map(|n| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(n),
+            })
+            .map(|prim| UnaryExpr {
+                primary: prim,
+                unary_op: None,
+            })
+            .into();
+        let second_un = UnaryExpr {
+            primary: second_un.primary,
+            unary_op: Some(UnaryOp::Negate),
+        };
+        FactorExpr {
+            first_factor: first_un,
+            follow_factors: vec![(FacOp::Multiply, second_un)],
+        }
+    };
+    assert_eq!(fact, cmp);
+}
+
+#[test]
 fn factor_unfinished() {
     let mut deque = VecDeque::from([
         Token::new(TokenType::Integer("2".to_string()), 0, 1),
