@@ -71,6 +71,22 @@ fn unary_simple_string() {
 }
 
 #[test]
+fn unary_signed_num() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Dash, 0, 1),
+        Token::new(TokenType::Integer("4".to_string()), 0, 2),
+    ]);
+    let unary = UnaryExpr::parse(&mut deque).unwrap();
+    let cmp = UnaryExpr {
+        primary: PrimaryExpr {
+            typ: PrimaryExprType::LiteralInteger(4),
+        },
+        unary_op: Some(UnaryOp::Negate),
+    };
+    assert_eq!(unary, cmp);
+}
+
+#[test]
 fn factor_simple_string() {
     let mut deque = VecDeque::from([Token::new(
         TokenType::String("hello".to_string()),
