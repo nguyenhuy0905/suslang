@@ -219,3 +219,40 @@ fn term_simple_plus() {
     };
     assert_eq!(term, cmp);
 }
+
+#[test]
+fn term_priority() {
+    // 3 + 2 * 4
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Plus, 0, 2),
+        Token::new(TokenType::Integer("2".to_string()), 0, 3),
+        Token::new(TokenType::Star, 0, 4),
+        Token::new(TokenType::Integer("4".to_string()), 0, 5),
+    ]);
+    let term = TermExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (first_un, second_un, third_un) = [3, 2, 4]
+            .map(|n| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(n),
+            })
+            .map(|prim| UnaryExpr {
+                primary: prim,
+                unary_op: None,
+            })
+            .into();
+        let second_fac = FactorExpr {
+            first_factor: second_un,
+            follow_factors: vec![(FacOp::Multiply, third_un)],
+        };
+        let first_fac = FactorExpr {
+            first_factor: first_un,
+            follow_factors: Vec::new(),
+        };
+        TermExpr {
+            first_term: first_fac,
+            follow_terms: vec![(TermOp::Plus, second_fac)],
+        }
+    };
+    assert_eq!(term, cmp);
+}
