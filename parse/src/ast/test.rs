@@ -93,22 +93,21 @@ fn factor_simple_string() {
         0,
         1,
     )]);
-    let fact = FactorExpr::parse(&mut deque);
-    assert!(fact.is_ok());
-    // assert_matches is unstable ATM
-    assert!(matches!(
-        fact,
-        Ok(FactorExpr {
-            first_factor: UnaryExpr {
-                primary: PrimaryExpr {
-                    typ: PrimaryExprType::LiteralString(_),
-                    ..
-                },
-                ..
-            },
-            ..
-        })
-    ));
+    let fact = FactorExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let prim = PrimaryExpr {
+            typ: PrimaryExprType::LiteralString("hello".to_string()),
+        };
+        let unary = UnaryExpr {
+            primary: prim,
+            unary_op: None,
+        };
+        FactorExpr {
+            first_factor: unary,
+            follow_factors: Vec::new(),
+        }
+    };
+    assert_eq!(fact, cmp);
 }
 
 #[test]
@@ -121,33 +120,21 @@ fn factor_simple_mult() {
         Token::new(TokenType::Integer("3".to_string()), 0, 4),
     ]);
     let fact = FactorExpr::parse(&mut deque).unwrap();
-    // 2
-    assert!(matches!(
-        fact,
+    let cmp = {
+        let (first_un, second_un) = [2, 3]
+            .map(|n| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(n),
+            })
+            .map(|prim| UnaryExpr {
+                primary: prim,
+                unary_op: None,
+            })
+            .into();
         FactorExpr {
-            first_factor: UnaryExpr {
-                primary: PrimaryExpr {
-                    typ: PrimaryExprType::LiteralInteger(2),
-                    ..
-                },
-                unary_op: Some(UnaryOp::Negate),
-            },
-            ..
+            first_factor: first_un,
+            follow_factors: vec![(FacOp::Multiply, second_un)],
         }
-    ));
-    // * 3
-    assert_eq!(
-        fact.follow_factors,
-        vec![(
-            FacOp::Multiply,
-            UnaryExpr {
-                primary: PrimaryExpr {
-                    typ: PrimaryExprType::LiteralInteger(3),
-                },
-                unary_op: None
-            }
-        )]
-    );
+    };
 }
 
 #[test]
@@ -205,27 +192,24 @@ fn term_simple() {
         1,
     )]);
     let term = TermExpr::parse(&mut deque).unwrap();
-    if let TermExpr {
-        first_term:
-            FactorExpr {
-                first_factor:
-                    UnaryExpr {
-                        primary:
-                            PrimaryExpr {
-                                typ: PrimaryExprType::LiteralString(s),
-                                ..
-                            },
-                        ..
-                    },
-                ..
-            },
-        ..
-    } = term
-    {
-        assert_eq!(s, "hello");
-    } else {
-        panic!("Type {term:?} doesn't match literal string expression");
-    }
+    let cmp = {
+        let prim = PrimaryExpr {
+            typ: PrimaryExprType::LiteralString("hello".to_string()),
+        };
+        let unary = UnaryExpr {
+            primary: prim,
+            unary_op: None,
+        };
+        let fac = FactorExpr {
+            first_factor: unary,
+            follow_factors: Vec::new(),
+        };
+        TermExpr {
+            first_term: fac,
+            follow_terms: Vec::new(),
+        }
+    };
+    assert_eq!(term, cmp);
 }
 
 #[test]
