@@ -135,6 +135,22 @@ fn factor_simple_mult() {
 }
 
 #[test]
+fn factor_unfinished() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("2".to_string()), 0, 1),
+        Token::new(TokenType::Star, 0, 2),
+    ]);
+    let fact = FactorExpr::parse(&mut deque);
+    assert!(matches!(
+        fact,
+        Err(Some(ParseError {
+            typ: ParseErrorType::ExpectedExpr,
+            ..
+        }))
+    ));
+}
+
+#[test]
 fn term_simple() {
     let mut deque = VecDeque::from([Token::new(
         TokenType::String("hello".to_string()),
