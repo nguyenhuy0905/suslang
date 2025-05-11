@@ -315,6 +315,51 @@ fn comparisons() {
 }
 
 #[test]
+fn conditional() {
+    let ret = tokenize("|| &&").unwrap();
+    let cmp_arr = [TokenType::BeamBeam, TokenType::AmpersandAmpersand];
+    assert_eq!(
+        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
+}
+
+#[test]
+fn bitwise_line_separated() {
+    let ret = tokenize("|\n|").unwrap();
+    let cmp_arr = [TokenType::Beam, TokenType::Beam];
+    assert_eq!(
+        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
+}
+
+#[test]
+fn bitwise_whitespace_separated() {
+    let ret = tokenize("| |").unwrap();
+    let cmp_arr = [TokenType::Beam, TokenType::Beam];
+    assert_eq!(
+        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
+}
+
+#[test]
+fn bitwise() {
+    let ret = tokenize("&3&|").unwrap();
+    let cmp_arr = [
+        TokenType::Ampersand,
+        TokenType::Integer("3".to_string()),
+        TokenType::Ampersand,
+        TokenType::Beam,
+    ];
+    assert_eq!(
+        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        cmp_arr
+    );
+}
+
+#[test]
 fn multi_word_symbol() {
     let ret = tokenize("===").unwrap();
     assert_eq!(ret.len(), 2);
