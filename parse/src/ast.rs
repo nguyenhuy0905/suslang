@@ -239,6 +239,37 @@ enum UnaryOp {
     Plus,
 }
 
+impl AstNode for BitAndExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_term = TermExpr::parse(tokens)?;
+        let follow_terms = {
+            let mut ret = Vec::new();
+            if let Some((&TokenType::Ampersand, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                // if there is a beam and nothing else after, it's an error.
+                ret.push(TermExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(BitAndExpr {
+            first_term,
+            follow_terms,
+        })
+    }
+}
+
 // TODO: actually start recursively descending. Let's go.
 
 impl AstNode for TermExpr {

@@ -287,3 +287,93 @@ fn term_priority() {
     };
     assert_eq!(term, cmp);
 }
+
+#[test]
+fn simple_bit_and() {
+    let mut deque =
+        VecDeque::from([Token::new(TokenType::Integer("3".to_string()), 0, 1)]);
+    let bitand = BitAndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let un_exp = UnaryExpr {
+            primary: PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(3),
+            },
+            unary_op: None,
+        };
+        let fac_exp = FactorExpr {
+            first_factor: un_exp,
+            follow_factors: Vec::new(),
+        };
+        let term_exp = TermExpr {
+            first_term: fac_exp,
+            follow_terms: Vec::new(),
+        };
+        BitAndExpr {
+            first_term: term_exp,
+            follow_terms: Vec::new(),
+        }
+    };
+    assert_eq!(bitand, cmp);
+}
+
+#[test]
+fn two_clause_bit_and() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Ampersand, 0, 1),
+        Token::new(TokenType::Integer("69".to_string()), 0, 1),
+    ]);
+    let bitand = BitAndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let first_un = UnaryExpr {
+            primary: PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(3),
+            },
+            unary_op: None,
+        };
+        let second_un = UnaryExpr {
+            primary: PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(69),
+            },
+            unary_op: None,
+        };
+        let first_fac = FactorExpr {
+            first_factor: first_un,
+            follow_factors: Vec::new(),
+        };
+        let second_fac = FactorExpr {
+            first_factor: second_un,
+            follow_factors: Vec::new(),
+        };
+        let first_term = TermExpr {
+            first_term: first_fac,
+            follow_terms: Vec::new(),
+        };
+        let second_term = TermExpr {
+            first_term: second_fac,
+            follow_terms: Vec::new(),
+        };
+        BitAndExpr {
+            first_term,
+            follow_terms: vec![second_term],
+        }
+    };
+    assert_eq!(bitand, cmp);
+}
+
+#[test]
+fn bit_and_expected_term() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Ampersand, 0, 2),
+    ]);
+    let ret = BitAndExpr::parse(&mut deque);
+    assert!(matches!(
+        ret,
+        Err(Some(ParseError {
+            typ: ParseErrorType::ExpectedExpr,
+            line: 0,
+            pos: 2,
+        }))
+    ));
+}
