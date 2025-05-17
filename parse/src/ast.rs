@@ -61,7 +61,7 @@ struct Stmt {}
 /// Sometimes, that may include the void type.
 #[derive(Debug, PartialEq, Clone)]
 struct Expr {
-    term: OrExpr,
+    expr: OrExpr,
 }
 
 /// Or logical.
@@ -74,7 +74,7 @@ struct Expr {
 #[derive(Debug, PartialEq, Clone)]
 struct OrExpr {
     first_clause: AndExpr,
-    follow_clause: Vec<AndExpr>,
+    follow_clauses: Vec<AndExpr>,
 }
 
 /// And logical.
@@ -86,8 +86,8 @@ struct OrExpr {
 /// - [`ComparisonExpr`]
 #[derive(Debug, PartialEq, Clone)]
 struct AndExpr {
-    first_clause: TermExpr,
-    follow_clauses: Vec<TermExpr>,
+    first_clause: ComparisonExpr,
+    follow_clauses: Vec<ComparisonExpr>,
 }
 
 /// Equality comparison expression.
@@ -97,11 +97,37 @@ struct AndExpr {
 ///   (("==" | "!=" | ">" | "<" | ">=" | "<=") \<term-expr\>)?
 ///
 /// # See also
-/// - [`TermExpr`]
+/// - [`BitAndExpr`]
 #[derive(Debug, PartialEq, Clone)]
 struct ComparisonExpr {
+    first_term: BitAndExpr,
+    second_term: Option<BitAndExpr>,
+}
+
+/// Bit or
+///
+/// # Rule
+/// \<bit-or-expr\> ::= \<bit-and-expr\> ("|" \<bit-and-expr\>)*
+///
+/// # See also
+/// - [`BitAndExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct BitOrExpr {
+    first_bit_and: BitAndExpr,
+    follow_bit_ands: Vec<BitAndExpr>,
+}
+
+/// Bit and
+///
+/// # Rule
+/// \<bit-and-expr\> ::= \<term-expr\> ("&" \<term-expr\>)*
+///
+/// # See also
+/// - [`TermExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct BitAndExpr {
     first_term: TermExpr,
-    second_term: Option<TermExpr>,
+    follow_terms: Vec<TermExpr>,
 }
 
 // TODO: rules for LHS of either arithmetic or boolean expression,
