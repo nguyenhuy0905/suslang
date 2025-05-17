@@ -239,6 +239,38 @@ enum UnaryOp {
     Plus,
 }
 
+impl AstNode for BitOrExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        // near identical to BitAndExpr::parse save for some values.
+        let first_bit_and = BitAndExpr::parse(tokens)?;
+        let follow_bit_ands = {
+            let mut ret = Vec::new();
+            if let Some((&TokenType::Beam, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                // if there is a beam and nothing else after, it's an error.
+                ret.push(BitAndExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(BitOrExpr {
+            first_bit_and,
+            follow_bit_ands,
+        })
+    }
+}
+
 impl AstNode for BitAndExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
         let first_term = TermExpr::parse(tokens)?;
