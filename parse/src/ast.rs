@@ -12,7 +12,6 @@ mod test;
 pub enum ParseErrorType {
     UnexpectedToken(tokenize::TokenType),
     ExpectedExpr,
-    WrongType(TypeTag),
 }
 
 #[derive(Debug)]
@@ -32,18 +31,6 @@ trait AstNode: std::marker::Sized {
     /// * `tokens`: A [`VecDeque`] of tokens. Obtained from calling
     ///   [`tokenize::tokenize`].
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>>;
-}
-
-/// A version of [`tokenize::TokenType`] but without the value and other cruft.
-/// Just the types.
-///
-/// The custom types are stored literally. As a string.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeTag {
-    Integer,
-    Double,
-    String,
-    Custom(String),
 }
 
 /// A program consists of one or more statements, for now.
