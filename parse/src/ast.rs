@@ -210,7 +210,20 @@ impl AstNode for TermExpr {
             {
                 // remove the term_op token
                 tokens.pop_front();
-                ret.push((term_op, FactorExpr::parse(tokens)?));
+                ret.push((
+                    term_op,
+                    FactorExpr::parse(tokens).map_err(|e| {
+                        if e.is_none() {
+                            Some(ParseError {
+                                typ: ParseErrorType::ExpectedExpr,
+                                line,
+                                pos,
+                            })
+                        } else {
+                            e
+                        }
+                    })?,
+                ));
             }
             ret
         };

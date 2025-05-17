@@ -252,6 +252,23 @@ fn term_simple_plus() {
 }
 
 #[test]
+fn term_expected_expr() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Dash, 0, 2),
+    ]);
+    let ret = TermExpr::parse(&mut deque);
+    assert!(matches!(
+        ret,
+        Err(Some(ParseError {
+            typ: ParseErrorType::ExpectedExpr,
+            line: 0,
+            pos: 2,
+        }))
+    ));
+}
+
+#[test]
 fn term_priority() {
     // 3 + 2 * 4
     let mut deque = VecDeque::from([
