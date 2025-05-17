@@ -130,9 +130,6 @@ struct BitAndExpr {
     follow_terms: Vec<TermExpr>,
 }
 
-// TODO: rules for LHS of either arithmetic or boolean expression,
-// then a smaller rule for RHS of arithmetic and RHS of boolean expressions.
-
 /// Add or minus.
 ///
 /// # Rule
