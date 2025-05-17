@@ -61,7 +61,35 @@ struct Stmt {}
 /// Sometimes, that may include the void type.
 #[derive(Debug, PartialEq, Clone)]
 struct Expr {
-    term: TermExpr,
+    term: OrExpr,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct OrExpr {
+    first_clause: AndExpr,
+    second_clause: AndExpr,
+    follow_clause: Vec<AndExpr>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct AndExpr {
+    first_clause: TermExpr,
+    second_clause: TermExpr,
+    follow_clauses: Vec<TermExpr>,
+}
+
+/// Equality comparison expression.
+///
+/// # Rule
+/// \<comp-expr\> ::= \<term-expr\> ("==" | "!=" | ">" | "<" | ">=" | "<=")
+///                   \<term-expr\>
+///
+/// # See also
+/// - [`TermExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct ComparisonExpr {
+    first_term: TermExpr,
+    second_term: TermExpr,
 }
 
 // TODO: rules for LHS of either arithmetic or boolean expression,
@@ -142,6 +170,17 @@ enum PrimaryExprType {
     LiteralString(String),
     // must be a box otherwise it's an infinite definition recursion.
     GroupedExpr(Box<Expr>),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[repr(u8)]
+enum ComparisonOp {
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanEqual,
+    GreaterThanEqual,
 }
 
 /// Operators for [`TermExpr`].
