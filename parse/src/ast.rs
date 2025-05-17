@@ -64,32 +64,44 @@ struct Expr {
     term: OrExpr,
 }
 
+/// Or logical.
+///
+/// # Rule
+/// \<or-expr\> ::= \<and-expr\> ("||" \<and-expr\>)*
+///
+/// # See also
+/// - [`AndExpr`]
 #[derive(Debug, PartialEq, Clone)]
 struct OrExpr {
     first_clause: AndExpr,
-    second_clause: AndExpr,
     follow_clause: Vec<AndExpr>,
 }
 
+/// And logical.
+///
+/// # Rule
+/// \<and-expr\> ::= \<comp-expr\> ("&&" \<comp-expr\>)*
+///
+/// # See also
+/// - [`ComparisonExpr`]
 #[derive(Debug, PartialEq, Clone)]
 struct AndExpr {
     first_clause: TermExpr,
-    second_clause: TermExpr,
     follow_clauses: Vec<TermExpr>,
 }
 
 /// Equality comparison expression.
 ///
 /// # Rule
-/// \<comp-expr\> ::= \<term-expr\> ("==" | "!=" | ">" | "<" | ">=" | "<=")
-///                   \<term-expr\>
+/// \<comp-expr\> ::= \<term-expr\>
+///   (("==" | "!=" | ">" | "<" | ">=" | "<=") \<term-expr\>)?
 ///
 /// # See also
 /// - [`TermExpr`]
 #[derive(Debug, PartialEq, Clone)]
 struct ComparisonExpr {
     first_term: TermExpr,
-    second_term: TermExpr,
+    second_term: Option<TermExpr>,
 }
 
 // TODO: rules for LHS of either arithmetic or boolean expression,
