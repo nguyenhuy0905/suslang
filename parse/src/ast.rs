@@ -162,14 +162,6 @@ struct FactorExpr {
 
 // TODO: finish writing the docs
 
-// TODO: type-check the expression.
-//
-// Simplest way I could think of is, well, another enum. All expressions needs
-// to be manually implemented the trait that returns that enum.
-//
-// Most of the expression types will just forward the type request to its child
-// anyways.
-
 // TODO: add support for boolean expressions.
 
 /// Either just a wrapper around a primary expression, or a numerical primary
