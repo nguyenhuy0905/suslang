@@ -328,7 +328,7 @@ impl AstNode for BitAndExpr {
                 tokens.front().map(Token::bind_ref)
             {
                 tokens.pop_front();
-                // if there is a beam and nothing else after, it's an error.
+                // if there is an ampersand and nothing else after, it's an error.
                 ret.push(TermExpr::parse(tokens).map_err(|e| {
                     if e.is_none() {
                         Some(ParseError {
