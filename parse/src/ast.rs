@@ -240,6 +240,72 @@ enum UnaryOp {
     Plus,
 }
 
+impl AstNode for OrExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_clause = AndExpr::parse(tokens)?;
+        let follow_clauses = {
+            let mut ret = Vec::new();
+            while let Some((_, line, pos)) = tokens
+                .front()
+                .filter(|tok| tok.token_type() == &TokenType::BeamBeam)
+                .map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(AndExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(Self {
+            first_clause,
+            follow_clauses,
+        })
+    }
+}
+
+impl AstNode for AndExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_clause = ComparisonExpr::parse(tokens)?;
+        let follow_clauses = {
+            let mut ret = Vec::new();
+            while let Some((_, line, pos)) = tokens
+                .front()
+                .filter(|tok| {
+                    tok.token_type() == &TokenType::AmpersandAmpersand
+                })
+                .map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(ComparisonExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(Self {
+            first_clause,
+            follow_clauses,
+        })
+    }
+}
+
 impl AstNode for ComparisonExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
         let first_comp = BitOrExpr::parse(tokens)?;
