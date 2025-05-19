@@ -550,3 +550,81 @@ fn comp_exp_expected_expr() {
         }))
     ));
 }
+
+#[test]
+fn and_expr_chain() {
+    // 3 < 4 && 5 == 6 && 7 <= 8
+    let mut deque: VecDeque<_> = {
+        let mut counter = 0;
+        [
+            TokenType::Integer("3".to_string()),
+            TokenType::LPBrace,
+            TokenType::Integer("4".to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer("5".to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer("6".to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer("7".to_string()),
+            TokenType::LPBraceEqual,
+            TokenType::Integer("8".to_string()),
+        ]
+        .map(|typ| {
+            Token::new(typ, 0, {
+                counter += 1;
+                counter
+            })
+        })
+        .into()
+    };
+    let and_exp = AndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        // more elements than necessary so that it is easier to index.
+        let ors: Vec<_> = (0..=10)
+            .map(|num| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(num),
+            })
+            .map(|primary| UnaryExpr {
+                primary,
+                unary_op: None,
+            })
+            .map(|unary| FactorExpr {
+                first_factor: unary,
+                follow_factors: Vec::new(),
+            })
+            .map(|fac| TermExpr {
+                first_term: fac,
+                follow_terms: Vec::new(),
+            })
+            .map(|term| BitAndExpr {
+                first_term: term,
+                follow_terms: Vec::new(),
+            })
+            .map(|bitand| BitOrExpr {
+                first_bit_and: bitand,
+                follow_bit_ands: Vec::new(),
+            })
+            .collect::<_>();
+
+        let comp1 = ComparisonExpr {
+            first_comp: ors[3].clone(),
+            second_comp: Some(ors[4].clone()),
+            op: Some(ComparisonOp::LessThan),
+        };
+        let comp2 = ComparisonExpr {
+            first_comp: ors[5].clone(),
+            second_comp: Some(ors[6].clone()),
+            op: Some(ComparisonOp::Equal),
+        };
+        let comp3 = ComparisonExpr {
+            first_comp: ors[7].clone(),
+            second_comp: Some(ors[8].clone()),
+            op: Some(ComparisonOp::LessThanEqual),
+        };
+        AndExpr {
+            first_clause: comp1,
+            follow_clauses: vec![comp2, comp3],
+        }
+    };
+    assert_eq!(and_exp, cmp);
+}
