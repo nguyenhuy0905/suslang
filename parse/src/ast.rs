@@ -359,7 +359,7 @@ impl AstNode for BitOrExpr {
         let first_bit_and = BitAndExpr::parse(tokens)?;
         let follow_bit_ands = {
             let mut ret = Vec::new();
-            if let Some((&TokenType::Beam, line, pos)) =
+            while let Some((&TokenType::Beam, line, pos)) =
                 tokens.front().map(Token::bind_ref)
             {
                 tokens.pop_front();
@@ -390,7 +390,7 @@ impl AstNode for BitAndExpr {
         let first_term = TermExpr::parse(tokens)?;
         let follow_terms = {
             let mut ret = Vec::new();
-            if let Some((&TokenType::Ampersand, line, pos)) =
+            while let Some((&TokenType::Ampersand, line, pos)) =
                 tokens.front().map(Token::bind_ref)
             {
                 tokens.pop_front();

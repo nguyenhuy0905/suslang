@@ -379,6 +379,52 @@ fn bit_and_expected_term() {
 }
 
 #[test]
+fn bit_and_chain() {
+    let mut deque: VecDeque<_> = {
+        let mut counter: usize = 0;
+        [
+            TokenType::Integer("3".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("4".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("7".to_string()),
+        ]
+        .map(|typ| {
+            Token::new(typ, 0, {
+                counter += 1;
+                counter
+            })
+        })
+        .into()
+    };
+    let bitand = BitAndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (term1, term2, term3) = [3, 4, 7]
+            .map(|num| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(num),
+            })
+            .map(|primary| UnaryExpr {
+                primary,
+                unary_op: None,
+            })
+            .map(|prim| FactorExpr {
+                first_factor: prim,
+                follow_factors: Vec::new(),
+            })
+            .map(|fac| TermExpr {
+                first_term: fac,
+                follow_terms: Vec::new(),
+            })
+            .into();
+        BitAndExpr {
+            first_term: term1,
+            follow_terms: vec![term2, term3],
+        }
+    };
+    assert_eq!(bitand, cmp);
+}
+
+#[test]
 fn bit_or_precedence() {
     // 3 & 4 | 5 & 6
     // eqv to (3 & 4) | (5 & 6)
