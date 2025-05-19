@@ -377,3 +377,74 @@ fn bit_and_expected_term() {
         }))
     ));
 }
+
+#[test]
+fn comp_expr() {
+    // 3 + 4 == 7
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Plus, 0, 2),
+        Token::new(TokenType::Integer("4".to_string()), 0, 3),
+        Token::new(TokenType::EqualEqual, 0, 4),
+        Token::new(TokenType::Integer("7".to_string()), 0, 5),
+    ]);
+    let comp_exp = ComparisonExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (first_fac, second_fac, third_fac) = [3, 4, 7]
+            .map(|num| PrimaryExprType::LiteralInteger(num))
+            .map(|prim| PrimaryExpr { typ: prim })
+            .map(|prim| UnaryExpr {
+                primary: prim,
+                unary_op: None,
+            })
+            .map(|unary| FactorExpr {
+                first_factor: unary,
+                follow_factors: Vec::new(),
+            })
+            .into();
+        let first_term = TermExpr {
+            first_term: first_fac,
+            follow_terms: vec![(TermOp::Plus, second_fac)],
+        };
+        let second_term = TermExpr {
+            first_term: third_fac,
+            follow_terms: Vec::new(),
+        };
+        let (first_bit_or, second_bit_or) = [first_term, second_term]
+            .map(|term| BitAndExpr {
+                first_term: term,
+                follow_terms: Vec::new(),
+            })
+            .map(|bitand| BitOrExpr {
+                first_bit_and: bitand,
+                follow_bit_ands: Vec::new(),
+            })
+            .into();
+        ComparisonExpr {
+            first_comp: first_bit_or,
+            second_comp: Some(second_bit_or),
+            op: Some(ComparisonOp::Equal),
+        }
+    };
+    assert_eq!(comp_exp, cmp);
+}
+
+#[test]
+fn comp_exp_expected_expr() {
+    // 3 + 4 ==
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Plus, 0, 2),
+        Token::new(TokenType::Integer("4".to_string()), 0, 3),
+        Token::new(TokenType::EqualEqual, 0, 4),
+    ]);
+    let ret = ComparisonExpr::parse(&mut deque);
+    assert!(matches!(
+        ret,
+        Err(Some(ParseError {
+            typ: ParseErrorType::ExpectedExpr,
+            line: 0,
+            pos: 4,
+        }))
+    ));
+}

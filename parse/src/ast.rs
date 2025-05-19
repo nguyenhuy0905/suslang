@@ -100,8 +100,9 @@ struct AndExpr {
 /// - [`BitAndExpr`]
 #[derive(Debug, PartialEq, Clone)]
 struct ComparisonExpr {
-    first_term: BitAndExpr,
-    second_term: Option<BitAndExpr>,
+    first_comp: BitOrExpr,
+    second_comp: Option<BitOrExpr>,
+    op: Option<ComparisonOp>,
 }
 
 /// Bit or
@@ -237,6 +238,53 @@ enum FacOp {
 enum UnaryOp {
     Negate,
     Plus,
+}
+
+impl AstNode for ComparisonExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_comp = BitOrExpr::parse(tokens)?;
+        let (op, second_comp) = {
+            if let Some((op, line, pos)) = tokens
+                .front()
+                .map(Token::bind_ref)
+                .and_then(|(typ, line, pos)| match typ {
+                    TokenType::EqualEqual
+                    | TokenType::BangEqual
+                    | TokenType::LPBrace
+                    | TokenType::RPBrace
+                    | TokenType::LPBraceEqual
+                    | TokenType::RPBraceEqual => Some((typ, line, pos)),
+                    _ => None,
+                })
+                .map(|(typ, line, pos)| (match typ {
+                    TokenType::EqualEqual => ComparisonOp::Equal,
+                    TokenType::BangEqual => ComparisonOp::NotEqual,
+                    TokenType::LPBrace => ComparisonOp::LessThan,
+                    TokenType::RPBrace => ComparisonOp::GreaterThan,
+                    TokenType::LPBraceEqual => ComparisonOp::LessThanEqual,
+                    TokenType::RPBraceEqual => ComparisonOp::GreaterThanEqual,
+                    _ => panic!(
+                        "Type {typ:?} shouldn't pass to match a comparison op"
+                    ),
+                }, line, pos))
+            {
+                tokens.pop_front();
+                (Some(op), Some(BitOrExpr::parse(tokens).map_err(|e| if e.is_none() {
+                    Some(ParseError {
+                        typ: ParseErrorType::ExpectedExpr,
+                        line, pos
+                    })
+                } else {e})?))
+            } else {
+                (None, None)
+            }
+        };
+        Ok(Self {
+            first_comp,
+            second_comp,
+            op,
+        })
+    }
 }
 
 impl AstNode for BitOrExpr {
