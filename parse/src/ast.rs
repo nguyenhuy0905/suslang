@@ -350,8 +350,6 @@ impl AstNode for BitAndExpr {
     }
 }
 
-// TODO: actually start recursively descending. Let's go.
-
 impl AstNode for TermExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
         let first_term = FactorExpr::parse(tokens)?;
