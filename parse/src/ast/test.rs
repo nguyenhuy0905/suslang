@@ -379,6 +379,62 @@ fn bit_and_expected_term() {
 }
 
 #[test]
+fn bit_or_precedence() {
+    // 3 & 4 | 5 & 6
+    // eqv to (3 & 4) | (5 & 6)
+    let mut deque: VecDeque<_> = {
+        let mut counter: usize = 0;
+        [
+            TokenType::Integer("3".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("4".to_string()),
+            TokenType::Beam,
+            TokenType::Integer("5".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("6".to_string()),
+        ]
+        .map(|tok_typ| {
+            counter += 1;
+            Token::new(tok_typ, 0, counter)
+        })
+        .into()
+    };
+    let bitor = BitOrExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (term1, term2, term3, term4) = [3, 4, 5, 6]
+            .map(|num| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(num),
+            })
+            .map(|primary| UnaryExpr {
+                primary,
+                unary_op: None,
+            })
+            .map(|unary| FactorExpr {
+                first_factor: unary,
+                follow_factors: Vec::new(),
+            })
+            .map(|fac| TermExpr {
+                first_term: fac,
+                follow_terms: Vec::new(),
+            })
+            .into();
+        let bitand1 = BitAndExpr {
+            first_term: term1,
+            follow_terms: vec![term2],
+        };
+        let bitand2 = BitAndExpr {
+            first_term: term3,
+            follow_terms: vec![term4],
+        };
+        BitOrExpr {
+            first_bit_and: bitand1,
+            follow_bit_ands: vec![bitand2],
+        }
+    };
+    assert_eq!(bitor, cmp);
+}
+
+#[test]
 fn comp_expr() {
     // 3 + 4 == 7
     let mut deque = VecDeque::from([
