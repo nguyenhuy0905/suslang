@@ -44,6 +44,10 @@ pub enum TokenType {
     Star,
     /// Literal symbol "/"
     Slash,
+    /// Literal symbol "&"
+    Ampersand,
+    /// Literal symbol "|"
+    Beam,
     /// Literal symbol "\"
     Backslash,
     /// Literal symbol "("
@@ -79,6 +83,10 @@ pub enum TokenType {
     RPBraceEqual,
     /// Literal symbol "=="
     EqualEqual,
+    /// Literal symbol "&&"
+    AmpersandAmpersand,
+    /// Literal symbol "||"
+    BeamBeam,
     /// Literal symbol "//"
     SlashSlash,
     /// Literal symbol "::"

@@ -659,98 +659,43 @@ impl TokDfa {
         pos: usize,
         grapheme: char,
     ) -> Result<Self, TokenizeError> {
-        let mut push_curr_tok = || {
-            if let Some(tok) = mem::take(&mut self.curr_tok) {
-                self.tok_vec.push(tok);
-            }
-        };
+        let mut set_state_and_return =
+            |state_fn: StateFn, rettok: TokenType| {
+                if let Some(tok) = mem::take(&mut self.curr_tok) {
+                    self.tok_vec.push(tok);
+                }
+                self.state_fn = state_fn;
+                Ok(rettok)
+            };
 
         let tok_type = match grapheme {
-            '+' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::Plus)
-            }
-            '-' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::Dash)
-            }
-            '*' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::Star)
-            }
-            '/' => {
-                push_curr_tok();
-                self.state_fn = Self::slash_state;
-                Ok(TokenType::Dash)
-            }
+            '+' => set_state_and_return(Self::init_state, TokenType::Plus),
+            '-' => set_state_and_return(Self::init_state, TokenType::Dash),
+            '*' => set_state_and_return(Self::init_state, TokenType::Star),
+            '/' => set_state_and_return(Self::slash_state, TokenType::Slash),
+            '&' => set_state_and_return(
+                Self::ampersand_state,
+                TokenType::Ampersand,
+            ),
+            '|' => set_state_and_return(Self::beam_state, TokenType::Beam),
             '\\' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::Backslash)
+                set_state_and_return(Self::init_state, TokenType::Backslash)
             }
-            '(' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::LParen)
-            }
-            ')' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::RParen)
-            }
-            '{' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::LCParen)
-            }
-            '}' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::RCParen)
-            }
-            '.' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::Dot)
-            }
-            ':' => {
-                push_curr_tok();
-                // TODO: do I want namespace resolution with ::?
-                self.state_fn = Self::colon_state;
-                Ok(TokenType::Colon)
-            }
-            ';' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::Semicolon)
-            }
-            ',' => {
-                push_curr_tok();
-                self.state_fn = Self::init_state;
-                Ok(TokenType::Comma)
-            }
-            '=' => {
-                push_curr_tok();
-                self.state_fn = Self::equal_state;
-                Ok(TokenType::Equal)
-            }
-            '!' => {
-                push_curr_tok();
-                self.state_fn = Self::bang_state;
-                Ok(TokenType::Bang)
-            }
+            '(' => set_state_and_return(Self::init_state, TokenType::LParen),
+            ')' => set_state_and_return(Self::init_state, TokenType::RParen),
+            '{' => set_state_and_return(Self::init_state, TokenType::LCParen),
+            '}' => set_state_and_return(Self::init_state, TokenType::RCParen),
+            '.' => set_state_and_return(Self::init_state, TokenType::Dot),
+            ':' => set_state_and_return(Self::colon_state, TokenType::Colon),
+            ';' => set_state_and_return(Self::init_state, TokenType::Semicolon),
+            ',' => set_state_and_return(Self::init_state, TokenType::Comma),
+            '=' => set_state_and_return(Self::equal_state, TokenType::Equal),
+            '!' => set_state_and_return(Self::bang_state, TokenType::Bang),
             '<' => {
-                push_curr_tok();
-                self.state_fn = Self::lpbrace_state;
-                Ok(TokenType::LPBrace)
+                set_state_and_return(Self::lpbrace_state, TokenType::LPBrace)
             }
             '>' => {
-                push_curr_tok();
-                self.state_fn = Self::rpbrace_state;
-                Ok(TokenType::RPBrace)
+                set_state_and_return(Self::rpbrace_state, TokenType::RPBrace)
             }
             _ => Err(TokenizeError::new(
                 TokenizeErrorType::InvalidToken(grapheme.into()),
@@ -787,6 +732,87 @@ impl TokDfa {
             return Ok(self);
         }
         self.init_state(line, pos, grapheme)
+    }
+
+    /// Ampersand state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | "&" | [`TokDfa::init_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
+    fn ampersand_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: char,
+    ) -> Result<Self, TokenizeError> {
+        debug_assert!(matches!(
+            self.tok_vec.last(),
+            Some(Token {
+                token_type: TokenType::Ampersand,
+                ..
+            })
+        ));
+        let (_, curr_line, curr_pos) = self.tok_vec.last().unwrap().bind_ref();
+        if grapheme == '&' && curr_line == line {
+            self.tok_vec.pop();
+            self.tok_vec.push(Token::new(
+                TokenType::AmpersandAmpersand,
+                curr_line,
+                curr_pos,
+            ));
+            self.state_fn = Self::init_state;
+            Ok(self)
+        } else {
+            self.state_fn = Self::init_state;
+            self.init_state(line, pos, grapheme)
+        }
+    }
+
+    /// Beam state
+    ///
+    /// Parameter passing follows the rule defined in [`TokDfa::transition`].
+    /// Next states marked with "fwd" simply forwards the information passed in
+    /// to the next state. Otherwise, this current state consumes the input.
+    ///
+    /// # Transition
+    ///
+    /// | input | next-state |
+    /// | "|" | [`TokDfa::init_state`] |
+    /// | else | fwd [`TokDfa::init_state`] |
+    fn beam_state(
+        mut self,
+        line: usize,
+        pos: usize,
+        grapheme: char,
+    ) -> Result<Self, TokenizeError> {
+        debug_assert!(matches!(
+            self.tok_vec.last(),
+            Some(Token {
+                token_type: TokenType::Beam,
+                ..
+            })
+        ));
+
+        let (_, curr_line, curr_pos) = self.tok_vec.last().unwrap().bind_ref();
+        if grapheme == '|' && curr_line == line {
+            self.tok_vec.pop();
+            self.tok_vec.push(Token::new(
+                TokenType::BeamBeam,
+                curr_line,
+                curr_pos,
+            ));
+            self.state_fn = Self::init_state;
+            Ok(self)
+        } else {
+            self.state_fn = Self::init_state;
+            self.init_state(line, pos, grapheme)
+        }
     }
 
     /// Left-pointy-brace state

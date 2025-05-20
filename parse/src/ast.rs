@@ -12,7 +12,6 @@ mod test;
 pub enum ParseErrorType {
     UnexpectedToken(tokenize::TokenType),
     ExpectedExpr,
-    WrongType(TypeTag),
 }
 
 #[derive(Debug)]
@@ -32,18 +31,6 @@ trait AstNode: std::marker::Sized {
     /// * `tokens`: A [`VecDeque`] of tokens. Obtained from calling
     ///   [`tokenize::tokenize`].
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>>;
-}
-
-/// A version of [`tokenize::TokenType`] but without the value and other cruft.
-/// Just the types.
-///
-/// The custom types are stored literally. As a string.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeTag {
-    Integer,
-    Double,
-    String,
-    Custom(String),
 }
 
 /// A program consists of one or more statements, for now.
@@ -74,11 +61,75 @@ struct Stmt {}
 /// Sometimes, that may include the void type.
 #[derive(Debug, PartialEq, Clone)]
 struct Expr {
-    term: TermExpr,
+    expr: OrExpr,
 }
 
-// TODO: rules for LHS of either arithmetic or boolean expression,
-// then a smaller rule for RHS of arithmetic and RHS of boolean expressions.
+/// Or logical.
+///
+/// # Rule
+/// \<or-expr\> ::= \<and-expr\> ("||" \<and-expr\>)*
+///
+/// # See also
+/// - [`AndExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct OrExpr {
+    first_clause: AndExpr,
+    follow_clauses: Vec<AndExpr>,
+}
+
+/// And logical.
+///
+/// # Rule
+/// \<and-expr\> ::= \<comp-expr\> ("&&" \<comp-expr\>)*
+///
+/// # See also
+/// - [`ComparisonExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct AndExpr {
+    first_clause: ComparisonExpr,
+    follow_clauses: Vec<ComparisonExpr>,
+}
+
+/// Equality comparison expression.
+///
+/// # Rule
+/// \<comp-expr\> ::= \<term-expr\>
+///   (("==" | "!=" | ">" | "<" | ">=" | "<=") \<term-expr\>)?
+///
+/// # See also
+/// - [`BitAndExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct ComparisonExpr {
+    first_comp: BitOrExpr,
+    second_comp: Option<BitOrExpr>,
+    op: Option<ComparisonOp>,
+}
+
+/// Bit or
+///
+/// # Rule
+/// \<bit-or-expr\> ::= \<bit-and-expr\> ("|" \<bit-and-expr\>)*
+///
+/// # See also
+/// - [`BitAndExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct BitOrExpr {
+    first_bit_and: BitAndExpr,
+    follow_bit_ands: Vec<BitAndExpr>,
+}
+
+/// Bit and
+///
+/// # Rule
+/// \<bit-and-expr\> ::= \<term-expr\> ("&" \<term-expr\>)*
+///
+/// # See also
+/// - [`TermExpr`]
+#[derive(Debug, PartialEq, Clone)]
+struct BitAndExpr {
+    first_term: TermExpr,
+    follow_terms: Vec<TermExpr>,
+}
 
 /// Add or minus.
 ///
@@ -111,14 +162,6 @@ struct FactorExpr {
 }
 
 // TODO: finish writing the docs
-
-// TODO: type-check the expression.
-//
-// Simplest way I could think of is, well, another enum. All expressions needs
-// to be manually implemented the trait that returns that enum.
-//
-// Most of the expression types will just forward the type request to its child
-// anyways.
 
 // TODO: add support for boolean expressions.
 
@@ -157,6 +200,17 @@ enum PrimaryExprType {
     GroupedExpr(Box<Expr>),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[repr(u8)]
+enum ComparisonOp {
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanEqual,
+    GreaterThanEqual,
+}
+
 /// Operators for [`TermExpr`].
 ///
 /// # Rule
@@ -186,7 +240,181 @@ enum UnaryOp {
     Plus,
 }
 
-// TODO: actually start recursively descending. Let's go.
+impl AstNode for OrExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_clause = AndExpr::parse(tokens)?;
+        let follow_clauses = {
+            let mut ret = Vec::new();
+            while let Some((_, line, pos)) = tokens
+                .front()
+                .filter(|tok| tok.token_type() == &TokenType::BeamBeam)
+                .map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(AndExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(Self {
+            first_clause,
+            follow_clauses,
+        })
+    }
+}
+
+impl AstNode for AndExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_clause = ComparisonExpr::parse(tokens)?;
+        let follow_clauses = {
+            let mut ret = Vec::new();
+            while let Some((_, line, pos)) = tokens
+                .front()
+                .filter(|tok| {
+                    tok.token_type() == &TokenType::AmpersandAmpersand
+                })
+                .map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(ComparisonExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(Self {
+            first_clause,
+            follow_clauses,
+        })
+    }
+}
+
+impl AstNode for ComparisonExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_comp = BitOrExpr::parse(tokens)?;
+        let (op, second_comp) = {
+            if let Some((op, line, pos)) = tokens
+                .front()
+                .map(Token::bind_ref)
+                .and_then(|(typ, line, pos)| match typ {
+                    TokenType::EqualEqual
+                    | TokenType::BangEqual
+                    | TokenType::LPBrace
+                    | TokenType::RPBrace
+                    | TokenType::LPBraceEqual
+                    | TokenType::RPBraceEqual => Some((typ, line, pos)),
+                    _ => None,
+                })
+                .map(|(typ, line, pos)| (match typ {
+                    TokenType::EqualEqual => ComparisonOp::Equal,
+                    TokenType::BangEqual => ComparisonOp::NotEqual,
+                    TokenType::LPBrace => ComparisonOp::LessThan,
+                    TokenType::RPBrace => ComparisonOp::GreaterThan,
+                    TokenType::LPBraceEqual => ComparisonOp::LessThanEqual,
+                    TokenType::RPBraceEqual => ComparisonOp::GreaterThanEqual,
+                    _ => panic!(
+                        "Type {typ:?} shouldn't pass to match a comparison op"
+                    ),
+                }, line, pos))
+            {
+                tokens.pop_front();
+                (Some(op), Some(BitOrExpr::parse(tokens).map_err(|e| if e.is_none() {
+                    Some(ParseError {
+                        typ: ParseErrorType::ExpectedExpr,
+                        line, pos
+                    })
+                } else {e})?))
+            } else {
+                (None, None)
+            }
+        };
+        Ok(Self {
+            first_comp,
+            second_comp,
+            op,
+        })
+    }
+}
+
+impl AstNode for BitOrExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        // near identical to BitAndExpr::parse save for some values.
+        let first_bit_and = BitAndExpr::parse(tokens)?;
+        let follow_bit_ands = {
+            let mut ret = Vec::new();
+            while let Some((&TokenType::Beam, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                // if there is a beam and nothing else after, it's an error.
+                ret.push(BitAndExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(BitOrExpr {
+            first_bit_and,
+            follow_bit_ands,
+        })
+    }
+}
+
+impl AstNode for BitAndExpr {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {
+        let first_term = TermExpr::parse(tokens)?;
+        let follow_terms = {
+            let mut ret = Vec::new();
+            while let Some((&TokenType::Ampersand, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                // if there is an ampersand and nothing else after, it's an error.
+                ret.push(TermExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError {
+                            typ: ParseErrorType::ExpectedExpr,
+                            line,
+                            pos,
+                        })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        Ok(BitAndExpr {
+            first_term,
+            follow_terms,
+        })
+    }
+}
 
 impl AstNode for TermExpr {
     fn parse(tokens: &mut VecDeque<Token>) -> Result<Self, Option<ParseError>> {

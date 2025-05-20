@@ -304,3 +304,344 @@ fn term_priority() {
     };
     assert_eq!(term, cmp);
 }
+
+#[test]
+fn simple_bit_and() {
+    let mut deque =
+        VecDeque::from([Token::new(TokenType::Integer("3".to_string()), 0, 1)]);
+    let bitand = BitAndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let un_exp = UnaryExpr {
+            primary: PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(3),
+            },
+            unary_op: None,
+        };
+        let fac_exp = FactorExpr {
+            first_factor: un_exp,
+            follow_factors: Vec::new(),
+        };
+        let term_exp = TermExpr {
+            first_term: fac_exp,
+            follow_terms: Vec::new(),
+        };
+        BitAndExpr {
+            first_term: term_exp,
+            follow_terms: Vec::new(),
+        }
+    };
+    assert_eq!(bitand, cmp);
+}
+
+#[test]
+fn two_clause_bit_and() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Ampersand, 0, 1),
+        Token::new(TokenType::Integer("69".to_string()), 0, 1),
+    ]);
+    let bitand = BitAndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let first_un = UnaryExpr {
+            primary: PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(3),
+            },
+            unary_op: None,
+        };
+        let second_un = UnaryExpr {
+            primary: PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(69),
+            },
+            unary_op: None,
+        };
+        let first_fac = FactorExpr {
+            first_factor: first_un,
+            follow_factors: Vec::new(),
+        };
+        let second_fac = FactorExpr {
+            first_factor: second_un,
+            follow_factors: Vec::new(),
+        };
+        let first_term = TermExpr {
+            first_term: first_fac,
+            follow_terms: Vec::new(),
+        };
+        let second_term = TermExpr {
+            first_term: second_fac,
+            follow_terms: Vec::new(),
+        };
+        BitAndExpr {
+            first_term,
+            follow_terms: vec![second_term],
+        }
+    };
+    assert_eq!(bitand, cmp);
+}
+
+#[test]
+fn bit_and_expected_term() {
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Ampersand, 0, 2),
+    ]);
+    let ret = BitAndExpr::parse(&mut deque);
+    assert!(matches!(
+        ret,
+        Err(Some(ParseError {
+            typ: ParseErrorType::ExpectedExpr,
+            line: 0,
+            pos: 2,
+        }))
+    ));
+}
+
+#[test]
+fn bit_and_chain() {
+    let mut deque: VecDeque<_> = {
+        let mut counter: usize = 0;
+        [
+            TokenType::Integer("3".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("4".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("7".to_string()),
+        ]
+        .map(|typ| {
+            Token::new(typ, 0, {
+                counter += 1;
+                counter
+            })
+        })
+        .into()
+    };
+    let bitand = BitAndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (term1, term2, term3) = [3, 4, 7]
+            .map(|num| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(num),
+            })
+            .map(|primary| UnaryExpr {
+                primary,
+                unary_op: None,
+            })
+            .map(|prim| FactorExpr {
+                first_factor: prim,
+                follow_factors: Vec::new(),
+            })
+            .map(|fac| TermExpr {
+                first_term: fac,
+                follow_terms: Vec::new(),
+            })
+            .into();
+        BitAndExpr {
+            first_term: term1,
+            follow_terms: vec![term2, term3],
+        }
+    };
+    assert_eq!(bitand, cmp);
+}
+
+#[test]
+fn bit_or_precedence() {
+    // 3 & 4 | 5 & 6
+    // eqv to (3 & 4) | (5 & 6)
+    let mut deque: VecDeque<_> = {
+        let mut counter: usize = 0;
+        [
+            TokenType::Integer("3".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("4".to_string()),
+            TokenType::Beam,
+            TokenType::Integer("5".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("6".to_string()),
+        ]
+        .map(|tok_typ| {
+            counter += 1;
+            Token::new(tok_typ, 0, counter)
+        })
+        .into()
+    };
+    let bitor = BitOrExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (term1, term2, term3, term4) = [3, 4, 5, 6]
+            .map(|num| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(num),
+            })
+            .map(|primary| UnaryExpr {
+                primary,
+                unary_op: None,
+            })
+            .map(|unary| FactorExpr {
+                first_factor: unary,
+                follow_factors: Vec::new(),
+            })
+            .map(|fac| TermExpr {
+                first_term: fac,
+                follow_terms: Vec::new(),
+            })
+            .into();
+        let bitand1 = BitAndExpr {
+            first_term: term1,
+            follow_terms: vec![term2],
+        };
+        let bitand2 = BitAndExpr {
+            first_term: term3,
+            follow_terms: vec![term4],
+        };
+        BitOrExpr {
+            first_bit_and: bitand1,
+            follow_bit_ands: vec![bitand2],
+        }
+    };
+    assert_eq!(bitor, cmp);
+}
+
+#[test]
+fn comp_expr() {
+    // 3 + 4 == 7
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Plus, 0, 2),
+        Token::new(TokenType::Integer("4".to_string()), 0, 3),
+        Token::new(TokenType::EqualEqual, 0, 4),
+        Token::new(TokenType::Integer("7".to_string()), 0, 5),
+    ]);
+    let comp_exp = ComparisonExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        let (first_fac, second_fac, third_fac) = [3, 4, 7]
+            .map(|num| PrimaryExprType::LiteralInteger(num))
+            .map(|prim| PrimaryExpr { typ: prim })
+            .map(|prim| UnaryExpr {
+                primary: prim,
+                unary_op: None,
+            })
+            .map(|unary| FactorExpr {
+                first_factor: unary,
+                follow_factors: Vec::new(),
+            })
+            .into();
+        let first_term = TermExpr {
+            first_term: first_fac,
+            follow_terms: vec![(TermOp::Plus, second_fac)],
+        };
+        let second_term = TermExpr {
+            first_term: third_fac,
+            follow_terms: Vec::new(),
+        };
+        let (first_bit_or, second_bit_or) = [first_term, second_term]
+            .map(|term| BitAndExpr {
+                first_term: term,
+                follow_terms: Vec::new(),
+            })
+            .map(|bitand| BitOrExpr {
+                first_bit_and: bitand,
+                follow_bit_ands: Vec::new(),
+            })
+            .into();
+        ComparisonExpr {
+            first_comp: first_bit_or,
+            second_comp: Some(second_bit_or),
+            op: Some(ComparisonOp::Equal),
+        }
+    };
+    assert_eq!(comp_exp, cmp);
+}
+
+#[test]
+fn comp_exp_expected_expr() {
+    // 3 + 4 ==
+    let mut deque = VecDeque::from([
+        Token::new(TokenType::Integer("3".to_string()), 0, 1),
+        Token::new(TokenType::Plus, 0, 2),
+        Token::new(TokenType::Integer("4".to_string()), 0, 3),
+        Token::new(TokenType::EqualEqual, 0, 4),
+    ]);
+    let ret = ComparisonExpr::parse(&mut deque);
+    assert!(matches!(
+        ret,
+        Err(Some(ParseError {
+            typ: ParseErrorType::ExpectedExpr,
+            line: 0,
+            pos: 4,
+        }))
+    ));
+}
+
+#[test]
+fn and_expr_chain() {
+    // 3 < 4 && 5 == 6 && 7 <= 8
+    let mut deque: VecDeque<_> = {
+        let mut counter = 0;
+        [
+            TokenType::Integer("3".to_string()),
+            TokenType::LPBrace,
+            TokenType::Integer("4".to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer("5".to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer("6".to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer("7".to_string()),
+            TokenType::LPBraceEqual,
+            TokenType::Integer("8".to_string()),
+        ]
+        .map(|typ| {
+            Token::new(typ, 0, {
+                counter += 1;
+                counter
+            })
+        })
+        .into()
+    };
+    let and_exp = AndExpr::parse(&mut deque).unwrap();
+    let cmp = {
+        // more elements than necessary so that it is easier to index.
+        let ors: Vec<_> = (0..=10)
+            .map(|num| PrimaryExpr {
+                typ: PrimaryExprType::LiteralInteger(num),
+            })
+            .map(|primary| UnaryExpr {
+                primary,
+                unary_op: None,
+            })
+            .map(|unary| FactorExpr {
+                first_factor: unary,
+                follow_factors: Vec::new(),
+            })
+            .map(|fac| TermExpr {
+                first_term: fac,
+                follow_terms: Vec::new(),
+            })
+            .map(|term| BitAndExpr {
+                first_term: term,
+                follow_terms: Vec::new(),
+            })
+            .map(|bitand| BitOrExpr {
+                first_bit_and: bitand,
+                follow_bit_ands: Vec::new(),
+            })
+            .collect::<_>();
+
+        let comp1 = ComparisonExpr {
+            first_comp: ors[3].clone(),
+            second_comp: Some(ors[4].clone()),
+            op: Some(ComparisonOp::LessThan),
+        };
+        let comp2 = ComparisonExpr {
+            first_comp: ors[5].clone(),
+            second_comp: Some(ors[6].clone()),
+            op: Some(ComparisonOp::Equal),
+        };
+        let comp3 = ComparisonExpr {
+            first_comp: ors[7].clone(),
+            second_comp: Some(ors[8].clone()),
+            op: Some(ComparisonOp::LessThanEqual),
+        };
+        AndExpr {
+            first_clause: comp1,
+            follow_clauses: vec![comp2, comp3],
+        }
+    };
+    assert_eq!(and_exp, cmp);
+}
