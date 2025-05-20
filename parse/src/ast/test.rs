@@ -510,7 +510,7 @@ fn comp_expr() {
     let comp_exp = ComparisonExpr::parse(&mut deque).unwrap();
     let cmp = {
         let (first_fac, second_fac, third_fac) = [3, 4, 7]
-            .map(|num| PrimaryExprType::LiteralInteger(num))
+            .map(PrimaryExprType::LiteralInteger)
             .map(|prim| PrimaryExpr { typ: prim })
             .map(|prim| UnaryExpr {
                 primary: prim,
