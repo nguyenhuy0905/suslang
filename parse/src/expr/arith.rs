@@ -296,4 +296,46 @@ pub struct BitAndExpr {
     pub follow_bit_ands: Vec<AstBoxWrap>,
 }
 
+#[macro_export]
+macro_rules! new_bit_and_expr {
+    ($first_bit_and:expr, $($bit_and:expr,)+) => {
+        BitAndExpr {
+            first_bit_and: AstBoxWrap::new($first_bit_and),
+            follow_bit_ands: vec![$(AstBoxWrap::new($bit_and))+],
+        }
+    }
+}
+
 impl Ast for BitAndExpr {}
+
+impl AstParse for BitAndExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+    ) -> Result<AstBoxWrap, Option<ParseError>> {
+        let first_bit_and = TermExpr::parse(tokens)?;
+        let follow_bit_ands = || -> Result<Vec<_>, Option<ParseError>> {
+            let mut ret = Vec::new();
+            while let Some((&TokenType::Ampersand, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(TermExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError::ExpectedToken { line, pos })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            Ok(ret)
+        }()?;
+        if follow_bit_ands.is_empty() {
+            Ok(first_bit_and)
+        } else {
+            Ok(AstBoxWrap::new(Self {
+                first_bit_and,
+                follow_bit_ands,
+            }))
+        }
+    }
+}

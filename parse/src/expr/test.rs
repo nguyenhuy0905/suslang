@@ -255,3 +255,52 @@ fn term_expr() {
         );
     }
 }
+
+#[test]
+fn bit_and_expr() {
+    // fallthrough
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Plus,
+            TokenType::Integer("4".to_string())
+        ];
+        let bit_and = BitAndExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            bit_and,
+            &new_term_expr![
+                PrimaryExpr::Integer(3),
+                TermOp::Plus,
+                PrimaryExpr::Integer(4),
+            ]
+        );
+    }
+    // precedence
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Plus,
+            TokenType::Integer("4".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("5".to_string()),
+            TokenType::Dash,
+            TokenType::Integer("6".to_string()),
+        ];
+        let bit_and = BitAndExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            bit_and,
+            &new_bit_and_expr![
+                new_term_expr![
+                    PrimaryExpr::Integer(3),
+                    TermOp::Plus,
+                    PrimaryExpr::Integer(4),
+                ],
+                new_term_expr![
+                    PrimaryExpr::Integer(5),
+                    TermOp::Minus,
+                    PrimaryExpr::Integer(6),
+                ],
+            ]
+        );
+    }
+}
