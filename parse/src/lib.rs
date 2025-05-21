@@ -1,4 +1,5 @@
 mod expr;
+pub use expr::*;
 use std::any::Any;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -53,6 +54,7 @@ impl<T: AstCmp + Clone> AstClone for T {
 pub enum ParseError {
     UnexpectedToken(Token),
     ExpectedToken { line: usize, pos: usize },
+    UnclosedParen { line: usize, pos: usize },
 }
 
 // when are you gonna finish your language

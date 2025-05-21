@@ -1,3 +1,4 @@
+use super::Expr;
 use crate::{Ast, AstBoxWrap, AstParse, ParseError};
 use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
@@ -22,7 +23,7 @@ impl AstParse for PrimaryExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
-        if let Some((typ, _, _)) = tokens.pop_front().map(Token::bind) {
+        if let Some((typ, line, pos)) = tokens.pop_front().map(Token::bind) {
             match typ {
                 TokenType::Integer(s_in) => {
                     let parsed_int = s_in.parse::<u64>();
@@ -45,7 +46,24 @@ impl AstParse for PrimaryExpr {
                 TokenType::Na => {
                     Ok(AstBoxWrap::new(PrimaryExpr::Boolean(false)))
                 }
-                _ => todo!("Expr::parse"),
+                TokenType::LParen => {
+                    let ret = Expr::parse(tokens)?;
+                    if let Some(&TokenType::RParen) =
+                        tokens.front().map(Token::token_type)
+                    {
+                        tokens.pop_front();
+                        Ok(ret)
+                    } else if tokens.is_empty() {
+                        Err(Some(ParseError::UnclosedParen { line, pos }))
+                    } else {
+                        Err(Some(ParseError::UnexpectedToken(
+                            tokens.pop_front().unwrap(),
+                        )))
+                    }
+                }
+                _ => Err(Some(ParseError::UnexpectedToken(Token::new(
+                    typ, line, pos,
+                )))),
             }
         } else {
             Err(None)
@@ -207,3 +225,75 @@ impl AstParse for FactorExpr {
         }
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TermExpr {
+    pub first_term: AstBoxWrap,
+    pub follow_terms: Vec<(TermOp, AstBoxWrap)>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum TermOp {
+    Plus,
+    Minus,
+}
+
+impl Ast for TermExpr {}
+
+#[macro_export]
+macro_rules! new_term_expr {
+    ($first_term:expr,$($follow_op:expr,$follow_term:expr,)+) => {
+        TermExpr {
+            first_term: AstBoxWrap::new($first_term),
+            follow_terms: vec![$(($follow_op, AstBoxWrap::new($follow_term)),)+]
+        }
+    };
+}
+
+impl AstParse for TermExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+    ) -> Result<AstBoxWrap, Option<ParseError>> {
+        let first_term = FactorExpr::parse(tokens)?;
+        let follow_terms = || -> Result<Vec<_>, Option<ParseError>> {
+            let mut ret = Vec::new();
+            while let Some((typ, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                let Some(term_op) = (match typ {
+                    TokenType::Plus => Some(TermOp::Plus),
+                    TokenType::Dash => Some(TermOp::Minus),
+                    _ => None,
+                }) else {
+                    return Ok(ret);
+                };
+                tokens.pop_front();
+                let next_term = FactorExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError::ExpectedToken { line, pos })
+                    } else {
+                        e
+                    }
+                })?;
+                ret.push((term_op, next_term));
+            }
+            Ok(ret)
+        }()?;
+        if follow_terms.is_empty() {
+            Ok(first_term)
+        } else {
+            Ok(AstBoxWrap::new(TermExpr {
+                first_term,
+                follow_terms,
+            }))
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BitAndExpr {
+    pub first_bit_and: AstBoxWrap,
+    pub follow_bit_ands: Vec<AstBoxWrap>,
+}
+
+impl Ast for BitAndExpr {}
