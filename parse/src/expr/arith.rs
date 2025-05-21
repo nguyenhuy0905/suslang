@@ -1,4 +1,4 @@
-use crate::{Ast, AstBoxWrap, AstClone, AstParse, ParseError};
+use crate::{Ast, AstBoxWrap, AstParse, ParseError};
 use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
 
@@ -64,6 +64,16 @@ impl AstParse for PrimaryExpr {
 pub struct UnaryExpr {
     pub primary: AstBoxWrap,
     pub op: UnaryOp,
+}
+
+#[macro_export]
+macro_rules! new_unary_expr {
+    ($primary:expr, $op:expr) => {
+        UnaryExpr {
+            primary: AstBoxWrap::new($primary),
+            op: $op,
+        }
+    };
 }
 
 #[derive(Debug, PartialEq, Clone)]
