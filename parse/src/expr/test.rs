@@ -166,4 +166,34 @@ fn factor_expr() {
             ]
         );
     }
+    // unary precedence
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Star,
+            TokenType::Star,
+            TokenType::Integer("4".to_string())
+        ];
+        let fac = FactorExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            fac,
+            &new_factor_expr![
+                PrimaryExpr::Integer(3),
+                FactorOp::Multiply,
+                new_unary_expr!(PrimaryExpr::Integer(4), UnaryOp::Deref),
+            ]
+        );
+    }
+    // expected expression
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Star
+        ];
+        let fac = FactorExpr::parse(&mut deque);
+        assert_eq!(
+            fac,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
+        );
+    }
 }
