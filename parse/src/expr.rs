@@ -1,5 +1,6 @@
 use crate::*;
 pub mod arith;
+pub mod cond;
 #[cfg(test)]
 mod test;
 pub use arith::*;
