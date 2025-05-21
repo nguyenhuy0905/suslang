@@ -11,6 +11,16 @@ macro_rules! assert_ast_eq {
     };
 }
 
+macro_rules! new_test_deque {
+    ($toktyp1:expr$(,$toktyp:expr)*) => {
+        {
+            let mut counter = 0;
+            Into::<VecDeque<_>>::into([$toktyp1 $(,$toktyp)*]
+            .map(|typ| Token::new(typ, 1, {counter += 1; counter})))
+        }
+    }
+}
+
 #[test]
 fn primary_types() {
     let mut counter: usize = 0;
@@ -143,6 +153,42 @@ fn unary_expr() {
         assert_eq!(
             un5,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 1 }))
+        );
+    }
+}
+
+#[test]
+fn factor_expr() {
+    // fallthrough
+    {
+        let mut deque = VecDeque::from([Token::new(
+            TokenType::Integer("3".to_string()),
+            1,
+            1,
+        )]);
+        let fac = FactorExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(fac, &PrimaryExpr::Integer(3));
+    }
+    // simple non-fallthrough
+    {
+        let mut deque = new_test_deque!(
+            TokenType::Integer("3".to_string()),
+            TokenType::Star,
+            TokenType::Integer("4".to_string()),
+            TokenType::Star,
+            TokenType::Integer("4".to_string())
+        );
+
+        let fac = FactorExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            fac,
+            &new_factor_expr!(
+                PrimaryExpr::Integer(3),
+                FactorOp::Multiply,
+                PrimaryExpr::Integer(4),
+                FactorOp::Multiply,
+                PrimaryExpr::Integer(4),
+            )
         );
     }
 }
