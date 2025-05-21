@@ -124,6 +124,8 @@ pub struct FactorExpr {
 }
 
 impl FactorExpr {
+    /// Preferably use the macro `new_factor_expr!`
+    #[allow(dead_code)]
     pub fn new(
         first_fac: AstBoxWrap,
         follow_facs: Vec<(FactorOp, AstBoxWrap)>,
@@ -135,12 +137,13 @@ impl FactorExpr {
     }
 }
 
+/// Convenience macro to construct a new `FactorExpr`
 #[macro_export]
 macro_rules! new_factor_expr {
-    ($first_fac:expr,$($follow_fac_op:expr,$follow_fac_exp:expr,)*) => {
+    ($first_fac:expr,$($follow_fac_op:expr,$follow_fac_exp:expr,)+) => {
         FactorExpr::new(
             AstBoxWrap::new($first_fac),
-             vec![$(($follow_fac_op,AstBoxWrap::new($follow_fac_exp)),)*]
+             vec![$(($follow_fac_op,AstBoxWrap::new($follow_fac_exp)),)+]
          )
     };
 }
