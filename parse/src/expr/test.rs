@@ -197,3 +197,61 @@ fn factor_expr() {
         );
     }
 }
+
+#[test]
+fn term_expr() {
+    // fallthrough
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Star,
+            TokenType::Integer("4".to_string()),
+        ];
+        let term = TermExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            term,
+            &new_factor_expr![
+                PrimaryExpr::Integer(3),
+                FactorOp::Multiply,
+                PrimaryExpr::Integer(4),
+            ]
+        );
+    }
+    // term precedence
+    {
+        // 3 + -4 * 5
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Plus,
+            TokenType::Dash,
+            TokenType::Integer("4".to_string()),
+            TokenType::Star,
+            TokenType::Integer("5".to_string()),
+        ];
+        let term = TermExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            term,
+            &new_term_expr![
+                PrimaryExpr::Integer(3),
+                TermOp::Plus,
+                new_factor_expr![
+                    new_unary_expr!(PrimaryExpr::Integer(4), UnaryOp::Minus),
+                    FactorOp::Multiply,
+                    PrimaryExpr::Integer(5),
+                ],
+            ]
+        );
+    }
+    // expected expression
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Plus,
+        ];
+        let term = TermExpr::parse(&mut deque);
+        assert_eq!(
+            term,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
+        );
+    }
+}
