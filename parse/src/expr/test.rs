@@ -11,8 +11,19 @@ macro_rules! assert_ast_eq {
     };
 }
 
+/// Creates a new test VecDeque.
+/// Each element passed in must be of type `TokenType`
+///
+/// # Example
+///
+/// ```
+/// let mut new_deq = new_test_deque![
+///   TokenType::Integer("3".to_string()),
+///   TokenType::Star,
+/// ];
+/// ```
 macro_rules! new_test_deque {
-    ($toktyp1:expr$(,$toktyp:expr)*) => {
+    ($toktyp1:expr$(,$toktyp:expr)*$(,)?) => {
         {
             let mut counter = 0;
             Into::<VecDeque<_>>::into([$toktyp1 $(,$toktyp)*]
@@ -23,21 +34,13 @@ macro_rules! new_test_deque {
 
 #[test]
 fn primary_types() {
-    let mut counter: usize = 0;
-    let mut deque: VecDeque<_> = [
+    let mut deque = new_test_deque![
         TokenType::Integer("3".to_string()),
         TokenType::Double("4.20".to_string()),
         TokenType::String("hello".to_string()),
         TokenType::Ya,
         TokenType::Na,
-    ]
-    .map(|typ| {
-        Token::new(typ, 1, {
-            counter += 1;
-            counter
-        })
-    })
-    .into();
+    ];
 
     let prim1 = PrimaryExpr::parse(&mut deque).unwrap();
     assert_ast_eq!(prim1, &PrimaryExpr::Integer(3));
@@ -55,26 +58,16 @@ fn primary_types() {
 fn unary_expr() {
     // fallthrough
     {
-        let mut deque = VecDeque::from([Token::new(
-            TokenType::Integer("3".to_string()),
-            1,
-            1,
-        )]);
+        let mut deque = new_test_deque![TokenType::Integer("3".to_string())];
         let un = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(un, &PrimaryExpr::Integer(3));
     }
     // coverage farming
     {
-        let mut counter = 0;
-        let mut deque: VecDeque<_> =
-            [TokenType::Plus, TokenType::Integer("3".to_string())]
-                .map(|typ| {
-                    Token::new(typ, 1, {
-                        counter += 1;
-                        counter
-                    })
-                })
-                .into();
+        let mut deque = new_test_deque![
+            TokenType::Plus,
+            TokenType::Integer("3".to_string())
+        ];
         let un1 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un1,
@@ -85,16 +78,10 @@ fn unary_expr() {
         );
     }
     {
-        let mut counter = 0;
-        let mut deque: VecDeque<_> =
-            [TokenType::Dash, TokenType::Integer("3".to_string())]
-                .map(|typ| {
-                    Token::new(typ, 1, {
-                        counter += 1;
-                        counter
-                    })
-                })
-                .into();
+        let mut deque = new_test_deque![
+            TokenType::Dash,
+            TokenType::Integer("3".to_string())
+        ];
         let un2 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un2,
@@ -107,16 +94,10 @@ fn unary_expr() {
     {
         // deref only makes sense if going with an lvalue. But, hey, we are
         // checking that later.
-        let mut counter = 0;
-        let mut deque: VecDeque<_> =
-            [TokenType::Star, TokenType::Integer("3".to_string())]
-                .map(|typ| {
-                    Token::new(typ, 1, {
-                        counter += 1;
-                        counter
-                    })
-                })
-                .into();
+        let mut deque = new_test_deque![
+            TokenType::Star,
+            TokenType::Integer("3".to_string())
+        ];
         let un3 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un3,
@@ -127,16 +108,10 @@ fn unary_expr() {
         );
     }
     {
-        let mut counter = 0;
-        let mut deque: VecDeque<_> =
-            [TokenType::Ampersand, TokenType::Integer("3".to_string())]
-                .map(|typ| {
-                    Token::new(typ, 1, {
-                        counter += 1;
-                        counter
-                    })
-                })
-                .into();
+        let mut deque = new_test_deque![
+            TokenType::Ampersand,
+            TokenType::Integer("3".to_string())
+        ];
         let un4 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un4,
@@ -148,7 +123,7 @@ fn unary_expr() {
     }
     // expected expression
     {
-        let mut deque = VecDeque::from([Token::new(TokenType::Dash, 1, 1)]);
+        let mut deque = new_test_deque![TokenType::Dash];
         let un5 = UnaryExpr::parse(&mut deque);
         assert_eq!(
             un5,
@@ -171,24 +146,24 @@ fn factor_expr() {
     }
     // simple non-fallthrough
     {
-        let mut deque = new_test_deque!(
+        let mut deque = new_test_deque![
             TokenType::Integer("3".to_string()),
             TokenType::Star,
             TokenType::Integer("4".to_string()),
             TokenType::Star,
             TokenType::Integer("4".to_string())
-        );
+        ];
 
         let fac = FactorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             fac,
-            &new_factor_expr!(
+            &new_factor_expr![
                 PrimaryExpr::Integer(3),
                 FactorOp::Multiply,
                 PrimaryExpr::Integer(4),
                 FactorOp::Multiply,
                 PrimaryExpr::Integer(4),
-            )
+            ]
         );
     }
 }
