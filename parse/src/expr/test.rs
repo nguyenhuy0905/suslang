@@ -7,7 +7,7 @@ use tokenize::TokenType;
 /// `AstCmp`, that is, implementing `Ast` and also have trait `PartialEq`.
 macro_rules! assert_ast_eq {
     ($first:expr,$second:expr) => {
-        assert_eq!($first.deref() as &dyn AstCmp, $second as &dyn AstCmp)
+        assert_eq!($first.deref() as &dyn AstCmp, &$second as &dyn AstCmp)
     };
 }
 
@@ -43,15 +43,15 @@ fn primary_types() {
     ];
 
     let prim1 = PrimaryExpr::parse(&mut deque).unwrap();
-    assert_ast_eq!(prim1, &PrimaryExpr::Integer(3));
+    assert_ast_eq!(prim1, PrimaryExpr::Integer(3));
     let prim2 = PrimaryExpr::parse(&mut deque).unwrap();
-    assert_ast_eq!(prim2, &PrimaryExpr::Float(4.2));
+    assert_ast_eq!(prim2, PrimaryExpr::Float(4.2));
     let prim3 = PrimaryExpr::parse(&mut deque).unwrap();
-    assert_ast_eq!(prim3, &PrimaryExpr::String("hello".to_string()));
+    assert_ast_eq!(prim3, PrimaryExpr::String("hello".to_string()));
     let prim4 = PrimaryExpr::parse(&mut deque).unwrap();
-    assert_ast_eq!(prim4, &PrimaryExpr::Boolean(true));
+    assert_ast_eq!(prim4, PrimaryExpr::Boolean(true));
     let prim5 = PrimaryExpr::parse(&mut deque).unwrap();
-    assert_ast_eq!(prim5, &PrimaryExpr::Boolean(false));
+    assert_ast_eq!(prim5, PrimaryExpr::Boolean(false));
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn unary_expr() {
     {
         let mut deque = new_test_deque![TokenType::Integer("3".to_string())];
         let un = UnaryExpr::parse(&mut deque).unwrap();
-        assert_ast_eq!(un, &PrimaryExpr::Integer(3));
+        assert_ast_eq!(un, PrimaryExpr::Integer(3));
     }
     // coverage farming
     {
@@ -71,7 +71,7 @@ fn unary_expr() {
         let un1 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un1,
-            &UnaryExpr {
+            UnaryExpr {
                 primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Plus,
             }
@@ -85,7 +85,7 @@ fn unary_expr() {
         let un2 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un2,
-            &UnaryExpr {
+            UnaryExpr {
                 primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Minus,
             }
@@ -101,7 +101,7 @@ fn unary_expr() {
         let un3 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un3,
-            &UnaryExpr {
+            UnaryExpr {
                 primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Deref,
             }
@@ -115,7 +115,7 @@ fn unary_expr() {
         let un4 = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un4,
-            &UnaryExpr {
+            UnaryExpr {
                 primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Ref,
             }
@@ -142,7 +142,7 @@ fn factor_expr() {
             1,
         )]);
         let fac = FactorExpr::parse(&mut deque).unwrap();
-        assert_ast_eq!(fac, &PrimaryExpr::Integer(3));
+        assert_ast_eq!(fac, PrimaryExpr::Integer(3));
     }
     // simple non-fallthrough
     {
@@ -157,7 +157,7 @@ fn factor_expr() {
         let fac = FactorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             fac,
-            &new_factor_expr![
+            new_factor_expr![
                 PrimaryExpr::Integer(3),
                 FactorOp::Multiply,
                 PrimaryExpr::Integer(4),
@@ -177,7 +177,7 @@ fn factor_expr() {
         let fac = FactorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             fac,
-            &new_factor_expr![
+            new_factor_expr![
                 PrimaryExpr::Integer(3),
                 FactorOp::Multiply,
                 new_unary_expr!(PrimaryExpr::Integer(4), UnaryOp::Deref),
@@ -210,7 +210,7 @@ fn term_expr() {
         let term = TermExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             term,
-            &new_factor_expr![
+            new_factor_expr![
                 PrimaryExpr::Integer(3),
                 FactorOp::Multiply,
                 PrimaryExpr::Integer(4),
@@ -231,7 +231,7 @@ fn term_expr() {
         let term = TermExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             term,
-            &new_term_expr![
+            new_term_expr![
                 PrimaryExpr::Integer(3),
                 TermOp::Plus,
                 new_factor_expr![
@@ -268,7 +268,7 @@ fn bit_and_expr() {
         let bit_and = BitAndExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_and,
-            &new_term_expr![
+            new_term_expr![
                 PrimaryExpr::Integer(3),
                 TermOp::Plus,
                 PrimaryExpr::Integer(4),
@@ -289,7 +289,7 @@ fn bit_and_expr() {
         let bit_and = BitAndExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_and,
-            &new_bit_and_expr![
+            new_bit_and_expr![
                 new_term_expr![
                     PrimaryExpr::Integer(3),
                     TermOp::Plus,
@@ -317,10 +317,7 @@ fn bit_xor_expr() {
         let bit_xor = BitXorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_xor,
-            &new_bit_and_expr![
-                PrimaryExpr::Integer(3),
-                PrimaryExpr::Integer(4),
-            ]
+            new_bit_and_expr![PrimaryExpr::Integer(3), PrimaryExpr::Integer(4),]
         );
     }
 }
