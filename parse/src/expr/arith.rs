@@ -180,6 +180,7 @@ macro_rules! new_factor_expr {
 pub enum FactorOp {
     Multiply, // *
     Divide,   // /
+    Mod,      // %
 }
 
 impl Ast for FactorExpr {}
@@ -199,6 +200,7 @@ impl AstParse for FactorExpr {
                 let Some(fac_op) = (match typ {
                     TokenType::Star => Some(FactorOp::Multiply),
                     TokenType::Slash => Some(FactorOp::Divide),
+                    TokenType::Percent => Some(FactorOp::Mod),
                     _ => None,
                 }) else {
                     return Ok(ret);

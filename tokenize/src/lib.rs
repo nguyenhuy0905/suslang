@@ -673,6 +673,8 @@ impl TokDfa {
             '-' => set_state_and_return(Self::init_state, TokenType::Dash),
             '*' => set_state_and_return(Self::init_state, TokenType::Star),
             '/' => set_state_and_return(Self::slash_state, TokenType::Slash),
+            '%' => set_state_and_return(Self::init_state, TokenType::Percent),
+            '^' => set_state_and_return(Self::init_state, TokenType::Hat),
             '&' => set_state_and_return(
                 Self::ampersand_state,
                 TokenType::Ampersand,

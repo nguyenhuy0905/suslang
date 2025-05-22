@@ -46,6 +46,10 @@ pub enum TokenType {
     Slash,
     /// Literal symbol "&"
     Ampersand,
+    /// Literal symbol "%"
+    Percent,
+    /// Literal symbol "^"
+    Hat,
     /// Literal symbol "|"
     Beam,
     /// Literal symbol "\"
