@@ -292,6 +292,13 @@ impl AstParse for TermExpr {
     }
 }
 
+/// Bitwise and
+///
+/// # Rule
+/// \<bit-and-expr\> ::= \<term-expr\> ("&" \<term-expr\>)*
+///
+/// # See also
+/// [`TermExpr`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct BitAndExpr {
     pub first_bit_and: AstBoxWrap,
@@ -337,6 +344,120 @@ impl AstParse for BitAndExpr {
             Ok(AstBoxWrap::new(Self {
                 first_bit_and,
                 follow_bit_ands,
+            }))
+        }
+    }
+}
+
+/// Bitwise xor
+///
+/// # Rule
+/// \<bit-xor-expr\> ::= \<bit-and-expr\> ("&" \<bit-and-expr\>)*
+///
+/// # See also
+/// [`BitAndExpr`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct BitXorExpr {
+    pub first_bit_xor: AstBoxWrap,
+    pub follow_bit_xors: Vec<AstBoxWrap>,
+}
+
+impl Ast for BitXorExpr {}
+
+#[macro_export]
+macro_rules! new_bit_xor_expr {
+    ($first_bit_xor:expr, $($bit_xor:expr,)+) => {
+        BitXorExpr {
+            first_bit_xor: AstBoxWrap::new($first_bit_xor),
+            follow_bit_xors: vec![$(AstBoxWrap::new($bit_xor))+],
+        }
+    }
+}
+
+impl AstParse for BitXorExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+    ) -> Result<AstBoxWrap, Option<ParseError>> {
+        let first_bit_xor = BitAndExpr::parse(tokens)?;
+        let follow_bit_xors = || -> Result<Vec<_>, Option<ParseError>> {
+            let mut ret = Vec::new();
+            while let Some((&TokenType::Hat, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(BitAndExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError::ExpectedToken { line, pos })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            Ok(ret)
+        }()?;
+        if follow_bit_xors.is_empty() {
+            Ok(first_bit_xor)
+        } else {
+            Ok(AstBoxWrap::new(Self {
+                first_bit_xor,
+                follow_bit_xors,
+            }))
+        }
+    }
+}
+
+/// Bitwise or
+///
+/// # Rule
+/// \<bit-or-expr\> ::= \<bit-xor-expr\> ("&" \<bit-xor-expr\>)*
+///
+/// # See also
+/// [`BitXorExpr`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct BitOrExpr {
+    pub first_bit_or: AstBoxWrap,
+    pub follow_bit_ors: Vec<AstBoxWrap>,
+}
+
+impl Ast for BitOrExpr {}
+
+#[macro_export]
+macro_rules! new_bit_or_expr {
+    ($first_bit_or:expr, $($bit_or:expr,)+) => {
+        BitOrExpr {
+            first_bit_or: AstBoxWrap::new($first_bit_or),
+            follow_bit_ors: vec![$(AstBoxWrap::new($bit_or))+],
+        }
+    }
+}
+
+impl AstParse for BitOrExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+    ) -> Result<AstBoxWrap, Option<ParseError>> {
+        let first_bit_or = BitXorExpr::parse(tokens)?;
+        let follow_bit_ors = || -> Result<Vec<_>, Option<ParseError>> {
+            let mut ret = Vec::new();
+            while let Some((&TokenType::Beam, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(BitXorExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError::ExpectedToken { line, pos })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            Ok(ret)
+        }()?;
+        if follow_bit_ors.is_empty() {
+            Ok(first_bit_or)
+        } else {
+            Ok(AstBoxWrap::new(Self {
+                first_bit_or,
+                follow_bit_ors,
             }))
         }
     }

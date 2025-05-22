@@ -304,3 +304,23 @@ fn bit_and_expr() {
         );
     }
 }
+
+#[test]
+fn bit_xor_expr() {
+    // fallthrough
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Ampersand,
+            TokenType::Integer("4".to_string()),
+        ];
+        let bit_xor = BitXorExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            bit_xor,
+            &new_bit_and_expr![
+                PrimaryExpr::Integer(3),
+                PrimaryExpr::Integer(4),
+            ]
+        );
+    }
+}
