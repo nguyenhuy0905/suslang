@@ -56,3 +56,64 @@ fn comparison_test() {
         );
     }
 }
+
+#[test]
+fn logic_and_expr() {
+    // fallthrough
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer(3.to_string()),
+            TokenType::LPBraceEqual,
+            TokenType::Integer(4.to_string()),
+        ];
+        let logic_and = LogicAndExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            logic_and,
+            new_comparison_expr![
+                PrimaryExpr::Integer(3),
+                ComparisonOp::LessEqual,
+                PrimaryExpr::Integer(4),
+            ]
+        );
+    }
+    // precedence
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer(3.to_string()),
+            TokenType::RPBraceEqual,
+            TokenType::Integer(4.to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer(5.to_string()),
+            TokenType::LPBraceEqual,
+            TokenType::Integer(6.to_string()),
+        ];
+        let logic_and = LogicAndExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            logic_and,
+            new_logic_and_expr![
+                new_comparison_expr![
+                    PrimaryExpr::Integer(3),
+                    ComparisonOp::GreaterEqual,
+                    PrimaryExpr::Integer(4),
+                ],
+                new_comparison_expr![
+                    PrimaryExpr::Integer(5),
+                    ComparisonOp::LessEqual,
+                    PrimaryExpr::Integer(6),
+                ],
+            ]
+        );
+    }
+    // expected expression
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer(3.to_string()),
+            TokenType::LPBrace,
+        ];
+        let logic_and = LogicAndExpr::parse(&mut deque);
+        assert_eq!(
+            logic_and,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
+        );
+    }
+}
