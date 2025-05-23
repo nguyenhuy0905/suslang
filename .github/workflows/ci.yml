@@ -34,6 +34,8 @@ jobs:
           key: cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.toml') }}
           restore-key: cargo-${{ matrix.toolchain }}-
 
+      - name: Install sccache
+        run: sudo apt-get install sccache
       - name: Update toolchain
         run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - name: Cargo sweep install
@@ -41,5 +43,9 @@ jobs:
       - name: Cargo sweep
         if: ${{ steps.cache-build.outputs.cache-hit == 'true' }}
         run: cargo sweep --stamp && cargo sweep --file
-      - run: cargo build --verbose
-      - run: cargo test --verbose
+      - name: Cargo build
+        env:
+          RUSTC_WRAPPER: sccache
+        run: cargo build --verbose
+      - name: Cargo test
+        run: cargo test --verbose
