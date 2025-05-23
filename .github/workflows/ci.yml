@@ -32,7 +32,7 @@ jobs:
             ${{ env.XDG_CACHE_HOME }}/ccache
             ${{ github.workspace }}/target
           key: cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.toml') }}
-          restore-key: cargo-${{ matrix.toolchain }}-
+          restore-keys: cargo-${{ matrix.toolchain }}-
 
       - name: Install sccache
         run: sudo apt-get install sccache
