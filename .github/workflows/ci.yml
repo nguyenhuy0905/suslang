@@ -19,10 +19,27 @@ jobs:
       matrix:
         toolchain:
           - stable
-          - beta
-          - nightly
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+
+      - name: Cache build artifact
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo
+            ${{ env.XDG_CACHE_HOME }}/sccache
+            ${{ env.XDG_CACHE_HOME }}/ccache
+            ${{ github.workspace }}/target
+          key: cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.toml') }}
+          restore-key: cargo-${{ matrix.toolchain }}-
+
+      - name: Update toolchain
+        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - name: Cargo sweep install
+        run: cargo install cargo-sweep
+      - name: Cargo sweep
+        if: ${{ steps.cache-build.outputs.cache-hit == 'true' }}
+        run: cargo sweep --stamp && cargo sweep --file
       - run: cargo build --verbose
       - run: cargo test --verbose
