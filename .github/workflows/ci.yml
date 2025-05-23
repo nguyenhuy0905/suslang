@@ -12,6 +12,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache build artifact
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo
+            ${{ env.XDG_CACHE_HOME }}/sccache
+            ${{ env.XDG_CACHE_HOME }}/ccache
+            ${{ github.workspace }}/target
+          key: cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-${{ matrix.toolchain }}-
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
+
   build_and_test:
     name: Rust project - latest
     runs-on: ubuntu-latest
