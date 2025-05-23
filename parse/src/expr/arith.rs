@@ -168,7 +168,7 @@ impl FactorExpr {
 /// Convenience macro to construct a new `FactorExpr`
 #[macro_export]
 macro_rules! new_factor_expr {
-    ($first_fac:expr,$($follow_fac_op:expr,$follow_fac_exp:expr,)+) => {
+    ($first_fac:expr$(,$follow_fac_op:expr,$follow_fac_exp:expr)+$(,)?) => {
         FactorExpr::new(
             AstBoxWrap::new($first_fac),
              vec![$(($follow_fac_op,AstBoxWrap::new($follow_fac_exp)),)+]
@@ -244,7 +244,7 @@ impl Ast for TermExpr {}
 
 #[macro_export]
 macro_rules! new_term_expr {
-    ($first_term:expr,$($follow_op:expr,$follow_term:expr,)+) => {
+    ($first_term:expr$(,$follow_op:expr,$follow_term:expr)+$(,)?) => {
         TermExpr {
             first_term: AstBoxWrap::new($first_term),
             follow_terms: vec![$(($follow_op, AstBoxWrap::new($follow_term)),)+]
@@ -307,7 +307,7 @@ pub struct BitAndExpr {
 
 #[macro_export]
 macro_rules! new_bit_and_expr {
-    ($first_bit_and:expr, $($bit_and:expr,)+) => {
+    ($first_bit_and:expr$(,$bit_and:expr)+$(,)?) => {
         BitAndExpr {
             first_bit_and: AstBoxWrap::new($first_bit_and),
             follow_bit_ands: vec![$(AstBoxWrap::new($bit_and))+],
@@ -366,7 +366,7 @@ impl Ast for BitXorExpr {}
 
 #[macro_export]
 macro_rules! new_bit_xor_expr {
-    ($first_bit_xor:expr, $($bit_xor:expr,)+) => {
+    ($first_bit_xor:expr$(,$bit_xor:expr)+$(,)?) => {
         BitXorExpr {
             first_bit_xor: AstBoxWrap::new($first_bit_xor),
             follow_bit_xors: vec![$(AstBoxWrap::new($bit_xor))+],
@@ -423,10 +423,10 @@ impl Ast for BitOrExpr {}
 
 #[macro_export]
 macro_rules! new_bit_or_expr {
-    ($first_bit_or:expr, $($bit_or:expr,)+) => {
+    ($first_bit_or:expr $(,$bit_or:expr)+$(,)?) => {
         BitOrExpr {
             first_bit_or: AstBoxWrap::new($first_bit_or),
-            follow_bit_ors: vec![$(AstBoxWrap::new($bit_or))+],
+            follow_bit_ors: vec![$(AstBoxWrap::new($bit_or),)*],
         }
     }
 }
