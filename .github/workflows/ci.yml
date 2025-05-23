@@ -60,9 +60,10 @@ jobs:
       - name: Update toolchain
         run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - name: Cargo sweep install
+        if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
         run: cargo install cargo-sweep
       - name: Cargo sweep
-        if: ${{ steps.cache-build.outputs.cache-hit == 'true' }}
+        if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
         run: cargo sweep --stamp && cargo sweep --file
       - name: Cargo build
         env:
