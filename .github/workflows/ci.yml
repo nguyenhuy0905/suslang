@@ -31,7 +31,7 @@ jobs:
             ${{ env.XDG_CACHE_HOME }}/sccache
             ${{ env.XDG_CACHE_HOME }}/ccache
             ${{ github.workspace }}/target
-          key: cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.toml') }}
+          key: cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: cargo-${{ matrix.toolchain }}-
 
       - name: Install sccache
