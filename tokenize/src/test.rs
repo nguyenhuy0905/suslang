@@ -21,7 +21,7 @@ fn non_ascii_begin_token() {
 fn simple_char() {
     let ret = tokenize("' '").unwrap();
     assert_eq!(ret.len(), 1);
-    assert_eq!(ret.front().unwrap().token_type, TokenType::Char(' '));
+    assert_eq!(ret.front().unwrap().tok_typ, TokenType::Char(' '));
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn unicode_char() {
     assert!(matches!(
         ret.front(),
         Some(Token {
-            token_type: TokenType::Char('\u{eb54}'),
+            tok_typ: TokenType::Char('\u{eb54}'),
             ..
         })
     ));
@@ -145,7 +145,7 @@ fn multiline_string() {
     let ret = tokenize("\"hell\no\"").unwrap();
     assert_eq!(ret.len(), 1);
     assert_eq!(
-        ret.front().unwrap().token_type,
+        ret.front().unwrap().tok_typ,
         TokenType::String("hello".into())
     );
 }
@@ -155,7 +155,7 @@ fn single_quote_inside_string() {
     let ret = tokenize("\"'hello'\"").unwrap();
     assert_eq!(ret.len(), 1);
     assert_eq!(
-        ret.front().unwrap().token_type,
+        ret.front().unwrap().tok_typ,
         TokenType::String("'hello'".into())
     );
 }
@@ -213,7 +213,7 @@ fn number() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     let Some(Token {
-        token_type: TokenType::Integer(int_str),
+        tok_typ: TokenType::Integer(int_str),
         ..
     }) = ur.front()
     else {
@@ -228,7 +228,7 @@ fn simple_double() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     let Some(Token {
-        token_type: TokenType::Double(dbl),
+        tok_typ: TokenType::Double(dbl),
         ..
     }) = ur.front()
     else {
@@ -273,7 +273,7 @@ fn multiline_number() {
         TokenType::Integer("424242".into()),
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -282,7 +282,7 @@ fn multiline_number() {
 fn one_symbol() {
     let ret = tokenize("+").unwrap();
     assert!(!ret.is_empty());
-    assert!(matches!(ret.front().unwrap().token_type, TokenType::Plus));
+    assert!(matches!(ret.front().unwrap().tok_typ, TokenType::Plus));
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn symbols_on_multi_line() {
     assert!(matches!(
         ret.get(1).unwrap(),
         Token {
-            token_type: TokenType::Equal,
+            tok_typ: TokenType::Equal,
             line_number: 2,
             ..
         }
@@ -309,7 +309,7 @@ fn comparisons() {
         TokenType::BangEqual,
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -319,7 +319,7 @@ fn conditional() {
     let ret = tokenize("|| &&").unwrap();
     let cmp_arr = [TokenType::BeamBeam, TokenType::AmpersandAmpersand];
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -329,7 +329,7 @@ fn bitwise_line_separated() {
     let ret = tokenize("|\n|").unwrap();
     let cmp_arr = [TokenType::Beam, TokenType::Beam];
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -339,7 +339,7 @@ fn bitwise_whitespace_separated() {
     let ret = tokenize("| |").unwrap();
     let cmp_arr = [TokenType::Beam, TokenType::Beam];
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -354,7 +354,7 @@ fn bitwise() {
         TokenType::Beam,
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -363,7 +363,7 @@ fn bitwise() {
 fn multi_word_symbol() {
     let ret = tokenize("===").unwrap();
     assert_eq!(ret.len(), 2);
-    let ret = ret.into_iter().map(|tt| tt.token_type).collect::<Vec<_>>();
+    let ret = ret.into_iter().map(|tt| tt.tok_typ).collect::<Vec<_>>();
     let cmp_vec = [TokenType::EqualEqual, TokenType::Equal];
     assert_eq!(ret, cmp_vec);
 }
@@ -378,7 +378,7 @@ fn looks_like_namespace_reso() {
         TokenType::Identifier("byebye".into()),
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -394,7 +394,7 @@ fn comment_and_line() {
     let ret = tokenize("// hello this is a comment\n\"hello\"").unwrap();
     assert_eq!(ret.len(), 1);
     assert_eq!(
-        ret.front().unwrap().token_type,
+        ret.front().unwrap().tok_typ,
         TokenType::String("hello".into())
     );
 }
@@ -409,7 +409,7 @@ fn multiple_exprs() {
         TokenType::String("goodbye".into()),
     ];
     assert_eq!(
-        ret.into_iter().map(|tt| tt.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|tt| tt.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -432,7 +432,7 @@ fn funny_looking_code() {
     ];
     assert_eq!(ret.len(), cmp_arr.len());
     assert_eq!(
-        ret.into_iter().map(|t| t.token_type).collect::<Vec<_>>(),
+        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
         cmp_arr
     );
 }

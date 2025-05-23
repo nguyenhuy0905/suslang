@@ -150,8 +150,7 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
 /// * `line_position`: The position in that line.
 #[derive(Debug, PartialEq)]
 pub struct Token {
-    // y'know what, fuck safety.
-    pub(super) token_type: TokenType,
+    pub(super) tok_typ: TokenType,
     pub(super) line_number: usize,
     pub(super) line_position: usize,
 }
@@ -165,7 +164,7 @@ impl Token {
         line_position: usize,
     ) -> Self {
         Self {
-            token_type,
+            tok_typ: token_type,
             line_number,
             line_position,
         }
@@ -174,12 +173,12 @@ impl Token {
     /// Gets the contained token type.
     #[must_use]
     pub fn token_type(&self) -> &TokenType {
-        &self.token_type
+        &self.tok_typ
     }
 
     #[must_use]
     pub fn move_token_type(self) -> TokenType {
-        self.token_type
+        self.tok_typ
     }
 
     /// Gets the line number of the current token.
@@ -197,11 +196,11 @@ impl Token {
     // TODO: use a struct to better name these 2 usizes
     #[must_use]
     pub fn bind(self) -> (TokenType, usize, usize) {
-        (self.token_type, self.line_number, self.line_position)
+        (self.tok_typ, self.line_number, self.line_position)
     }
 
     #[must_use]
     pub fn bind_ref(&self) -> (&TokenType, usize, usize) {
-        (&self.token_type, self.line_number, self.line_position)
+        (&self.tok_typ, self.line_number, self.line_position)
     }
 }

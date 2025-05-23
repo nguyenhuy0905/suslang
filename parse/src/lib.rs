@@ -9,7 +9,7 @@ use tokenize::Token;
 /// Requires Debug so that the thing can be unit-tested.
 pub trait Ast: Any + Debug {}
 
-/// impl Ast and derive PartialEq and this is auto-implemented.
+/// impl `Ast` and derive `PartialEq` and this is auto-implemented.
 pub trait AstCmp: Ast {
     /// Some double dispatch shenanigan, to compare two `&dyn AstCmp`
     fn accept_cmp(&self, other: &dyn AstCmp) -> bool;
@@ -21,7 +21,17 @@ pub trait AstClone: AstCmp {
 }
 
 pub trait AstParse: AstClone {
-    /// Parses into an Ast.
+    /// Parses into an `Ast`.
+    ///
+    /// # Errors
+    /// - If parsing stops due to running out of tokens (not due to
+    ///   grammartical errors), returns `Err(None)`.
+    /// - If parsing stops for any other reason, returns an
+    ///   `Err(Some(ParseError::<error enum>))` where the error value depends on
+    ///   the type of error.
+    ///
+    /// # See also
+    /// [`ParseError`]
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>>;
@@ -33,8 +43,7 @@ impl<T: Ast + PartialEq> AstCmp for T {
         (other as &dyn Any)
             // second dispatch
             .downcast_ref::<T>()
-            .map(|ast| ast == self)
-            .unwrap_or(false)
+            .is_some_and(|ast| ast == self)
     }
 }
 
@@ -90,10 +99,6 @@ impl AstBoxWrap {
         Self {
             value: Box::new(val),
         }
-    }
-
-    pub fn box_ref(&self) -> &Box<dyn AstClone> {
-        &self.value
     }
 }
 

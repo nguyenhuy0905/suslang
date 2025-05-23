@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use tokenize::{Token, TokenType};
 
+#[allow(clippy::wildcard_imports)]
 use crate::*;
 
 /// Comparison
@@ -37,11 +38,9 @@ impl AstParse for ComparisonExpr {
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
         let lhs = BitOrExpr::parse(tokens)?;
-        if let Some((Some(op), line, pos)) = tokens
-            .front()
-            .map(Token::bind_ref)
-            .and_then(|(typ, line, pos)| {
-                Some((
+        if let Some((Some(op), line, pos)) =
+            tokens.front().map(Token::bind_ref).map(|(typ, line, pos)| {
+                (
                     match typ {
                         TokenType::LPBrace => Some(ComparisonOp::Less),
                         TokenType::RPBrace => Some(ComparisonOp::Greater),
@@ -55,7 +54,7 @@ impl AstParse for ComparisonExpr {
                     },
                     line,
                     pos,
-                ))
+                )
             })
         {
             tokens.pop_front();

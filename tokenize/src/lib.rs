@@ -188,7 +188,7 @@ impl TokDfa {
             ));
         }
         if let Some(Token {
-            token_type: TokenType::SlashSlash,
+            tok_typ: TokenType::SlashSlash,
             ..
         }) = self.tok_vec.last()
         {
@@ -411,7 +411,7 @@ impl TokDfa {
         if grapheme.is_ascii_digit() {
             if let Some(tok) = mem::take(&mut self.curr_tok) {
                 let Token {
-                    token_type: TokenType::Integer(mut num_str),
+                    tok_typ: TokenType::Integer(mut num_str),
                     ..
                 } = tok
                 else {
@@ -485,7 +485,7 @@ impl TokDfa {
         // the assumption is that one can only call double_state if they have
         // been parsing an integer, then meet a dot.
         debug_assert!(self.curr_tok.as_ref().is_some_and(|tok| {
-            match &tok.token_type {
+            match &tok.tok_typ {
                 TokenType::Double(s) => {
                     s.chars().filter(|&c| c == '.').count() == 1
                 }
@@ -756,7 +756,7 @@ impl TokDfa {
         debug_assert!(matches!(
             self.tok_vec.last(),
             Some(Token {
-                token_type: TokenType::Ampersand,
+                tok_typ: TokenType::Ampersand,
                 ..
             })
         ));
@@ -796,7 +796,7 @@ impl TokDfa {
         debug_assert!(matches!(
             self.tok_vec.last(),
             Some(Token {
-                token_type: TokenType::Beam,
+                tok_typ: TokenType::Beam,
                 ..
             })
         ));
@@ -975,7 +975,7 @@ impl TokDfa {
 
         debug_assert!(self.tok_vec.last().is_some());
         debug_assert_eq!(
-            self.tok_vec.last().unwrap().token_type,
+            self.tok_vec.last().unwrap().tok_typ,
             TokenType::SlashSlash
         );
         let curr_line = self.tok_vec.last().unwrap().line_number;
