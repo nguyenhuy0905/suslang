@@ -3,6 +3,7 @@ use arith::*;
 use std::ops::Deref;
 use tokenize::TokenType;
 mod arith_test;
+mod cond_test;
 
 /// The first side must be an AstBoxWrap, and the second must implement
 /// `AstCmp`, that is, implementing `Ast` and also have trait `PartialEq`.

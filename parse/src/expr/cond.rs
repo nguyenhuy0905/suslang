@@ -36,7 +36,7 @@ impl AstParse for ComparisonExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
-        let lhs = TermExpr::parse(tokens)?;
+        let lhs = BitOrExpr::parse(tokens)?;
         if let Some((Some(op), line, pos)) = tokens
             .front()
             .map(Token::bind_ref)
@@ -46,10 +46,10 @@ impl AstParse for ComparisonExpr {
                         TokenType::LPBrace => Some(ComparisonOp::Less),
                         TokenType::RPBrace => Some(ComparisonOp::Greater),
                         TokenType::LPBraceEqual => {
-                            Some(ComparisonOp::GreaterEqual)
+                            Some(ComparisonOp::LessEqual)
                         }
                         TokenType::RPBraceEqual => {
-                            Some(ComparisonOp::LessEqual)
+                            Some(ComparisonOp::GreaterEqual)
                         }
                         _ => None,
                     },
@@ -58,7 +58,8 @@ impl AstParse for ComparisonExpr {
                 ))
             })
         {
-            let rhs = TermExpr::parse(tokens).map_err(|e| {
+            tokens.pop_front();
+            let rhs = BitOrExpr::parse(tokens).map_err(|e| {
                 if e.is_none() {
                     Some(ParseError::ExpectedToken { line, pos })
                 } else {
@@ -74,46 +75,18 @@ impl AstParse for ComparisonExpr {
 
 #[macro_export]
 macro_rules! new_comparison_expr {
-    ($lhs:expr,==,$rhs:expr) => {
-        ComparisonOp {
+    ($lhs:expr,$op:expr,$rhs:expr) => {
+        ComparisonExpr {
             lhs: AstBoxWrap::new($lhs),
             rhs: AstBoxWrap::new($rhs),
-            op: ComparisonOp::Equal,
+            op: $op,
         }
     };
-    ($lhs:expr,!=,$rhs:expr) => {
-        ComparisonOp {
+    ($lhs:expr,$rhs:expr,$op:expr) => {
+        ComparisonExpr {
             lhs: AstBoxWrap::new($lhs),
             rhs: AstBoxWrap::new($rhs),
-            op: ComparisonOp::NotEqual,
-        }
-    };
-    ($lhs:expr,<,$rhs:expr) => {
-        ComparisonOp {
-            lhs: AstBoxWrap::new($lhs),
-            rhs: AstBoxWrap::new($rhs),
-            op: ComparisonOp::Less,
-        }
-    };
-    ($lhs:expr,>,$rhs:expr) => {
-        ComparisonOp {
-            lhs: AstBoxWrap::new($lhs),
-            rhs: AstBoxWrap::new($rhs),
-            op: ComparisonOp::Greater,
-        }
-    };
-    ($lhs:expr,<=,$rhs:expr) => {
-        ComparisonOp {
-            lhs: AstBoxWrap::new($lhs),
-            rhs: AstBoxWrap::new($rhs),
-            op: ComparisonOp::LessEqual,
-        }
-    };
-    ($lhs:expr,>=,$rhs:expr) => {
-        ComparisonOp {
-            lhs: AstBoxWrap::new($lhs),
-            rhs: AstBoxWrap::new($rhs),
-            op: ComparisonOp::GreaterEqual,
+            op: $op,
         }
     };
 }
