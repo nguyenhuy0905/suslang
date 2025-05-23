@@ -147,3 +147,60 @@ impl AstParse for LogicAndExpr {
         }
     }
 }
+
+/// Logical or
+///
+/// # Rule
+/// \<logic-or-expr\> ::= \<logic-and-expr\> ("||" \<logic-and-expr\>)*
+///
+/// # See also
+/// [`LogicAndExpr`]
+#[derive(Debug, PartialEq, Clone)]
+pub struct LogicOrExpr {
+    pub first_logic_or: AstBoxWrap,
+    pub follow_logic_ors: Vec<AstBoxWrap>,
+}
+
+#[macro_export]
+macro_rules! new_logic_or_expr {
+    ($first_logic_or:expr $(,$follow_logic_or:expr)+ $(,)?) => {
+        LogicOrExpr {
+            first_logic_or: AstBoxWrap::new($first_logic_or),
+            follow_logic_ors: vec![$(AstBoxWrap::new($follow_logic_or),)+],
+        }
+    };
+}
+
+impl Ast for LogicOrExpr {}
+
+impl AstParse for LogicOrExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+    ) -> Result<AstBoxWrap, Option<ParseError>> {
+        let first_logic_or = LogicAndExpr::parse(tokens)?;
+        let follow_logic_ors = {
+            let mut ret = Vec::new();
+            while let Some((TokenType::BeamBeam, line, pos)) =
+                tokens.front().map(Token::bind_ref)
+            {
+                tokens.pop_front();
+                ret.push(LogicAndExpr::parse(tokens).map_err(|e| {
+                    if e.is_none() {
+                        Some(ParseError::ExpectedToken { line, pos })
+                    } else {
+                        e
+                    }
+                })?);
+            }
+            ret
+        };
+        if follow_logic_ors.is_empty() {
+            Ok(first_logic_or)
+        } else {
+            Ok(AstBoxWrap::new(LogicOrExpr {
+                first_logic_or,
+                follow_logic_ors,
+            }))
+        }
+    }
+}

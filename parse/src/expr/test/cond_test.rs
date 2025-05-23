@@ -117,3 +117,61 @@ fn logic_and_expr() {
         );
     }
 }
+
+#[test]
+fn logic_or_expr() {
+    // fallthrough
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer(3.to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer(4.to_string()),
+        ];
+        let logic_or = LogicOrExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            logic_or,
+            new_logic_and_expr![
+                PrimaryExpr::Integer(3),
+                PrimaryExpr::Integer(4),
+            ]
+        );
+    }
+    // precedence
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer(3.to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer(4.to_string()),
+            TokenType::BeamBeam,
+            TokenType::Integer(3.to_string()),
+            TokenType::AmpersandAmpersand,
+            TokenType::Integer(4.to_string()),
+        ];
+        let logic_or = LogicOrExpr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            logic_or,
+            new_logic_or_expr![
+                new_logic_and_expr![
+                    PrimaryExpr::Integer(3),
+                    PrimaryExpr::Integer(4),
+                ],
+                new_logic_and_expr![
+                    PrimaryExpr::Integer(3),
+                    PrimaryExpr::Integer(4),
+                ]
+            ]
+        );
+    }
+    // expected expression
+    {
+        let mut deque = new_test_deque![
+            TokenType::Integer(3.to_string()),
+            TokenType::BeamBeam,
+        ];
+        let logic_or = LogicOrExpr::parse(&mut deque);
+        assert_eq!(
+            logic_or,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
+        );
+    }
+}
