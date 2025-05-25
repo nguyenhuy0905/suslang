@@ -70,14 +70,9 @@ pub enum ParseError {
 // impl !PartialEq for Box<dyn AstClone> {}
 
 /// Wrapper around a `Box<dyn AstClone>`
+#[derive(Debug)]
 pub struct AstBoxWrap {
     pub value: Box<dyn AstClone>,
-}
-
-impl std::fmt::Debug for AstBoxWrap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.value.as_ref().fmt(f)
-    }
 }
 
 impl PartialEq for AstBoxWrap {
