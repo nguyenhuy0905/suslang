@@ -35,3 +35,24 @@ macro_rules! new_test_deque {
         }
     }
 }
+
+#[test]
+fn expr_test() {
+    // fallthrough.
+    // I mean, the only thing Expr really does is falling through.
+    {
+        let mut deque = new_test_deque![
+            TokenType::Ya,
+            TokenType::AmpersandAmpersand,
+            TokenType::Na,
+        ];
+        let expr = Expr::parse(&mut deque).unwrap();
+        assert_ast_eq!(
+            expr,
+            new_logic_and_expr![
+                PrimaryExpr::Boolean(true),
+                PrimaryExpr::Boolean(false),
+            ]
+        );
+    }
+}
