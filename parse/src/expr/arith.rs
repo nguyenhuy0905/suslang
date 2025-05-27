@@ -1,5 +1,5 @@
 use super::Expr;
-use crate::{Ast, AstBoxWrap, AstParse, ParseError};
+use crate::{Ast, AstBoxWrap, ExprParse, ParseError};
 use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
 
@@ -19,7 +19,7 @@ pub enum PrimaryExpr {
 
 impl Ast for PrimaryExpr {}
 
-impl AstParse for PrimaryExpr {
+impl ExprParse for PrimaryExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -105,7 +105,7 @@ pub enum UnaryOp {
 
 impl Ast for UnaryExpr {}
 
-impl AstParse for UnaryExpr {
+impl ExprParse for UnaryExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -171,7 +171,7 @@ pub enum FactorOp {
 
 impl Ast for FactorExpr {}
 
-impl AstParse for FactorExpr {
+impl ExprParse for FactorExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -238,7 +238,7 @@ macro_rules! new_term_expr {
     };
 }
 
-impl AstParse for TermExpr {
+impl ExprParse for TermExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -303,7 +303,7 @@ macro_rules! new_bit_and_expr {
 
 impl Ast for BitAndExpr {}
 
-impl AstParse for BitAndExpr {
+impl ExprParse for BitAndExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -360,7 +360,7 @@ macro_rules! new_bit_xor_expr {
     }
 }
 
-impl AstParse for BitXorExpr {
+impl ExprParse for BitXorExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -417,7 +417,7 @@ macro_rules! new_bit_or_expr {
     }
 }
 
-impl AstParse for BitOrExpr {
+impl ExprParse for BitOrExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {

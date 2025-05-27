@@ -1,5 +1,4 @@
 use super::*;
-use crate::cond::*;
 
 #[test]
 fn comparison_test() {

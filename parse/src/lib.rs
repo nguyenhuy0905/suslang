@@ -22,7 +22,7 @@ pub trait AstClone: AstCmp {
     fn boxed_clone(&self) -> Box<dyn AstClone>;
 }
 
-pub trait AstParse: AstClone {
+pub trait ExprParse: AstClone {
     /// Parses into an `Ast`.
     ///
     /// # Errors

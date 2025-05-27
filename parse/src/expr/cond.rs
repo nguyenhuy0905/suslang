@@ -33,7 +33,7 @@ pub enum ComparisonOp {
 
 impl Ast for ComparisonExpr {}
 
-impl AstParse for ComparisonExpr {
+impl ExprParse for ComparisonExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -117,7 +117,7 @@ macro_rules! new_logic_and_expr {
 
 impl Ast for LogicAndExpr {}
 
-impl AstParse for LogicAndExpr {
+impl ExprParse for LogicAndExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {
@@ -174,7 +174,7 @@ macro_rules! new_logic_or_expr {
 
 impl Ast for LogicOrExpr {}
 
-impl AstParse for LogicOrExpr {
+impl ExprParse for LogicOrExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {

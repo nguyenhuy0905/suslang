@@ -18,7 +18,7 @@ pub struct Expr {}
 
 impl Ast for Expr {}
 
-impl AstParse for Expr {
+impl ExprParse for Expr {
     fn parse(
         tokens: &mut VecDeque<Token>,
     ) -> Result<AstBoxWrap, Option<ParseError>> {

@@ -1,4 +1,4 @@
-use crate::{Ast, AstBoxWrap, AstParse, Expr, ParseError};
+use crate::{Ast, AstBoxWrap, Expr, ExprParse, ParseError};
 use tokenize::{Token, TokenType};
 #[cfg(test)]
 mod test;
@@ -15,7 +15,7 @@ pub struct Stmt {}
 
 impl Ast for Stmt {}
 
-impl AstParse for Stmt {
+impl ExprParse for Stmt {
     /// The caller needs to make sure that `tokens` is not empty.
     /// Why, otherwise it's hard to know where the error position is.
     fn parse(
@@ -73,7 +73,7 @@ macro_rules! new_var_decl_stmt {
 
 impl Ast for VarDeclStmt {}
 
-impl AstParse for VarDeclStmt {
+impl ExprParse for VarDeclStmt {
     /// The caller needs to make sure that `tokens` is not empty.
     /// Why, otherwise it's hard to know where the error position is.
     fn parse(
