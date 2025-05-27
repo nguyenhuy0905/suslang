@@ -15,6 +15,7 @@ pub enum PrimaryExpr {
     Float(f64),
     String(String),
     Boolean(bool),
+    Identifier(String),
 }
 
 impl Ast for PrimaryExpr {}
@@ -35,10 +36,15 @@ impl ExprParse for PrimaryExpr {
                 TokenType::Double(s_dbl) => {
                     let parsed_dbl = s_dbl.parse::<f64>();
                     debug_assert!(parsed_dbl.is_ok());
-                    Ok(ExprBoxWrap::new(PrimaryExpr::Float(parsed_dbl.unwrap())))
+                    Ok(ExprBoxWrap::new(PrimaryExpr::Float(
+                        parsed_dbl.unwrap(),
+                    )))
                 }
                 TokenType::String(s) => {
                     Ok(ExprBoxWrap::new(PrimaryExpr::String(s)))
+                }
+                TokenType::Identifier(s) => {
+                    Ok(ExprBoxWrap::new(PrimaryExpr::Identifier(s)))
                 }
                 TokenType::Ya => {
                     Ok(ExprBoxWrap::new(PrimaryExpr::Boolean(true)))
