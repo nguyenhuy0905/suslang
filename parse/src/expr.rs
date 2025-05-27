@@ -7,6 +7,45 @@ mod test;
 pub use arith::*;
 pub use cond::*;
 
+// when are you gonna finish your language
+// impl !PartialEq for Box<dyn AstClone> {}
+
+/// Wrapper around a `Box<dyn AstClone>`
+#[derive(Debug)]
+pub struct ExprBoxWrap {
+    pub value: Box<dyn AstClone>,
+}
+
+impl PartialEq for ExprBoxWrap {
+    fn eq(&self, other: &Self) -> bool {
+        self.value.as_ref().accept_cmp(other.value.as_ref())
+    }
+}
+
+impl Clone for ExprBoxWrap {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.boxed_clone(),
+        }
+    }
+}
+
+impl ExprBoxWrap {
+    pub fn new<T: AstClone>(val: T) -> Self {
+        Self {
+            value: Box::new(val),
+        }
+    }
+}
+
+impl std::ops::Deref for ExprBoxWrap {
+    type Target = dyn AstClone;
+
+    fn deref(&self) -> &Self::Target {
+        self.value.as_ref()
+    }
+}
+
 /// Parses an expression.
 pub trait ExprParse: AstClone {
     /// Parses into an `Ast`.
@@ -22,7 +61,7 @@ pub trait ExprParse: AstClone {
     /// [`ParseError`]
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>>;
+    ) -> Result<ExprBoxWrap, Option<ParseError>>;
 }
 
 impl<T: Ast + PartialEq> AstCmp for T {
@@ -50,7 +89,7 @@ impl Ast for Expr {}
 impl ExprParse for Expr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         LogicOrExpr::parse(tokens)
     }
 }

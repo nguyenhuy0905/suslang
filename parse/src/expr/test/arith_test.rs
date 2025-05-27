@@ -40,7 +40,7 @@ fn unary_expr() {
         assert_ast_eq!(
             un1,
             UnaryExpr {
-                primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
+                primary: ExprBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Plus,
             }
         );
@@ -54,7 +54,7 @@ fn unary_expr() {
         assert_ast_eq!(
             un2,
             UnaryExpr {
-                primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
+                primary: ExprBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Minus,
             }
         );
@@ -70,7 +70,7 @@ fn unary_expr() {
         assert_ast_eq!(
             un3,
             UnaryExpr {
-                primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
+                primary: ExprBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Deref,
             }
         );
@@ -84,7 +84,7 @@ fn unary_expr() {
         assert_ast_eq!(
             un4,
             UnaryExpr {
-                primary: AstBoxWrap::new(PrimaryExpr::Integer(3)),
+                primary: ExprBoxWrap::new(PrimaryExpr::Integer(3)),
                 op: UnaryOp::Ref,
             }
         );

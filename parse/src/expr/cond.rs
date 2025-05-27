@@ -16,8 +16,8 @@ use crate::*;
 /// [`TermExpr`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ComparisonExpr {
-    pub lhs: AstBoxWrap,
-    pub rhs: AstBoxWrap,
+    pub lhs: ExprBoxWrap,
+    pub rhs: ExprBoxWrap,
     pub op: ComparisonOp,
 }
 
@@ -36,7 +36,7 @@ impl Ast for ComparisonExpr {}
 impl ExprParse for ComparisonExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let lhs = BitOrExpr::parse(tokens)?;
         if let Some((Some(op), line, pos)) =
             tokens.front().map(Token::bind_ref).map(|(typ, line, pos)| {
@@ -67,7 +67,7 @@ impl ExprParse for ComparisonExpr {
                     e
                 }
             })?;
-            Ok(AstBoxWrap::new(ComparisonExpr { lhs, rhs, op }))
+            Ok(ExprBoxWrap::new(ComparisonExpr { lhs, rhs, op }))
         } else {
             Ok(lhs)
         }
@@ -78,15 +78,15 @@ impl ExprParse for ComparisonExpr {
 macro_rules! new_comparison_expr {
     ($lhs:expr,$op:expr,$rhs:expr$(,)?) => {
         ComparisonExpr {
-            lhs: AstBoxWrap::new($lhs),
-            rhs: AstBoxWrap::new($rhs),
+            lhs: ExprBoxWrap::new($lhs),
+            rhs: ExprBoxWrap::new($rhs),
             op: $op,
         }
     };
     ($lhs:expr,$rhs:expr,$op:expr) => {
         ComparisonExpr {
-            lhs: AstBoxWrap::new($lhs),
-            rhs: AstBoxWrap::new($rhs),
+            lhs: ExprBoxWrap::new($lhs),
+            rhs: ExprBoxWrap::new($rhs),
             op: $op,
         }
     };
@@ -101,16 +101,16 @@ macro_rules! new_comparison_expr {
 /// [`ComparisonExpr`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicAndExpr {
-    pub first_logic_and: AstBoxWrap,
-    pub follow_logic_ands: Vec<AstBoxWrap>,
+    pub first_logic_and: ExprBoxWrap,
+    pub follow_logic_ands: Vec<ExprBoxWrap>,
 }
 
 #[macro_export]
 macro_rules! new_logic_and_expr {
     ($first_logic_and:expr $(,$follow_logic_and:expr)+$(,)?) => {
         LogicAndExpr {
-            first_logic_and:AstBoxWrap::new($first_logic_and),
-            follow_logic_ands:vec![$(AstBoxWrap::new($follow_logic_and),)+],
+            first_logic_and:ExprBoxWrap::new($first_logic_and),
+            follow_logic_ands:vec![$(ExprBoxWrap::new($follow_logic_and),)+],
         }
     };
 }
@@ -120,7 +120,7 @@ impl Ast for LogicAndExpr {}
 impl ExprParse for LogicAndExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let first_logic_and = ComparisonExpr::parse(tokens)?;
         let follow_logic_ands = {
             let mut ret = Vec::new();
@@ -141,7 +141,7 @@ impl ExprParse for LogicAndExpr {
         if follow_logic_ands.is_empty() {
             Ok(first_logic_and)
         } else {
-            Ok(AstBoxWrap::new(LogicAndExpr {
+            Ok(ExprBoxWrap::new(LogicAndExpr {
                 first_logic_and,
                 follow_logic_ands,
             }))
@@ -158,16 +158,16 @@ impl ExprParse for LogicAndExpr {
 /// [`LogicAndExpr`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicOrExpr {
-    pub first_logic_or: AstBoxWrap,
-    pub follow_logic_ors: Vec<AstBoxWrap>,
+    pub first_logic_or: ExprBoxWrap,
+    pub follow_logic_ors: Vec<ExprBoxWrap>,
 }
 
 #[macro_export]
 macro_rules! new_logic_or_expr {
     ($first_logic_or:expr $(,$follow_logic_or:expr)+ $(,)?) => {
         LogicOrExpr {
-            first_logic_or: AstBoxWrap::new($first_logic_or),
-            follow_logic_ors: vec![$(AstBoxWrap::new($follow_logic_or),)+],
+            first_logic_or: ExprBoxWrap::new($first_logic_or),
+            follow_logic_ors: vec![$(ExprBoxWrap::new($follow_logic_or),)+],
         }
     };
 }
@@ -177,7 +177,7 @@ impl Ast for LogicOrExpr {}
 impl ExprParse for LogicOrExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let first_logic_or = LogicAndExpr::parse(tokens)?;
         let follow_logic_ors = {
             let mut ret = Vec::new();
@@ -198,7 +198,7 @@ impl ExprParse for LogicOrExpr {
         if follow_logic_ors.is_empty() {
             Ok(first_logic_or)
         } else {
-            Ok(AstBoxWrap::new(LogicOrExpr {
+            Ok(ExprBoxWrap::new(LogicOrExpr {
                 first_logic_or,
                 follow_logic_ors,
             }))

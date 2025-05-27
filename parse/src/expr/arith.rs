@@ -1,5 +1,5 @@
 use super::Expr;
-use crate::{Ast, AstBoxWrap, ExprParse, ParseError};
+use crate::{Ast, ExprBoxWrap, ExprParse, ParseError};
 use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
 
@@ -22,29 +22,29 @@ impl Ast for PrimaryExpr {}
 impl ExprParse for PrimaryExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         if let Some((typ, line, pos)) = tokens.pop_front().map(Token::bind) {
             match typ {
                 TokenType::Integer(s_in) => {
                     let parsed_int = s_in.parse::<u64>();
                     debug_assert!(parsed_int.is_ok());
-                    Ok(AstBoxWrap::new(PrimaryExpr::Integer(
+                    Ok(ExprBoxWrap::new(PrimaryExpr::Integer(
                         parsed_int.unwrap(),
                     )))
                 }
                 TokenType::Double(s_dbl) => {
                     let parsed_dbl = s_dbl.parse::<f64>();
                     debug_assert!(parsed_dbl.is_ok());
-                    Ok(AstBoxWrap::new(PrimaryExpr::Float(parsed_dbl.unwrap())))
+                    Ok(ExprBoxWrap::new(PrimaryExpr::Float(parsed_dbl.unwrap())))
                 }
                 TokenType::String(s) => {
-                    Ok(AstBoxWrap::new(PrimaryExpr::String(s)))
+                    Ok(ExprBoxWrap::new(PrimaryExpr::String(s)))
                 }
                 TokenType::Ya => {
-                    Ok(AstBoxWrap::new(PrimaryExpr::Boolean(true)))
+                    Ok(ExprBoxWrap::new(PrimaryExpr::Boolean(true)))
                 }
                 TokenType::Na => {
-                    Ok(AstBoxWrap::new(PrimaryExpr::Boolean(false)))
+                    Ok(ExprBoxWrap::new(PrimaryExpr::Boolean(false)))
                 }
                 TokenType::LParen => {
                     let ret = Expr::parse(tokens)?;
@@ -80,7 +80,7 @@ impl ExprParse for PrimaryExpr {
 /// [`PrimaryExpr`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct UnaryExpr {
-    pub primary: AstBoxWrap,
+    pub primary: ExprBoxWrap,
     pub op: UnaryOp,
 }
 
@@ -88,7 +88,7 @@ pub struct UnaryExpr {
 macro_rules! new_unary_expr {
     ($primary:expr, $op:expr) => {
         UnaryExpr {
-            primary: AstBoxWrap::new($primary),
+            primary: ExprBoxWrap::new($primary),
             op: $op,
         }
     };
@@ -108,7 +108,7 @@ impl Ast for UnaryExpr {}
 impl ExprParse for UnaryExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         if let Some((typ, line, pos)) = tokens.pop_front().map(Token::bind) {
             let Some(op) = (match typ {
                 TokenType::Plus => Some(UnaryOp::Plus),
@@ -122,7 +122,7 @@ impl ExprParse for UnaryExpr {
                 return PrimaryExpr::parse(tokens);
             };
 
-            Ok(AstBoxWrap::new(UnaryExpr {
+            Ok(ExprBoxWrap::new(UnaryExpr {
                 primary: PrimaryExpr::parse(tokens).map_err(|e| {
                     if e.is_none() {
                         Some(ParseError::ExpectedToken { line, pos })
@@ -147,8 +147,8 @@ impl ExprParse for UnaryExpr {
 /// [`UnaryExpr`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct FactorExpr {
-    pub first_fac: AstBoxWrap,
-    pub follow_facs: Vec<(FactorOp, AstBoxWrap)>,
+    pub first_fac: ExprBoxWrap,
+    pub follow_facs: Vec<(FactorOp, ExprBoxWrap)>,
 }
 
 /// Convenience macro to construct a new `FactorExpr`
@@ -156,8 +156,8 @@ pub struct FactorExpr {
 macro_rules! new_factor_expr {
     ($first_fac:expr$(,$follow_fac_op:expr,$follow_fac_exp:expr)+$(,)?) => {
         FactorExpr {
-            first_fac: AstBoxWrap::new($first_fac),
-            follow_facs: vec![$(($follow_fac_op,AstBoxWrap::new($follow_fac_exp)),)+],
+            first_fac: ExprBoxWrap::new($first_fac),
+            follow_facs: vec![$(($follow_fac_op,ExprBoxWrap::new($follow_fac_exp)),)+],
         }
     };
 }
@@ -174,7 +174,7 @@ impl Ast for FactorExpr {}
 impl ExprParse for FactorExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let first_fac = UnaryExpr::parse(tokens)?;
         // if I don't wrap this inside a closure, the return statement inside
         // that else, returns through the entire function.
@@ -206,7 +206,7 @@ impl ExprParse for FactorExpr {
         if follow_facs.is_empty() {
             Ok(first_fac)
         } else {
-            Ok(AstBoxWrap::new(FactorExpr {
+            Ok(ExprBoxWrap::new(FactorExpr {
                 first_fac,
                 follow_facs,
             }))
@@ -216,8 +216,8 @@ impl ExprParse for FactorExpr {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TermExpr {
-    pub first_term: AstBoxWrap,
-    pub follow_terms: Vec<(TermOp, AstBoxWrap)>,
+    pub first_term: ExprBoxWrap,
+    pub follow_terms: Vec<(TermOp, ExprBoxWrap)>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -232,8 +232,8 @@ impl Ast for TermExpr {}
 macro_rules! new_term_expr {
     ($first_term:expr$(,$follow_op:expr,$follow_term:expr)+$(,)?) => {
         TermExpr {
-            first_term: AstBoxWrap::new($first_term),
-            follow_terms: vec![$(($follow_op, AstBoxWrap::new($follow_term)),)+]
+            first_term: ExprBoxWrap::new($first_term),
+            follow_terms: vec![$(($follow_op, ExprBoxWrap::new($follow_term)),)+]
         }
     };
 }
@@ -241,7 +241,7 @@ macro_rules! new_term_expr {
 impl ExprParse for TermExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let first_term = FactorExpr::parse(tokens)?;
         let follow_terms = || -> Result<Vec<_>, Option<ParseError>> {
             let mut ret = Vec::new();
@@ -270,7 +270,7 @@ impl ExprParse for TermExpr {
         if follow_terms.is_empty() {
             Ok(first_term)
         } else {
-            Ok(AstBoxWrap::new(TermExpr {
+            Ok(ExprBoxWrap::new(TermExpr {
                 first_term,
                 follow_terms,
             }))
@@ -287,16 +287,16 @@ impl ExprParse for TermExpr {
 /// [`TermExpr`]
 #[derive(Debug, PartialEq, Clone)]
 pub struct BitAndExpr {
-    pub first_bit_and: AstBoxWrap,
-    pub follow_bit_ands: Vec<AstBoxWrap>,
+    pub first_bit_and: ExprBoxWrap,
+    pub follow_bit_ands: Vec<ExprBoxWrap>,
 }
 
 #[macro_export]
 macro_rules! new_bit_and_expr {
     ($first_bit_and:expr$(,$bit_and:expr)+$(,)?) => {
         BitAndExpr {
-            first_bit_and: AstBoxWrap::new($first_bit_and),
-            follow_bit_ands: vec![$(AstBoxWrap::new($bit_and))+],
+            first_bit_and: ExprBoxWrap::new($first_bit_and),
+            follow_bit_ands: vec![$(ExprBoxWrap::new($bit_and))+],
         }
     }
 }
@@ -306,7 +306,7 @@ impl Ast for BitAndExpr {}
 impl ExprParse for BitAndExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let first_bit_and = TermExpr::parse(tokens)?;
         let follow_bit_ands = || -> Result<Vec<_>, Option<ParseError>> {
             let mut ret = Vec::new();
@@ -327,7 +327,7 @@ impl ExprParse for BitAndExpr {
         if follow_bit_ands.is_empty() {
             Ok(first_bit_and)
         } else {
-            Ok(AstBoxWrap::new(Self {
+            Ok(ExprBoxWrap::new(Self {
                 first_bit_and,
                 follow_bit_ands,
             }))
@@ -344,8 +344,8 @@ impl ExprParse for BitAndExpr {
 /// [`BitAndExpr`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BitXorExpr {
-    pub first_bit_xor: AstBoxWrap,
-    pub follow_bit_xors: Vec<AstBoxWrap>,
+    pub first_bit_xor: ExprBoxWrap,
+    pub follow_bit_xors: Vec<ExprBoxWrap>,
 }
 
 impl Ast for BitXorExpr {}
@@ -354,8 +354,8 @@ impl Ast for BitXorExpr {}
 macro_rules! new_bit_xor_expr {
     ($first_bit_xor:expr$(,$bit_xor:expr)+$(,)?) => {
         BitXorExpr {
-            first_bit_xor: AstBoxWrap::new($first_bit_xor),
-            follow_bit_xors: vec![$(AstBoxWrap::new($bit_xor))+],
+            first_bit_xor: ExprBoxWrap::new($first_bit_xor),
+            follow_bit_xors: vec![$(ExprBoxWrap::new($bit_xor))+],
         }
     }
 }
@@ -363,7 +363,7 @@ macro_rules! new_bit_xor_expr {
 impl ExprParse for BitXorExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let first_bit_xor = BitAndExpr::parse(tokens)?;
         let follow_bit_xors = || -> Result<Vec<_>, Option<ParseError>> {
             let mut ret = Vec::new();
@@ -384,7 +384,7 @@ impl ExprParse for BitXorExpr {
         if follow_bit_xors.is_empty() {
             Ok(first_bit_xor)
         } else {
-            Ok(AstBoxWrap::new(Self {
+            Ok(ExprBoxWrap::new(Self {
                 first_bit_xor,
                 follow_bit_xors,
             }))
@@ -401,8 +401,8 @@ impl ExprParse for BitXorExpr {
 /// [`BitXorExpr`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BitOrExpr {
-    pub first_bit_or: AstBoxWrap,
-    pub follow_bit_ors: Vec<AstBoxWrap>,
+    pub first_bit_or: ExprBoxWrap,
+    pub follow_bit_ors: Vec<ExprBoxWrap>,
 }
 
 impl Ast for BitOrExpr {}
@@ -411,8 +411,8 @@ impl Ast for BitOrExpr {}
 macro_rules! new_bit_or_expr {
     ($first_bit_or:expr $(,$bit_or:expr)+$(,)?) => {
         BitOrExpr {
-            first_bit_or: AstBoxWrap::new($first_bit_or),
-            follow_bit_ors: vec![$(AstBoxWrap::new($bit_or),)*],
+            first_bit_or: ExprBoxWrap::new($first_bit_or),
+            follow_bit_ors: vec![$(ExprBoxWrap::new($bit_or),)*],
         }
     }
 }
@@ -420,7 +420,7 @@ macro_rules! new_bit_or_expr {
 impl ExprParse for BitOrExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
+    ) -> Result<ExprBoxWrap, Option<ParseError>> {
         let first_bit_or = BitXorExpr::parse(tokens)?;
         let follow_bit_ors = || -> Result<Vec<_>, Option<ParseError>> {
             let mut ret = Vec::new();
@@ -441,7 +441,7 @@ impl ExprParse for BitOrExpr {
         if follow_bit_ors.is_empty() {
             Ok(first_bit_or)
         } else {
-            Ok(AstBoxWrap::new(Self {
+            Ok(ExprBoxWrap::new(Self {
                 first_bit_or,
                 follow_bit_ors,
             }))

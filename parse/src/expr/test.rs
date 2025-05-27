@@ -5,7 +5,7 @@ use tokenize::TokenType;
 mod arith_test;
 mod cond_test;
 
-/// The first side must be an `AstBoxWrap`, and the second must implement
+/// The first side must be an `ExprBoxWrap`, and the second must implement
 /// `AstCmp`, that is, implementing `Ast` and also have trait `PartialEq`.
 #[macro_export]
 macro_rules! assert_ast_eq {
