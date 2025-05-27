@@ -42,6 +42,8 @@ impl AstParse for ComparisonExpr {
             tokens.front().map(Token::bind_ref).map(|(typ, line, pos)| {
                 (
                     match typ {
+                        TokenType::EqualEqual => Some(ComparisonOp::Equal),
+                        TokenType::BangEqual => Some(ComparisonOp::NotEqual),
                         TokenType::LPBrace => Some(ComparisonOp::Less),
                         TokenType::RPBrace => Some(ComparisonOp::Greater),
                         TokenType::LPBraceEqual => {
