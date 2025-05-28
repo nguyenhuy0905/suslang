@@ -81,9 +81,9 @@ pub struct NameResolve {
 
 #[macro_export]
 macro_rules! new_name_resolve {
-    ($($elem:expr),+ $(,)?) => {
+    ($first:expr $(,$follow:expr)* $(,)?) => {
         NameResolve {
-            resolve: vec![ResolveStep::$($elem)+]
+            resolve: vec![$first $(,$follow)*]
         }
     };
 }
