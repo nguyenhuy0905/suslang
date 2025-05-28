@@ -4,8 +4,7 @@ use std::{
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
 };
-
-use tokenize::Token;
+use tokenize::{Token, TokenType};
 
 use crate::{ExprBoxWrap, ParseError};
 #[cfg(test)]
@@ -35,18 +34,14 @@ pub struct Scope {
 /// - `Definition`: contains the name of the defined type and its definition.
 #[derive(Debug, PartialEq, Eq)]
 pub enum TypeInfoKind {
-    Definition {
-        name: String,
-        defn: Box<dyn TypeImpl>,
-    },
+    Definition(Box<dyn TypeImpl>),
     Reference(NameResolve),
 }
 
 impl Hash for TypeInfoKind {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Self::Definition { name, defn } => {
-                name.hash(state);
+            Self::Definition(defn) => {
                 state.write_u64(defn.get_hash_value());
             }
             Self::Reference(typename) => typename.hash(state),
@@ -57,10 +52,9 @@ impl Hash for TypeInfoKind {
 impl Clone for TypeInfoKind {
     fn clone(&self) -> Self {
         match self {
-            TypeInfoKind::Definition { name, defn } => Self::Definition {
-                name: name.clone(),
-                defn: defn.boxed_clone(),
-            },
+            TypeInfoKind::Definition(defn) => {
+                Self::Definition(defn.boxed_clone())
+            }
             TypeInfoKind::Reference(typename) => {
                 Self::Reference(typename.clone())
             }
