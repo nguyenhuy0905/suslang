@@ -1,7 +1,129 @@
-use crate::{Ast, AstBoxWrap, Expr, ExprParse, ParseError};
-use tokenize::{Token, TokenType};
+use crate::{Ast, ExprBoxWrap};
+use std::{
+    any::Any,
+    collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
+};
 #[cfg(test)]
 mod test;
+
+/// Contains info about a scope: what symbols are declared, what other scopes
+/// are pulled in, what the parent scope is.
+///
+/// This struct is used for both block scope and module scope. If you think
+/// about it, a module is pretty much in the form of, "mod modname {}".
+/// If that doesn't look like a block scope to me, I dunno what does.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scope {
+    // TODO: think of a better way to store env
+    pub symbols: HashMap<String, TypeInfoKind>,
+    // name of this scope.
+    pub name: String,
+    // imported module scopes.
+    pub imported_idxs: Vec<NameResolve>,
+    pub parent_idx: Option<NameResolve>,
+}
+
+/// A type information can either be a definition or a reference of a type.
+///
+/// - `Reference`: contains the name to resolve.
+/// - `Definition`: contains the name of the defined type and its definition.
+#[derive(Debug, PartialEq, Eq)]
+pub enum TypeInfoKind {
+    Definition {
+        name: String,
+        defn: Box<dyn TypeImpl>,
+    },
+    Reference(NameResolve),
+}
+
+impl Hash for TypeInfoKind {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Definition { name, defn } => {
+                name.hash(state);
+                state.write_u64(defn.get_hash_value());
+            }
+            Self::Reference(typename) => typename.hash(state),
+        }
+    }
+}
+
+impl Clone for TypeInfoKind {
+    fn clone(&self) -> Self {
+        match self {
+            TypeInfoKind::Definition { name, defn } => Self::Definition {
+                name: name.clone(),
+                defn: defn.boxed_clone(),
+            },
+            TypeInfoKind::Reference(typename) => {
+                Self::Reference(typename.clone())
+            }
+        }
+    }
+}
+
+/// Scope and type resolution.
+/// The first step can be `ResolveStep::Global`, but all the other can only be
+/// `Parent` or `Child`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NameResolve {
+    pub resolve: Vec<ResolveStep>,
+}
+
+/// A single step in name resolution.
+///
+/// - `Parent`: go to the parent scope.
+/// - `Child`: go to the child scope with the specified name.
+/// - `Global`: can only appear as the very first step. Start searching at the
+///   global scope.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ResolveStep {
+    Parent,
+    Global,
+    Child(String),
+}
+
+/// A tag that a struct is a `Type`.
+pub trait Type: Any + std::fmt::Debug {}
+
+/// Auto-impl of stuff for any `Type`.
+pub trait TypeImpl: Type {
+    /// Double-dispatch shenanigan to compare two `Type`s.
+    fn accept_cmp(&self, other: &dyn TypeImpl) -> bool;
+    /// Double-dispatch shenanigan to clone the type.
+    fn boxed_clone(&self) -> Box<dyn TypeImpl>;
+    /// Double-dispatch shenanigan to hash the type.
+    fn get_hash_value(&self) -> u64;
+}
+
+impl<T> TypeImpl for T
+where
+    T: Type + PartialEq + Hash + Clone,
+{
+    fn accept_cmp(&self, other: &dyn TypeImpl) -> bool {
+        (other as &dyn Any)
+            .downcast_ref::<T>()
+            .map_or(false, |typ| self == typ)
+    }
+    fn boxed_clone(&self) -> Box<dyn TypeImpl> {
+        Box::new(self.clone())
+    }
+
+    fn get_hash_value(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
+impl PartialEq for dyn TypeImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.accept_cmp(other)
+    }
+}
+
+impl Eq for dyn TypeImpl {}
 
 /// A statement
 ///
@@ -14,36 +136,6 @@ mod test;
 pub struct Stmt {}
 
 impl Ast for Stmt {}
-
-impl ExprParse for Stmt {
-    /// The caller needs to make sure that `tokens` is not empty.
-    /// Why, otherwise it's hard to know where the error position is.
-    fn parse(
-        tokens: &mut std::collections::VecDeque<Token>,
-    ) -> Result<AstBoxWrap, Option<ParseError>> {
-        assert!(tokens.front().is_some());
-        let (tok_typ, line, pos) = tokens.front().map(Token::bind_ref).unwrap();
-        let ret = match tok_typ {
-            &TokenType::Let => VarDeclStmt::parse(tokens),
-            _ => todo!(
-                "Invalid or undefined statements starting with {:#?}",
-                Token::new(tok_typ.clone(), line, pos)
-            ),
-        }?;
-
-        // check for the final semicolon
-        let Some((tok_typ, line, pos)) = tokens.pop_front().map(Token::bind)
-        else {
-            return Err(Some(ParseError::UnendedStmt { line, pos }));
-        };
-        if !matches!(tok_typ, TokenType::Semicolon) {
-            return Err(Some(ParseError::UnexpectedToken(Token::new(
-                tok_typ, line, pos,
-            ))));
-        }
-        Ok(ret)
-    }
-}
 
 /// Variable declaration statement.
 ///
@@ -58,67 +150,7 @@ impl ExprParse for Stmt {
 #[derive(Debug, PartialEq, Clone)]
 pub struct VarDeclStmt {
     pub name: String,
-    pub val: AstBoxWrap,
-}
-
-#[macro_export]
-macro_rules! new_var_decl_stmt {
-    ($name:expr, $val:expr) => {
-        VarDeclStmt {
-            name: $name.to_owned(),
-            val: AstBoxWrap::new($val),
-        }
-    };
+    pub val: ExprBoxWrap,
 }
 
 impl Ast for VarDeclStmt {}
-
-impl ExprParse for VarDeclStmt {
-    /// The caller needs to make sure that `tokens` is not empty.
-    /// Why, otherwise it's hard to know where the error position is.
-    fn parse(
-        tokens: &mut std::collections::VecDeque<tokenize::Token>,
-    ) -> Result<AstBoxWrap, Option<crate::ParseError>> {
-        assert!(tokens.front().is_some());
-
-        // check the "let"
-        let (tok_typ, line, pos) = tokens.pop_front().map(Token::bind).unwrap();
-        if !matches!(tok_typ, TokenType::Let) {
-            return Err(Some(ParseError::UnexpectedToken(Token::new(
-                tok_typ, line, pos,
-            ))));
-        }
-
-        // get the name
-        let Some((tok_typ, line, pos)) = tokens.pop_front().map(Token::bind)
-        else {
-            // this is the previous line and pos binds, not inside this let-else.
-            return Err(Some(ParseError::ExpectedToken { line, pos }));
-        };
-        // fuck you borrow checker
-        let Some(name) = (match &tok_typ {
-            TokenType::Identifier(s) => Some(s.clone()),
-            _ => None,
-        }) else {
-            return Err(Some(ParseError::UnexpectedToken(Token::new(
-                tok_typ, line, pos,
-            ))));
-        };
-
-        // check the "="
-        let Some((tok_typ, line, pos)) = tokens.pop_front().map(Token::bind)
-        else {
-            // this is the previous line and pos binds, not inside this let-else.
-            return Err(Some(ParseError::ExpectedToken { line, pos }));
-        };
-        if !matches!(tok_typ, TokenType::Equal) {
-            return Err(Some(ParseError::UnexpectedToken(Token::new(
-                tok_typ, line, pos,
-            ))));
-        }
-
-        // get the value
-        let val = Expr::parse(tokens)?;
-        Ok(AstBoxWrap::new(Self { name, val }))
-    }
-}
