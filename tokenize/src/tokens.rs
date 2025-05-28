@@ -108,8 +108,12 @@ pub enum TokenType {
     Else,
     /// Keyword "let"
     Let,
+    /// Keyword "mut"
+    Mut,
     /// Keyword "ref"
     Ref,
+    /// Keyword "module"
+    Module,
     /// Keyword "static"
     Static,
     /// Keyword "proc"
@@ -129,7 +133,9 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
                 ("elif", TokenType::Elif),
                 ("else", TokenType::Else),
                 ("let", TokenType::Let),
+                ("mut", TokenType::Mut),
                 ("ref", TokenType::Ref),
+                ("module", TokenType::Module),
                 ("static", TokenType::Static),
                 ("proc", TokenType::Proc),
                 ("return", TokenType::Return),
