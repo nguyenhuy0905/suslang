@@ -116,6 +116,8 @@ pub enum TokenType {
     Import,
     /// Keyword "module"
     Module,
+    /// Keyword "overlord"
+    Overlord,
     /// Keyword "ref"
     Ref,
     /// Keyword "proc"
@@ -139,6 +141,7 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
                 ("mut", TokenType::Mut),
                 ("import", TokenType::Import),
                 ("module", TokenType::Module),
+                ("overlord", TokenType::Overlord),
                 ("ref", TokenType::Ref),
                 ("proc", TokenType::Proc),
                 ("return", TokenType::Return),
