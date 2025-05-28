@@ -1,12 +1,13 @@
 use std::{
     any::Any,
     collections::{HashMap, VecDeque},
+    fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
 };
 
 use tokenize::Token;
 
-use crate::ParseError;
+use crate::{ExprBoxWrap, ParseError};
 #[cfg(test)]
 mod test;
 
@@ -18,12 +19,13 @@ mod test;
 /// If that doesn't look like a block scope to me, I dunno what does.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    // TODO: think of a better way to store env
-    pub symbols: HashMap<String, TypeInfoKind>,
+    // map of (symbol name, symbol type).
+    // At parsing stage, some auto-inferred declarations cannot be inferred
+    // yet.
+    pub symbols: HashMap<String, Option<TypeInfoKind>>,
     // name of this scope.
     pub name: String,
-    // imported module scopes.
-    pub imported_idxs: Vec<NameResolve>,
+    // parent module.
     pub parent_idx: Option<NameResolve>,
 }
 
@@ -92,7 +94,7 @@ pub enum ResolveStep {
 ///
 /// Must also implement PartialEq + Hash + Clone in order to get `TypeImpl`
 /// auto-implemented.
-pub trait Type: Any + std::fmt::Debug {}
+pub trait Type: Any + Debug {}
 
 /// Auto-impl of stuff for any `Type`.
 pub trait TypeImpl: Type {
@@ -137,6 +139,69 @@ impl PartialEq for dyn TypeImpl {
 
 impl Eq for dyn TypeImpl {}
 
+/// Statement AST node tag.
+///
+/// Must also implement traits Debug, Clone, PartialEq for blanket [`StmtImpl`]
+/// implementation.
+pub trait StmtAst: Any + Debug {}
+
+/// Blanket implementation for [`StmtAst`]
+pub trait StmtImpl: StmtAst {
+    /// Double-dispatch comparison.
+    fn accept_cmp(&self, other: &dyn StmtImpl) -> bool;
+    /// Dispatched clone.
+    fn boxed_clone(&self) -> Box<dyn StmtImpl>;
+}
+
+pub trait StmtParse: StmtImpl {
+    /// Parse the tokens into a statement, and update the scope passed in if
+    /// any definition or block is parsed.
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        scope: &mut Scope,
+    ) -> Result<StmtAstBoxWrap, ParseError>;
+}
+
+impl<T> StmtImpl for T
+where
+    T: StmtAst + Clone + PartialEq,
+{
+    fn accept_cmp(&self, other: &dyn StmtImpl) -> bool {
+        (other as &dyn Any)
+            .downcast_ref::<T>()
+            .map_or(false, |val| self == val)
+    }
+
+    fn boxed_clone(&self) -> Box<dyn StmtImpl> {
+        Box::new(self.clone())
+    }
+}
+
+/// Wrapper around a `dyn StmtImpl`.
+pub struct StmtAstBoxWrap {
+    pub val: Box<dyn StmtImpl>,
+}
+
+impl PartialEq for StmtAstBoxWrap {
+    fn eq(&self, other: &Self) -> bool {
+        self.val.accept_cmp(other.val.as_ref())
+    }
+}
+
+impl Clone for StmtAstBoxWrap {
+    fn clone(&self) -> Self {
+        Self {
+            val: self.val.boxed_clone(),
+        }
+    }
+}
+
+impl AsRef<dyn StmtImpl> for StmtAstBoxWrap {
+    fn as_ref(&self) -> &dyn StmtImpl {
+        self.val.as_ref()
+    }
+}
+
 /// Variable declaration statement.
 ///
 /// # Rule
@@ -149,19 +214,40 @@ impl Eq for dyn TypeImpl {}
 ///     definition. For example, [`proc`](tokenize::TokenType::Proc) before a
 ///     procedure definition. Tokens that are identifiers will be type
 ///     references.
+/// - And, when parsing, some auto-inferred types are not yet inferrable.
 ///
 /// # See also
 /// [`Expr`](crate::Expr)
-#[derive(Debug, PartialEq, Hash, Clone)]
-pub struct VarDeclStmt {}
+#[derive(Debug, PartialEq, Clone)]
+pub struct VarDeclStmt {
+    // symbol name
+    pub name: String,
+    // type of symbol. If symbol type not immediately resolvable, this value is
+    // None.
+    pub typ: Option<NameResolve>,
+    // initial value of the declaration.
+    pub init_val: ExprBoxWrap,
+}
 
-impl Type for VarDeclStmt {}
+impl StmtAst for VarDeclStmt {}
 
-/// Type definition statement
+// TODO: impl StmtParse for VarDeclStmt {}
+
+/// Type definition statement.
+///
+/// Includes type and procedure definition and alias.
+/// Aliases can be type aliases or module aliases. Or module import.
+///
+/// # Note
+/// - At the parsing stage, a typedef or a module reference is no different.
 ///
 /// # Rule
-/// \<type-defn\> ::= "type" ID "=" \<defn\>
-///
-/// # TODO
-/// - Define the \<defn\> grammar rule.
+/// \<type-defn\> ::= "def" (ID = (\<defn\> | \<type-ref\>)
+///                         | "import" = \<type-ref\>)
+/// \<defn\> ::= \<type-defn\> | \<module-defn\>
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeDefnStmt {}
+
+impl StmtAst for TypeDefnStmt {}
+
+// TODO: impl StmtParse for TypeDefnStmt {}
