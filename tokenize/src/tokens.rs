@@ -112,10 +112,10 @@ pub enum TokenType {
     Mut,
     /// Keyword "ref"
     Ref,
+    /// Keyword "type"
+    Type,
     /// Keyword "module"
     Module,
-    /// Keyword "static"
-    Static,
     /// Keyword "proc"
     Proc,
     /// Keyword "return"
@@ -135,8 +135,8 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
                 ("let", TokenType::Let),
                 ("mut", TokenType::Mut),
                 ("ref", TokenType::Ref),
+                ("type", TokenType::Type),
                 ("module", TokenType::Module),
-                ("static", TokenType::Static),
                 ("proc", TokenType::Proc),
                 ("return", TokenType::Return),
             ])

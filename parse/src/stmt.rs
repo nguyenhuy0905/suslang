@@ -1,9 +1,12 @@
-use crate::{Ast, ExprBoxWrap};
 use std::{
     any::Any,
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     hash::{DefaultHasher, Hash, Hasher},
 };
+
+use tokenize::Token;
+
+use crate::ParseError;
 #[cfg(test)]
 mod test;
 
@@ -84,7 +87,11 @@ pub enum ResolveStep {
     Child(String),
 }
 
-/// A tag that a struct is a `Type`.
+/// A tag that a struct is a `Type`. Must implement `Debug`. Y'know, so that
+/// we can assert_eq and all.
+///
+/// Must also implement PartialEq + Hash + Clone in order to get `TypeImpl`
+/// auto-implemented.
 pub trait Type: Any + std::fmt::Debug {}
 
 /// Auto-impl of stuff for any `Type`.
@@ -95,6 +102,11 @@ pub trait TypeImpl: Type {
     fn boxed_clone(&self) -> Box<dyn TypeImpl>;
     /// Double-dispatch shenanigan to hash the type.
     fn get_hash_value(&self) -> u64;
+}
+
+/// How to parse a type.
+pub trait TypeParse: TypeImpl {
+    fn parse(tokens: &mut VecDeque<Token>) -> Result<TypeInfoKind, ParseError>;
 }
 
 impl<T> TypeImpl for T
@@ -125,32 +137,31 @@ impl PartialEq for dyn TypeImpl {
 
 impl Eq for dyn TypeImpl {}
 
-/// A statement
-///
-/// # Rule
-/// \<stmt\> ::= (\<var-decl\>) ";"
-///
-/// # See also
-/// [`VarDeclStmt`]
-#[derive(Debug, PartialEq, Clone)]
-pub struct Stmt {}
-
-impl Ast for Stmt {}
-
 /// Variable declaration statement.
 ///
-/// I will probably use this form for declaration of literally everything.
-///
 /// # Rule
-/// \<var-decl\> ::= "let" IDENTIFIER "=" \<expr\>
+/// \<var-decl\> ::= "let" "mut"? ID (":" TYPE_ID) "=" \<expr\>
+///
+/// # Note
+/// - When parsing, TYPE_ID is equivalent to [`TypeInfoKind::Reference`].
+/// - How do we know if a `TypeInfoKind` is a `Reference` or a `Definition`?
+///   - We should have a keyword for each kind of type
+///     definition. For example, [`proc`](tokenize::TokenType::Proc) before a
+///     procedure definition. Tokens that are identifiers will be type
+///     references.
 ///
 /// # See also
-/// [`Expr`]
-/// [`TokenType`]
-#[derive(Debug, PartialEq, Clone)]
-pub struct VarDeclStmt {
-    pub name: String,
-    pub val: ExprBoxWrap,
-}
+/// [`Expr`](crate::Expr)
+#[derive(Debug, PartialEq, Hash, Clone)]
+pub struct VarDeclStmt {}
 
-impl Ast for VarDeclStmt {}
+impl Type for VarDeclStmt {}
+
+/// Type definition statement
+///
+/// # Rule
+/// \<type-defn\> ::= "type" ID "=" \<defn\>
+///
+/// # TODO
+/// - Define the \<defn\> grammar rule.
+pub struct TypeDefnStmt {}
