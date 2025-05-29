@@ -37,7 +37,9 @@ pub struct Scope {
 /// - `Definition`: contains the name of the defined type and its definition.
 #[derive(Debug, PartialEq, Eq)]
 pub enum TypeInfoKind {
+    // Defines a type
     Definition(Box<dyn TypeImpl>),
+    // Refers to a type defined somewhere.
     Reference(NameResolve),
 }
 
@@ -100,45 +102,61 @@ impl NameResolve {
         // or module.
         // If the next token is something else then we could say name
         // resolution ends.
+
+        // Assuming the parser just matches a Global resolve step. This
+        // function pushes the Global resolve onto `acc_vec`, then checks the
+        // next token, taken from `tok_lst`.
+        //
+        // If that token does not correspond to Child resolve step, returns an
+        // error; otherwise, return the position of the token just resolved.
+        let resolve_global = |tok_lst: &mut VecDeque<Token>,
+                              acc_vec: &mut Vec<ResolveStep>|
+         -> Result<(usize, usize), ParseError> {
+            // Global resolve must be the first item
+            debug_assert!(acc_vec.is_empty());
+            acc_vec.push(ResolveStep::Global);
+            tok_lst
+                .pop_front()
+                .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+                .and_then(|tok| match tok.tok_typ {
+                    TokenType::Identifier(s) => {
+                        acc_vec.push(ResolveStep::Child(s));
+                        Ok((tok.line_number, tok.line_position))
+                    }
+                    _ => Err(ParseError::UnexpectedToken(tok)),
+                })
+        };
+        // Check `first_tok` to see which type of name resolution it asks for.
+        // For Global resolution, requires one extra token from `tok_lst`.
+        let init_resolve_vec = |first_tok: Token,
+                                tok_lst: &mut VecDeque<Token>|
+         -> Result<
+            (Vec<ResolveStep>, usize, usize),
+            ParseError,
+        > {
+            let mut acc = Vec::new();
+            match first_tok.tok_typ {
+                TokenType::Identifier(s) => {
+                    acc.push(ResolveStep::Child(s));
+                    Ok((acc, first_tok.line_number, first_tok.line_position))
+                }
+                TokenType::Overlord => {
+                    acc.push(ResolveStep::Parent);
+                    Ok((acc, first_tok.line_number, first_tok.line_position))
+                }
+                TokenType::ColonColon => resolve_global(tok_lst, &mut acc)
+                    .map(|(tok_ln, tok_pos)| (acc, tok_ln, tok_pos)),
+                _ => Err(ParseError::UnexpectedToken(first_tok)),
+            }
+        };
+
+        // actual logic starts here
+
         let (mut resolve, new_ln, new_pos): (Vec<_>, usize, usize) = tokens
             .pop_front()
             // must have at least 1 token
             .ok_or_else(|| ParseError::ExpectedToken { line, pos })
-            .and_then(|tok| {
-                let mut acc = Vec::new();
-                match tok.tok_typ {
-                    TokenType::Identifier(s) => {
-                        acc.push(ResolveStep::Child(s));
-                        Ok((acc, tok.line_number, tok.line_position))
-                    }
-                    TokenType::Overlord => {
-                        acc.push(ResolveStep::Parent);
-                        Ok((acc, tok.line_number, tok.line_position))
-                    }
-                    TokenType::ColonColon => {
-                        // must be followed by a Child resolve.
-                        acc.push(ResolveStep::Global);
-                        tokens
-                            .pop_front()
-                            .ok_or_else(|| ParseError::ExpectedToken {
-                                line,
-                                pos,
-                            })
-                            .and_then(|tok| match tok.tok_typ {
-                                TokenType::Identifier(s) => {
-                                    acc.push(ResolveStep::Child(s));
-                                    Ok((
-                                        acc,
-                                        tok.line_number,
-                                        tok.line_position,
-                                    ))
-                                }
-                                _ => Err(ParseError::UnexpectedToken(tok)),
-                            })
-                    }
-                    _ => Err(ParseError::UnexpectedToken(tok)),
-                }
-            })?;
+            .and_then(|tok| init_resolve_vec(tok, tokens))?;
         (line, pos) = (new_ln, new_pos);
 
         while let Some(TokenType::ColonColon) =
