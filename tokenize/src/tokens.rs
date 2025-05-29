@@ -162,9 +162,9 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
 /// * `line_position`: The position in that line.
 #[derive(Debug, PartialEq)]
 pub struct Token {
-    pub(super) tok_typ: TokenType,
-    pub(super) line_number: usize,
-    pub(super) line_position: usize,
+    pub tok_typ: TokenType,
+    pub line_number: usize,
+    pub line_position: usize,
 }
 
 impl Token {

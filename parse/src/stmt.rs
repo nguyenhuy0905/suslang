@@ -91,8 +91,8 @@ macro_rules! new_name_resolve {
 impl NameResolve {
     fn parse_no_vtable(
         tokens: &mut VecDeque<Token>,
-        line: usize,
-        pos: usize,
+        mut line: usize,
+        mut pos: usize,
     ) -> Result<(Self, usize, usize), ParseError> {
         // first (one or two) token(s) must be some type or module, or "::"
         // followed by a type or module.
@@ -100,84 +100,71 @@ impl NameResolve {
         // or module.
         // If the next token is something else then we could say name
         // resolution ends.
-
-        let mut resolve = Vec::new();
-        // get the first resolve step
-        let (tok_typ, line, pos) = tokens
+        let (mut resolve, new_ln, new_pos): (Vec<_>, usize, usize) = tokens
             .pop_front()
+            // must have at least 1 token
             .ok_or_else(|| ParseError::ExpectedToken { line, pos })
-            .map(Token::bind)
-            .unwrap();
-        match tok_typ {
-            TokenType::ColonColon => {
-                resolve.push(ResolveStep::Global);
-                // So, bringing global module to scope is kinda stupid.
-                // Since it's in scope already anyways.
-                let Some((tok_typ, line, pos)) =
-                    tokens.pop_front().map(Token::bind)
-                else {
-                    return Err(ParseError::ExpectedToken { line, pos });
-                };
-                if let TokenType::Identifier(s) = tok_typ {
-                    resolve.push(ResolveStep::Child(s));
-                } else {
-                    return Err(ParseError::UnexpectedToken(Token::new(
-                        tok_typ, line, pos,
-                    )));
+            .and_then(|tok| {
+                let mut acc = Vec::new();
+                match tok.tok_typ {
+                    TokenType::Identifier(s) => {
+                        acc.push(ResolveStep::Child(s));
+                        Ok((acc, tok.line_number, tok.line_position))
+                    }
+                    TokenType::Overlord => {
+                        acc.push(ResolveStep::Parent);
+                        Ok((acc, tok.line_number, tok.line_position))
+                    }
+                    TokenType::ColonColon => {
+                        // must be followed by a Child resolve.
+                        acc.push(ResolveStep::Global);
+                        tokens
+                            .pop_front()
+                            .ok_or_else(|| ParseError::ExpectedToken {
+                                line,
+                                pos,
+                            })
+                            .and_then(|tok| match tok.tok_typ {
+                                TokenType::Identifier(s) => {
+                                    acc.push(ResolveStep::Child(s));
+                                    Ok((
+                                        acc,
+                                        tok.line_number,
+                                        tok.line_position,
+                                    ))
+                                }
+                                _ => Err(ParseError::UnexpectedToken(tok)),
+                            })
+                    }
+                    _ => Err(ParseError::UnexpectedToken(tok)),
                 }
-            }
-            TokenType::Identifier(s) => resolve.push(ResolveStep::Child(s)),
-            TokenType::Overlord => resolve.push(ResolveStep::Parent),
-            _ => {
-                return Err(ParseError::UnexpectedToken(Token::new(
-                    tok_typ, line, pos,
-                )));
-            }
+            })?;
+        (line, pos) = (new_ln, new_pos);
+
+        while let Some(TokenType::ColonColon) =
+            tokens.front().map(Token::token_type)
+        {
+            // get line and position for error-handling
+            (line, pos) = tokens
+                .pop_front()
+                .map(|tok| (tok.line_number, tok.line_position))
+                // read the while-condition
+                .unwrap();
+            tokens
+                .pop_front()
+                .ok_or(ParseError::ExpectedToken { line, pos })
+                .and_then(|tok| match tok.tok_typ {
+                    TokenType::Identifier(s) => {
+                        resolve.push(ResolveStep::Child(s));
+                        Ok(())
+                    }
+                    TokenType::Overlord => {
+                        resolve.push(ResolveStep::Parent);
+                        Ok(())
+                    }
+                    _ => Err(ParseError::UnexpectedToken(tok)),
+                })?;
         }
-        // get the following resolve steps, if any
-        let (line, pos) = {
-            let (mut line, mut pos) = (line, pos);
-            while matches!(
-                tokens.front().map(Token::token_type),
-                Some(&TokenType::ColonColon)
-            ) {
-                // remove the colon
-                (line, pos) = tokens
-                    .pop_front()
-                    .map(|tok| (tok.line_number(), tok.line_position()))
-                    .unwrap();
-                // following a ColonColon must be an Identifier, or Overlord
-                (line, pos) = tokens
-                    .pop_front()
-                    .ok_or_else(|| ParseError::ExpectedToken { line, pos })
-                    .map(Token::bind)
-                    .and_then(|(typ, line, pos)| {
-                        Ok((
-                            (if let TokenType::Identifier(name) = typ {
-                                Ok(Some(name))
-                            } else if let TokenType::Overlord = typ {
-                                Ok(None)
-                            } else {
-                                Err(ParseError::UnexpectedToken(Token::new(
-                                    typ, line, pos,
-                                )))
-                            })?,
-                            line,
-                            pos,
-                        ))
-                    })
-                    .map(|(name, line, pos)| {
-                        // if it's an identifier (name is Some)
-                        name.map(|name| resolve.push(ResolveStep::Child(name)))
-                            // otherwise
-                            .unwrap_or_else(|| {
-                                resolve.push(ResolveStep::Parent);
-                            });
-                        (line, pos)
-                    })?;
-            }
-            (line, pos)
-        };
 
         Ok((Self { resolve }, line, pos))
     }
