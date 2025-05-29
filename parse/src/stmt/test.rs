@@ -1,14 +1,18 @@
-use crate::new_name_resolve;
-use crate::new_test_deque;
-use crate::ParseError;
-use crate::ResolveStep;
-use crate::TypeInfoKind;
-use std::collections::VecDeque;
-use tokenize::Token;
-use tokenize::TokenType;
+use super::{NameResolve, Scope, StmtParse, TypeParse, VarDeclStmt};
+use crate::ExprBoxWrap;
+use crate::StmtAstBoxWrap;
+use crate::{
+    new_name_resolve, new_test_deque, new_var_decl_expr, ParseError,
+    PrimaryExpr, ResolveStep, TypeInfoKind,
+};
+use std::collections::{HashMap, VecDeque};
+use tokenize::{Token, TokenType};
 
-use super::NameResolve;
-use super::TypeParse;
+macro_rules! assert_stmt_ast_eq {
+    ($actual:expr,$expect:expr) => {
+        assert_eq!($actual, StmtAstBoxWrap::new($expect))
+    };
+}
 
 #[test]
 fn name_resolve() {
@@ -89,5 +93,32 @@ fn name_resolve() {
             new_test_deque![TokenType::Overlord, TokenType::ColonColon];
         let ret = NameResolve::parse_no_vtable(&mut deque, 1, 1);
         assert_eq!(ret, Err(ParseError::ExpectedToken { line: 1, pos: 2 }));
+    }
+}
+
+#[test]
+fn var_decl_stmt() {
+    // simplest
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Identifier("num".to_string()),
+            TokenType::Equal,
+            TokenType::Integer(1.to_string())
+        ];
+        let mut scope = Scope {
+            symbols: HashMap::new(),
+            name: "hello".to_string(),
+            parent_idx: None,
+        };
+        let (vardecl, line, pos) =
+            VarDeclStmt::parse(&mut deque, &mut scope, 1, 1).unwrap();
+        assert_stmt_ast_eq!(
+            vardecl,
+            new_var_decl_expr!("num", None, PrimaryExpr::Integer(1))
+        );
+        assert_eq!(line, 1);
+        // TODO: refactor ExprParse
+        // assert_eq!(pos, 4);
     }
 }

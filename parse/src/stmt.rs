@@ -321,6 +321,12 @@ impl StmtAstBoxWrap {
     }
 }
 
+impl Debug for StmtAstBoxWrap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.val.fmt(f)
+    }
+}
+
 impl PartialEq for StmtAstBoxWrap {
     fn eq(&self, other: &Self) -> bool {
         self.val.accept_cmp(other.val.as_ref())
@@ -368,6 +374,24 @@ pub struct VarDeclStmt {
     pub init_val: ExprBoxWrap,
 }
 
+#[macro_export]
+macro_rules! new_var_decl_expr {
+    ($name:expr, None, $init:expr) => {
+        VarDeclStmt {
+            name: $name.into(),
+            typ: None,
+            init_val: ExprBoxWrap::new($init),
+        }
+    };
+    ($name:expr, $typ:expr, $init:expr) => {
+        VarDeclStmt {
+            name: $name.into(),
+            typ: NameResolve { resolve: $typ },
+            init_val: ExprBoxWrap::new($init),
+        }
+    };
+}
+
 impl StmtAst for VarDeclStmt {}
 
 impl StmtParse for VarDeclStmt {
@@ -378,21 +402,6 @@ impl StmtParse for VarDeclStmt {
         pos: usize,
     ) -> Result<(StmtAstBoxWrap, usize, usize), ParseError> {
         // check for the "let"
-        let (line, pos) = tokens
-            .pop_front()
-            .ok_or(ParseError::ExpectedToken { line, pos })
-            .map(Token::bind)
-            .and_then(|(typ, new_line, new_pos)| {
-                if typ != TokenType::Let {
-                    Err(ParseError::UnexpectedToken(Token::new(
-                        typ, new_line, new_pos,
-                    )))
-                } else {
-                    Ok((new_line, new_pos))
-                }
-            })?;
-
-        // check for the identifier
         let (line, pos) = tokens
             .pop_front()
             .ok_or(ParseError::ExpectedToken { line, pos })
@@ -427,7 +436,7 @@ impl StmtParse for VarDeclStmt {
             })?;
 
         // Get the type if there's the annotation
-        let type_anno = tokens
+        let type_anno: Option<(NameResolve, usize, usize)> = tokens
             .front()
             .ok_or_else(|| ParseError::ExpectedToken { line, pos })
             .map(|tok| {
@@ -462,11 +471,13 @@ impl StmtParse for VarDeclStmt {
                 // otherwise just return the same error
             })
             // change back to Result<Option<...>>
-            .transpose()?;
+            .transpose()?; // and try get the Option<...> inside
 
-        let (typ, line, pos) = type_anno
+        let (typ, line, pos): (Option<NameResolve>, _, _) = type_anno
             .map(|(type_anno, line, pos)| (Some(type_anno), line, pos))
             .unwrap_or((None, line, pos));
+        // TODO: refactor ExprAst to return a tuple with line and pos alongside
+        // the box wrap.
         let init_val = Expr::parse(tokens).map_err(|e| match e {
             None => ParseError::ExpectedToken { line, pos },
             Some(e) => e,
