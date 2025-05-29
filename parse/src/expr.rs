@@ -1,95 +1,67 @@
-#[allow(clippy::wildcard_imports)]
-use crate::*;
-pub mod arith;
-pub mod cond;
-#[cfg(test)]
-mod test;
-pub use arith::*;
-pub use cond::*;
+use std::{any::Any, fmt::Debug, string::ParseError};
 
-// when are you gonna finish your language
-// impl !PartialEq for Box<dyn AstClone> {}
+use tokenize::Token;
 
-/// Wrapper around a `Box<dyn AstClone>`
-#[derive(Debug)]
-pub struct ExprBoxWrap {
-    pub value: Box<dyn AstClone>,
+/// Tag for all expression types.
+/// Must impl `Debug + Clone + PartialEq`.
+pub trait ExprAst: Debug + Any {}
+
+/// Auto-impl for all `ExprAst`
+pub trait ExprImpl: ExprAst {
+    /// Dispatched call to clone.
+    fn boxed_clone(&self) -> Box<dyn ExprImpl>;
+    /// Dispatched call to compare 2 `dyn ExprAst`s.
+    fn accept_cmp(&self, other: &dyn ExprAst) -> bool;
 }
 
-impl PartialEq for ExprBoxWrap {
-    fn eq(&self, other: &Self) -> bool {
-        self.value.as_ref().accept_cmp(other.value.as_ref())
+impl<T> ExprImpl for T
+where
+    T: ExprAst + Clone + PartialEq,
+{
+    fn boxed_clone(&self) -> Box<dyn ExprImpl> {
+        Box::new(self.clone())
     }
-}
 
-impl Clone for ExprBoxWrap {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value.boxed_clone(),
-        }
-    }
-}
-
-impl ExprBoxWrap {
-    pub fn new<T: AstClone>(val: T) -> Self {
-        Self {
-            value: Box::new(val),
-        }
-    }
-}
-
-impl std::ops::Deref for ExprBoxWrap {
-    type Target = dyn AstClone;
-
-    fn deref(&self) -> &Self::Target {
-        self.value.as_ref()
-    }
-}
-
-/// Parses an expression.
-pub trait ExprParse: AstClone {
-    /// Parses into an `Ast`.
-    ///
-    /// # Errors
-    /// - If parsing stops due to running out of tokens (not due to
-    ///   grammartical errors), returns `Err(None)`.
-    /// - If parsing stops for any other reason, returns an
-    ///   `Err(Some(ParseError::<error enum>))` where the error value depends on
-    ///   the type of error.
-    ///
-    /// # See also
-    /// [`ParseError`]
-    fn parse(
-        tokens: &mut VecDeque<Token>,
-    ) -> Result<ExprBoxWrap, Option<ParseError>>;
-}
-
-impl<T: Ast + PartialEq> AstCmp for T {
-    fn accept_cmp(&self, other: &dyn AstCmp) -> bool {
-        // the function is the first dispatch
+    fn accept_cmp(&self, other: &dyn ExprAst) -> bool {
         (other as &dyn Any)
-            // second dispatch
-            .downcast_ref::<T>()
-            .is_some_and(|ast| ast == self)
+            .downcast_ref()
+            .map_or(false, |other| self == other)
     }
 }
 
-/// Dummy expression struct
-///
-/// # Rule (for now)
-/// \<expr\> ::= \<logic-or-expr\>
-///
-/// # See also
-/// [`LogicOrExpr`]
-#[derive(Debug, Clone, PartialEq)]
-pub struct Expr {}
+impl PartialEq for dyn ExprImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.accept_cmp(other)
+    }
+}
 
-impl Ast for Expr {}
+impl Clone for Box<dyn ExprImpl> {
+    fn clone(&self) -> Self {
+        self.boxed_clone()
+    }
+}
 
-impl ExprParse for Expr {
-    fn parse(
-        tokens: &mut VecDeque<Token>,
-    ) -> Result<ExprBoxWrap, Option<ParseError>> {
-        LogicOrExpr::parse(tokens)
+pub trait ExprParse {
+    fn parse(tokens: &[Token]) -> Result<ExprBox, ParseError>;
+}
+
+/// Wrapper around a `Box<dyn ExprImpl>`
+///
+/// Just to implement `PartialEq`
+#[derive(Clone)]
+pub struct ExprBox {
+    pub val: Box<dyn ExprImpl>,
+}
+
+impl PartialEq for ExprBox {
+    fn eq(&self, other: &Self) -> bool {
+        self.val.accept_cmp(other.val.as_ref())
+    }
+}
+
+// just skip the wrapper
+impl Debug for ExprBox {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.val.fmt(f)
     }
 }

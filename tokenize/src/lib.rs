@@ -4,8 +4,6 @@
 #[cfg(test)]
 mod test;
 pub mod tokens;
-
-use std::collections::VecDeque;
 use std::error::Error;
 use std::fmt::Display;
 use std::mem;
@@ -21,7 +19,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// # Panics
 /// - Shouldn't happen unless ``graphemes`` works incorrectly.
-pub fn tokenize(input: &str) -> Result<VecDeque<Token>, TokenizeError> {
+pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     // (line-number, pos-in-line, grapheme)
     let input_iter = input.lines().enumerate().flat_map(|(lnum, s)| {
         s.graphemes(true).enumerate().map(move |(idx, gr)| {
@@ -34,7 +32,15 @@ pub fn tokenize(input: &str) -> Result<VecDeque<Token>, TokenizeError> {
     }
     dfa.finalize()?;
 
-    Ok(dfa.tok_vec.into())
+    // dummy token at the start. The position is also dummy
+    let (line, pos) = dfa
+        .tok_vec
+        .first()
+        .map(|tok| (tok.line_number(), tok.line_position()))
+        .unwrap_or((1, 1));
+    let mut ret = vec![Token::new(TokenType::Semicolon, line, pos)];
+    ret.extend(dfa.tok_vec);
+    Ok(ret)
 }
 
 #[derive(Debug, Clone)]

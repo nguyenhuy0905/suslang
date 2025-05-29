@@ -4,7 +4,7 @@ use super::*;
 fn ignore_space() {
     let ret = tokenize("     \r\t");
     assert!(ret.is_ok());
-    assert!(ret.unwrap().is_empty());
+    assert_eq!(ret.unwrap().len(), 1);
 }
 
 #[test]
@@ -20,8 +20,8 @@ fn non_ascii_begin_token() {
 #[test]
 fn simple_char() {
     let ret = tokenize("' '").unwrap();
-    assert_eq!(ret.len(), 1);
-    assert_eq!(ret.front().unwrap().tok_typ, TokenType::Char(' '));
+    assert_eq!(ret.len(), 2);
+    assert_eq!(ret.get(1).unwrap().tok_typ, TokenType::Char(' '));
 }
 
 #[test]
@@ -53,9 +53,9 @@ fn too_many_chars() {
 #[test]
 fn unicode_char() {
     let ret = tokenize("'\u{eb54}'").unwrap();
-    assert_eq!(ret.len(), 1);
+    assert_eq!(ret.len(), 2);
     assert!(matches!(
-        ret.front(),
+        ret.get(1),
         Some(Token {
             tok_typ: TokenType::Char('\u{eb54}'),
             ..
@@ -68,12 +68,12 @@ fn simple_string() {
     let ret = tokenize("\"hello\"");
     assert!(ret.is_ok());
     let ur = ret.unwrap();
-    assert!(!ur.is_empty());
+    assert_eq!(ur.len(), 2);
     assert!(matches!(
-        ur.front().unwrap().token_type(),
+        ur.get(1).unwrap().token_type(),
         TokenType::String(_)
     ));
-    if let TokenType::String(s) = ur.front().unwrap().token_type() {
+    if let TokenType::String(s) = ur.get(1).unwrap().token_type() {
         assert_eq!(s, "hello");
         assert_ne!(s, "hell");
     }
@@ -86,10 +86,10 @@ fn unicode_string() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     assert!(matches!(
-        ur.front().unwrap().token_type(),
+        ur.get(1).unwrap().token_type(),
         TokenType::String(_)
     ));
-    if let TokenType::String(s) = ur.front().unwrap().token_type() {
+    if let TokenType::String(s) = ur.get(1).unwrap().token_type() {
         assert_eq!(s, "hello\u{f4a2}!");
         assert_ne!(s, "hell");
     }
@@ -130,12 +130,12 @@ fn empty_string() {
     let ret = tokenize("\"\"");
     assert!(ret.is_ok());
     let ur = ret.unwrap();
-    assert!(!ur.is_empty());
+    assert_eq!(ur.len(), 2);
     assert!(matches!(
-        ur.front().unwrap().token_type(),
+        ur.get(1).unwrap().token_type(),
         TokenType::String(_)
     ));
-    if let TokenType::String(s) = ur.front().unwrap().token_type() {
+    if let TokenType::String(s) = ur.get(1).unwrap().token_type() {
         assert!(s.is_empty());
     }
 }
@@ -143,9 +143,9 @@ fn empty_string() {
 #[test]
 fn multiline_string() {
     let ret = tokenize("\"hell\no\"").unwrap();
-    assert_eq!(ret.len(), 1);
+    assert_eq!(ret.len(), 2);
     assert_eq!(
-        ret.front().unwrap().tok_typ,
+        ret.get(1).unwrap().tok_typ,
         TokenType::String("hello".into())
     );
 }
@@ -153,9 +153,9 @@ fn multiline_string() {
 #[test]
 fn single_quote_inside_string() {
     let ret = tokenize("\"'hello'\"").unwrap();
-    assert_eq!(ret.len(), 1);
+    assert_eq!(ret.len(), 2);
     assert_eq!(
-        ret.front().unwrap().tok_typ,
+        ret.get(1).unwrap().tok_typ,
         TokenType::String("'hello'".into())
     );
 }
@@ -167,10 +167,10 @@ fn simple_identifier() {
     let ur = ret.unwrap();
     assert!(!ur.is_empty());
     assert!(matches!(
-        ur.front().unwrap().token_type(),
+        ur.get(1).unwrap().token_type(),
         TokenType::Identifier(_)
     ));
-    if let TokenType::Identifier(s) = ur.front().unwrap().token_type() {
+    if let TokenType::Identifier(s) = ur.get(1).unwrap().token_type() {
         assert!(!s.is_empty());
         assert_eq!(s, "hello");
     }
@@ -190,18 +190,18 @@ fn non_ascii_identifier() {
 fn keyword() {
     let ret = tokenize("let");
     let ur = ret.unwrap();
-    assert!(!ur.is_empty());
-    assert!(matches!(ur.front().unwrap().token_type(), TokenType::Let));
+    assert_eq!(ur.len(), 2);
+    assert!(matches!(ur.get(1).unwrap().token_type(), TokenType::Let));
 }
 
 #[test]
 fn keyword_and_identifier() {
     let ret = tokenize("let hello");
     let ur = ret.unwrap();
-    assert!(!ur.is_empty());
-    assert!(matches!(ur.front().unwrap().token_type(), TokenType::Let));
-    assert!(ur.get(1).is_some());
-    if let TokenType::Identifier(s) = ur.get(1).unwrap().token_type() {
+    assert_eq!(ur.len(), 3);
+    assert!(matches!(ur.get(1).unwrap().token_type(), TokenType::Let));
+    assert!(ur.get(2).is_some());
+    if let TokenType::Identifier(s) = ur.get(2).unwrap().token_type() {
         assert!(!s.is_empty());
         assert_eq!(s, "hello");
     }
@@ -211,11 +211,11 @@ fn keyword_and_identifier() {
 fn number() {
     let ret = tokenize("69420");
     let ur = ret.unwrap();
-    assert!(!ur.is_empty());
+    assert_eq!(ur.len(), 2);
     let Some(Token {
         tok_typ: TokenType::Integer(int_str),
         ..
-    }) = ur.front()
+    }) = ur.get(1)
     else {
         panic!("tokenize::test::number: ur wrong");
     };
@@ -226,11 +226,11 @@ fn number() {
 fn simple_double() {
     let ret = tokenize("420.69");
     let ur = ret.unwrap();
-    assert!(!ur.is_empty());
+    assert_eq!(ur.len(), 2);
     let Some(Token {
         tok_typ: TokenType::Double(dbl),
         ..
-    }) = ur.front()
+    }) = ur.get(1)
     else {
         panic!("tokenize::test::simple_double: ur wrong");
     };
@@ -266,14 +266,17 @@ fn double_multiline_err() {
 #[test]
 fn multiline_number() {
     let ret = tokenize("69420\n66666\n424242").unwrap();
-    assert_eq!(ret.len(), 3);
+    assert_eq!(ret.len(), 4);
     let cmp_arr = [
         TokenType::Integer("69420".into()),
         TokenType::Integer("66666".into()),
         TokenType::Integer("424242".into()),
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -281,16 +284,16 @@ fn multiline_number() {
 #[test]
 fn one_symbol() {
     let ret = tokenize("+").unwrap();
-    assert!(!ret.is_empty());
-    assert!(matches!(ret.front().unwrap().tok_typ, TokenType::Plus));
+    assert_eq!(ret.len(), 2);
+    assert!(matches!(ret.get(1).unwrap().tok_typ, TokenType::Plus));
 }
 
 #[test]
 fn symbols_on_multi_line() {
     let ret = tokenize("=\n=").unwrap();
-    assert_eq!(ret.len(), 2);
+    assert_eq!(ret.len(), 3);
     assert!(matches!(
-        ret.get(1).unwrap(),
+        ret.get(2).unwrap(),
         Token {
             tok_typ: TokenType::Equal,
             line_number: 2,
@@ -302,14 +305,17 @@ fn symbols_on_multi_line() {
 #[test]
 fn comparisons() {
     let ret = tokenize("<= >= !=").unwrap();
-    assert_eq!(ret.len(), 3);
+    assert_eq!(ret.len(), 4);
     let cmp_arr = [
         TokenType::LPBraceEqual,
         TokenType::RPBraceEqual,
         TokenType::BangEqual,
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -319,7 +325,10 @@ fn conditional() {
     let ret = tokenize("|| &&").unwrap();
     let cmp_arr = [TokenType::BeamBeam, TokenType::AmpersandAmpersand];
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -329,7 +338,10 @@ fn bitwise_line_separated() {
     let ret = tokenize("|\n|").unwrap();
     let cmp_arr = [TokenType::Beam, TokenType::Beam];
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -339,7 +351,10 @@ fn bitwise_whitespace_separated() {
     let ret = tokenize("| |").unwrap();
     let cmp_arr = [TokenType::Beam, TokenType::Beam];
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -354,7 +369,10 @@ fn bitwise() {
         TokenType::Beam,
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -362,8 +380,11 @@ fn bitwise() {
 #[test]
 fn multi_word_symbol() {
     let ret = tokenize("===").unwrap();
-    assert_eq!(ret.len(), 2);
-    let ret = ret.into_iter().map(|tt| tt.tok_typ).collect::<Vec<_>>();
+    let ret = ret
+        .into_iter()
+        .skip(1)
+        .map(|tt| tt.tok_typ)
+        .collect::<Vec<_>>();
     let cmp_vec = [TokenType::EqualEqual, TokenType::Equal];
     assert_eq!(ret, cmp_vec);
 }
@@ -371,14 +392,16 @@ fn multi_word_symbol() {
 #[test]
 fn looks_like_namespace_reso() {
     let ret = tokenize("hello::byebye").unwrap();
-    assert_eq!(ret.len(), 3);
     let cmp_arr = [
         TokenType::Identifier("hello".into()),
         TokenType::ColonColon,
         TokenType::Identifier("byebye".into()),
     ];
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -386,15 +409,15 @@ fn looks_like_namespace_reso() {
 #[test]
 fn comment() {
     let ret = tokenize("// hello this is a comment").unwrap();
-    assert!(ret.is_empty());
+    assert_eq!(ret.len(), 1);
 }
 
 #[test]
 fn comment_and_line() {
     let ret = tokenize("// hello this is a comment\n\"hello\"").unwrap();
-    assert_eq!(ret.len(), 1);
+    assert_eq!(ret.len(), 2);
     assert_eq!(
-        ret.front().unwrap().tok_typ,
+        ret.get(1).unwrap().tok_typ,
         TokenType::String("hello".into())
     );
 }
@@ -402,14 +425,17 @@ fn comment_and_line() {
 #[test]
 fn multiple_exprs() {
     let ret = tokenize("\"hello\";\"goodbye\"").unwrap();
-    assert_eq!(ret.len(), 3);
+    assert_eq!(ret.len(), 4);
     let cmp_arr = [
         TokenType::String("hello".into()),
         TokenType::Semicolon,
         TokenType::String("goodbye".into()),
     ];
     assert_eq!(
-        ret.into_iter().map(|tt| tt.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|tt| tt.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
@@ -430,9 +456,13 @@ fn funny_looking_code() {
         TokenType::Semicolon,
         TokenType::RCParen,
     ];
-    assert_eq!(ret.len(), cmp_arr.len());
+    // account for the dummy first token
+    assert_eq!(ret.len(), cmp_arr.len() + 1);
     assert_eq!(
-        ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
+        ret.into_iter()
+            .skip(1)
+            .map(|t| t.tok_typ)
+            .collect::<Vec<_>>(),
         cmp_arr
     );
 }
