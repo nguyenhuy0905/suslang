@@ -282,6 +282,24 @@ pub trait StmtImpl: StmtAst {
 pub trait StmtParse: StmtImpl {
     /// Parse the tokens into a statement, and update the scope passed in if
     /// any definition or block is parsed.
+    ///
+    /// # Parameters
+    /// - `tokens` A [`VecDeque`] of [`Token`] to be parsed.
+    /// - `scope` The current scope being parsed.
+    /// - `line`, `pos`: line number and position of the token *right before*
+    ///   the first token in `tokens`. If `tokens` is empty, they should either
+    ///   be `1, 1` or that of the token popped *before* passing `tokens` into
+    ///   the function.
+    ///
+    /// # Return
+    /// - On success, return a tuple:
+    ///   - First element is the parsed statement.
+    ///   - Second and third element are the line number and position of the
+    ///     last token parsed.
+    ///
+    /// # Errors
+    /// - If the input tokens cannot form a valid statement, return a
+    ///   [`ParseError`] corresponding to the failing reason.
     fn parse(
         tokens: &mut VecDeque<Token>,
         scope: &mut Scope,
