@@ -459,9 +459,9 @@ impl StmtParse for VarDeclStmt {
             })
             // then remove that Colon
             .inspect(|opt| {
-                if opt.is_some() {
+                opt.inspect(|_| {
                     tokens.pop_front();
-                }
+                });
             })
             // change to Option<Result<...>>
             .transpose()
