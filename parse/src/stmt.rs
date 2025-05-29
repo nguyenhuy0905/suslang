@@ -21,10 +21,10 @@ mod test;
 /// If that doesn't look like a block scope to me, I dunno what does.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    // map of (symbol name, symbol type).
+    // map of (symbol name, (line, position, symbol type)).
     // At parsing stage, some auto-inferred declarations cannot be inferred
-    // yet.
-    pub symbols: HashMap<String, Option<TypeInfoKind>>,
+    // yet; in which case, symbol type is None.
+    pub symbols: HashMap<String, (usize, usize, Option<TypeInfoKind>)>,
     // name of this scope.
     pub name: String,
     // parent module.
@@ -386,7 +386,7 @@ macro_rules! new_var_decl_expr {
     ($name:expr, $typ:expr, $init:expr) => {
         VarDeclStmt {
             name: $name.into(),
-            typ: NameResolve { resolve: $typ },
+            typ: Some(NameResolve { resolve: $typ }),
             init_val: ExprBoxWrap::new($init),
         }
     };
@@ -398,11 +398,11 @@ impl StmtParse for VarDeclStmt {
     fn parse(
         tokens: &mut VecDeque<Token>,
         scope: &mut Scope,
-        line: usize,
-        pos: usize,
+        mut line: usize,
+        mut pos: usize,
     ) -> Result<(StmtAstBoxWrap, usize, usize), ParseError> {
         // check for the "let"
-        let (line, pos) = tokens
+        let (new_ln, new_pos) = tokens
             .pop_front()
             .ok_or(ParseError::ExpectedToken { line, pos })
             .map(Token::bind)
@@ -417,9 +417,12 @@ impl StmtParse for VarDeclStmt {
             })?;
 
         // get the identifier
-        let (name, line, pos) = tokens
+        let (name, new_ln, new_pos) = tokens
             .pop_front()
-            .ok_or(ParseError::ExpectedToken { line, pos })
+            .ok_or(ParseError::ExpectedToken {
+                line: new_ln,
+                pos: new_pos,
+            })
             .map(Token::bind)
             .and_then(|(typ, line, pos)| {
                 Ok((
@@ -434,11 +437,16 @@ impl StmtParse for VarDeclStmt {
                     pos,
                 ))
             })?;
+        // set position of line and pos to that of the identifier
+        (line, pos) = (new_ln, new_pos);
 
         // Get the type if there's the annotation
         let type_anno: Option<(NameResolve, usize, usize)> = tokens
             .front()
-            .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+            .ok_or_else(|| ParseError::ExpectedToken {
+                line: new_ln,
+                pos: new_pos,
+            })
             .map(|tok| {
                 // if there's a Colon
                 if tok.token_type() == &TokenType::Colon {
@@ -450,8 +458,10 @@ impl StmtParse for VarDeclStmt {
                 }
             })
             // then remove that Colon
-            .inspect(|_| {
-                tokens.pop_front();
+            .inspect(|opt| {
+                if opt.is_some() {
+                    tokens.pop_front();
+                }
             })
             // change to Option<Result<...>>
             .transpose()
@@ -473,20 +483,45 @@ impl StmtParse for VarDeclStmt {
             // change back to Result<Option<...>>
             .transpose()?; // and try get the Option<...> inside
 
-        let (typ, line, pos): (Option<NameResolve>, _, _) = type_anno
+        let (typ, new_ln, new_pos): (Option<NameResolve>, _, _) = type_anno
             .map(|(type_anno, line, pos)| (Some(type_anno), line, pos))
-            .unwrap_or((None, line, pos));
+            .unwrap_or((None, new_ln, new_pos));
+        if let Some((def_ln, def_pos, _)) = scope.symbols.insert(
+            name.clone(),
+            (line, pos, typ.clone().map(|t| TypeInfoKind::Reference(t))),
+        ) {
+            return Err(ParseError::SymbolAlreadyExists {
+                name,
+                line: def_ln,
+                pos: def_pos,
+            });
+        }
+
+        // check for the equal
+        tokens
+            .pop_front()
+            .ok_or_else(|| ParseError::ExpectedToken {
+                line: new_ln,
+                pos: new_pos,
+            })
+            .and_then(|tok| {
+                if matches!(tok.tok_typ, TokenType::Equal) {
+                    Ok(())
+                } else {
+                    Err(ParseError::UnexpectedToken(tok))
+                }
+            })?;
+
         // TODO: refactor ExprAst to return a tuple with line and pos alongside
         // the box wrap.
         let init_val = Expr::parse(tokens).map_err(|e| match e {
-            None => ParseError::ExpectedToken { line, pos },
+            None => ParseError::ExpectedToken {
+                line: new_ln,
+                pos: new_pos,
+            },
             Some(e) => e,
         })?;
 
-        scope.symbols.insert(
-            name.clone(),
-            typ.clone().map(|t| TypeInfoKind::Reference(t)),
-        );
         Ok((
             StmtAstBoxWrap::new(Self {
                 name,

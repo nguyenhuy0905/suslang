@@ -37,7 +37,21 @@ impl<T: AstCmp + Clone> AstClone for T {
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
     UnexpectedToken(Token),
-    ExpectedToken { line: usize, pos: usize },
-    UnclosedParen { line: usize, pos: usize },
-    UnendedStmt { line: usize, pos: usize },
+    ExpectedToken {
+        line: usize,
+        pos: usize,
+    },
+    UnclosedParen {
+        line: usize,
+        pos: usize,
+    },
+    UnendedStmt {
+        line: usize,
+        pos: usize,
+    },
+    SymbolAlreadyExists {
+        name: String,
+        line: usize,
+        pos: usize,
+    },
 }

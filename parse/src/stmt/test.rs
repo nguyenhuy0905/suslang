@@ -111,14 +111,39 @@ fn var_decl_stmt() {
             name: "hello".to_string(),
             parent_idx: None,
         };
-        let (vardecl, line, pos) =
+        let (vardecl, _, _) =
             VarDeclStmt::parse(&mut deque, &mut scope, 1, 1).unwrap();
         assert_stmt_ast_eq!(
             vardecl,
             new_var_decl_expr!("num", None, PrimaryExpr::Integer(1))
         );
-        assert_eq!(line, 1);
         // TODO: refactor ExprParse
         // assert_eq!(pos, 4);
+    }
+    // with type anno
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Identifier("num".to_string()),
+            TokenType::Colon,
+            TokenType::Identifier("Urmom".to_string()),
+            TokenType::Equal,
+            TokenType::String("fat".to_string())
+        ];
+        let mut scope = Scope {
+            symbols: HashMap::new(),
+            name: "hello".to_string(),
+            parent_idx: None,
+        };
+        let (vardecl, ..) =
+            VarDeclStmt::parse(&mut deque, &mut scope, 1, 1).unwrap();
+        assert_stmt_ast_eq!(
+            vardecl,
+            new_var_decl_expr!(
+                "num",
+                vec![ResolveStep::Child("Urmom".to_string())],
+                PrimaryExpr::String("fat".to_string())
+            )
+        );
     }
 }
