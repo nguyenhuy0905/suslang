@@ -6,7 +6,7 @@ use std::{
 };
 use tokenize::{Token, TokenType};
 
-use crate::{ExprBoxWrap, ParseError};
+use crate::{Expr, ExprBoxWrap, ExprParse, ParseError};
 #[cfg(test)]
 mod test;
 
@@ -88,14 +88,12 @@ macro_rules! new_name_resolve {
     };
 }
 
-impl NameResolve {}
-
-impl Type for NameResolve {}
-
-impl TypeParse for NameResolve {
-    /// Need to make sure `tokens` is not empty before calling this function.
-    fn parse(tokens: &mut VecDeque<Token>) -> Result<TypeInfoKind, ParseError> {
-        assert!(!tokens.is_empty());
+impl NameResolve {
+    fn parse_no_vtable(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
         // first (one or two) token(s) must be some type or module, or "::"
         // followed by a type or module.
         // If the next token is "::" then its next token must be another type
@@ -105,7 +103,11 @@ impl TypeParse for NameResolve {
 
         let mut resolve = Vec::new();
         // get the first resolve step
-        let (tok_typ, line, pos) = tokens.pop_front().map(Token::bind).unwrap();
+        let (tok_typ, line, pos) = tokens
+            .pop_front()
+            .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+            .map(Token::bind)
+            .unwrap();
         match tok_typ {
             TokenType::ColonColon => {
                 resolve.push(ResolveStep::Global);
@@ -133,29 +135,65 @@ impl TypeParse for NameResolve {
             }
         }
         // get the following resolve steps, if any
-        while matches!(
-            tokens.front().map(Token::token_type),
-            Some(&TokenType::ColonColon)
-        ) {
-            let (_, line, pos) = tokens.pop_front().map(Token::bind).unwrap();
-            // following a ColonColon must be an Identifier
-            if tokens.is_empty() {
-                return Err(ParseError::ExpectedToken { line, pos });
+        let (line, pos) = {
+            let (mut line, mut pos) = (line, pos);
+            while matches!(
+                tokens.front().map(Token::token_type),
+                Some(&TokenType::ColonColon)
+            ) {
+                // remove the colon
+                (line, pos) = tokens
+                    .pop_front()
+                    .map(|tok| (tok.line_number(), tok.line_position()))
+                    .unwrap();
+                // following a ColonColon must be an Identifier, or Overlord
+                (line, pos) = tokens
+                    .pop_front()
+                    .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+                    .map(Token::bind)
+                    .and_then(|(typ, line, pos)| {
+                        Ok((
+                            (if let TokenType::Identifier(name) = typ {
+                                Ok(Some(name))
+                            } else if let TokenType::Overlord = typ {
+                                Ok(None)
+                            } else {
+                                Err(ParseError::UnexpectedToken(Token::new(
+                                    typ, line, pos,
+                                )))
+                            })?,
+                            line,
+                            pos,
+                        ))
+                    })
+                    .map(|(name, line, pos)| {
+                        // if it's an identifier (name is Some)
+                        name.map(|name| resolve.push(ResolveStep::Child(name)))
+                            // otherwise
+                            .unwrap_or_else(|| {
+                                resolve.push(ResolveStep::Parent);
+                            });
+                        (line, pos)
+                    })?;
             }
-            let (tok_typ, line, pos) =
-                tokens.pop_front().map(Token::bind).unwrap();
-            match tok_typ {
-                TokenType::Identifier(s) => resolve.push(ResolveStep::Child(s)),
-                TokenType::Overlord => resolve.push(ResolveStep::Parent),
-                _ => {
-                    return Err(ParseError::UnexpectedToken(Token::new(
-                        tok_typ, line, pos,
-                    )))
-                }
-            }
-        }
+            (line, pos)
+        };
 
-        Ok(TypeInfoKind::Reference(Self { resolve }))
+        Ok((Self { resolve }, line, pos))
+    }
+}
+
+impl Type for NameResolve {}
+
+impl TypeParse for NameResolve {
+    /// Need to make sure `tokens` is not empty before calling this function.
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(TypeInfoKind, usize, usize), ParseError> {
+        Self::parse_no_vtable(tokens, line, pos)
+            .map(|(ret, line, pos)| (TypeInfoKind::Reference(ret), line, pos))
     }
 }
 
@@ -191,7 +229,11 @@ pub trait TypeImpl: Type {
 
 /// How to parse a type.
 pub trait TypeParse: TypeImpl {
-    fn parse(tokens: &mut VecDeque<Token>) -> Result<TypeInfoKind, ParseError>;
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(TypeInfoKind, usize, usize), ParseError>;
 }
 
 impl<T> TypeImpl for T
@@ -236,13 +278,16 @@ pub trait StmtImpl: StmtAst {
     fn boxed_clone(&self) -> Box<dyn StmtImpl>;
 }
 
+// TODO: I really should give the (line, pos) thingy a struct.
 pub trait StmtParse: StmtImpl {
     /// Parse the tokens into a statement, and update the scope passed in if
     /// any definition or block is parsed.
     fn parse(
         tokens: &mut VecDeque<Token>,
         scope: &mut Scope,
-    ) -> Result<StmtAstBoxWrap, ParseError>;
+        line: usize,
+        pos: usize,
+    ) -> Result<(StmtAstBoxWrap, usize, usize), ParseError>;
 }
 
 impl<T> StmtImpl for T
@@ -263,6 +308,12 @@ where
 /// Wrapper around a `dyn StmtImpl`.
 pub struct StmtAstBoxWrap {
     pub val: Box<dyn StmtImpl>,
+}
+
+impl StmtAstBoxWrap {
+    pub fn new<T: StmtImpl>(v: T) -> Self {
+        Self { val: Box::new(v) }
+    }
 }
 
 impl PartialEq for StmtAstBoxWrap {
@@ -314,7 +365,123 @@ pub struct VarDeclStmt {
 
 impl StmtAst for VarDeclStmt {}
 
-// TODO: impl StmtParse for VarDeclStmt {}
+impl StmtParse for VarDeclStmt {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        scope: &mut Scope,
+        line: usize,
+        pos: usize,
+    ) -> Result<(StmtAstBoxWrap, usize, usize), ParseError> {
+        // check for the "let"
+        let (line, pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .map(Token::bind)
+            .and_then(|(typ, new_line, new_pos)| {
+                if typ != TokenType::Let {
+                    Err(ParseError::UnexpectedToken(Token::new(
+                        typ, new_line, new_pos,
+                    )))
+                } else {
+                    Ok((new_line, new_pos))
+                }
+            })?;
+
+        // check for the identifier
+        let (line, pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .map(Token::bind)
+            .and_then(|(typ, new_line, new_pos)| {
+                if typ != TokenType::Let {
+                    Err(ParseError::UnexpectedToken(Token::new(
+                        typ, new_line, new_pos,
+                    )))
+                } else {
+                    Ok((new_line, new_pos))
+                }
+            })?;
+
+        // get the identifier
+        let (name, line, pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .map(Token::bind)
+            .and_then(|(typ, line, pos)| {
+                Ok((
+                    if let TokenType::Identifier(name) = typ {
+                        Ok(name)
+                    } else {
+                        Err(ParseError::UnexpectedToken(Token::new(
+                            typ, line, pos,
+                        )))
+                    }?,
+                    line,
+                    pos,
+                ))
+            })?;
+
+        // Get the type if there's the annotation
+        let type_anno = tokens
+            .front()
+            .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+            .map(|tok| {
+                // if there's a Colon
+                if tok.token_type() == &TokenType::Colon {
+                    // mark this to proceed with getting the type
+                    Some((tok.line_number(), tok.line_position()))
+                } else {
+                    // or stop otherwise
+                    None
+                }
+            })
+            // then remove that Colon
+            .inspect(|_| {
+                tokens.pop_front();
+            })
+            // change to Option<Result<...>>
+            .transpose()
+            // if Some then check for the name identifier
+            .and_then(|tok_res| {
+                Some(tok_res.and_then(|(line, pos)| {
+                    // if there's no token after this, it's an error.
+                    tokens
+                        .front()
+                        .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+                        // otherwise, it must be a valid NameResolve
+                        .map(|tok| (tok.line_number(), tok.line_position()))
+                        .and_then(|(line, pos)| {
+                            NameResolve::parse_no_vtable(tokens, line, pos)
+                        })
+                }))
+                // otherwise just return the same error
+            })
+            // change back to Result<Option<...>>
+            .transpose()?;
+
+        let (typ, line, pos) = type_anno
+            .map(|(type_anno, line, pos)| (Some(type_anno), line, pos))
+            .unwrap_or((None, line, pos));
+        let init_val = Expr::parse(tokens).map_err(|e| match e {
+            None => ParseError::ExpectedToken { line, pos },
+            Some(e) => e,
+        })?;
+
+        scope.symbols.insert(
+            name.clone(),
+            typ.clone().map(|t| TypeInfoKind::Reference(t)),
+        );
+        Ok((
+            StmtAstBoxWrap::new(Self {
+                name,
+                typ,
+                init_val,
+            }),
+            line,
+            pos,
+        ))
+    }
+}
 
 /// Type definition statement.
 ///
