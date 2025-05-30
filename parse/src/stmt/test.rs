@@ -164,6 +164,86 @@ fn var_decl_stmt() {
         assert_eq!(vardecl, Err(ParseError::ExpectedToken { line: 1, pos: 2 }));
         assert!(!scope.symbols.contains_key("urmom"));
     }
+    // lacking a type annotation after the colon
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Colon,
+            TokenType::Equal,
+            TokenType::Integer(1.to_string()),
+        ];
+        let mut scope = Scope {
+            symbols: HashMap::new(),
+            name: "hello".to_string(),
+            parent_idx: None,
+        };
+        let vardecl = VarDeclStmt::parse(&mut deque, &mut scope, 1, 1);
+        assert_eq!(
+            vardecl,
+            Err(ParseError::UnexpectedToken(Token::new(
+                TokenType::Equal,
+                1,
+                4
+            )))
+        );
+        assert!(!scope.symbols.contains_key("urmom"));
+    }
+    // using a keyword in place of an identifier
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Overlord,
+            TokenType::Equal,
+            TokenType::Integer(69.to_string()),
+        ];
+        let mut scope = Scope {
+            symbols: HashMap::new(),
+            name: "hello".to_string(),
+            parent_idx: None,
+        };
+        let vardecl = VarDeclStmt::parse(&mut deque, &mut scope, 1, 1);
+        assert_eq!(
+            vardecl,
+            Err(ParseError::UnexpectedToken(Token::new(
+                TokenType::Overlord,
+                1,
+                2
+            )))
+        );
+        assert!(!scope.symbols.contains_key("overlord"));
+    }
+    // symbol already defined
+    {
+        // no semicolon.
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Equal,
+            TokenType::String("hehe".to_string()),
+            TokenType::Let,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Equal,
+            TokenType::String("hehe".to_string()),
+        ];
+        let mut scope = Scope {
+            symbols: HashMap::new(),
+            name: "hello".to_string(),
+            parent_idx: None,
+        };
+        let (_, ln, pos) =
+            VarDeclStmt::parse(&mut deque, &mut scope, 1, 1).unwrap();
+        let errvar = VarDeclStmt::parse(&mut deque, &mut scope, ln, pos);
+        assert_eq!(
+            errvar,
+            Err(ParseError::SymbolAlreadyExists {
+                name: "urmom".to_string(),
+                line: 1,
+                pos: 2,
+            })
+        );
+        assert!(scope.symbols.contains_key("urmom"));
+    }
 }
 
 #[test]
