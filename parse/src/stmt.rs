@@ -553,6 +553,141 @@ impl StmtParse for VarDeclStmt {
     }
 }
 
+/// Procedure definition
+///
+/// # Rule
+/// \<proc-defn\> ::= "proc" ID "(" \<proc-params\> ")" \<block-expr\>
+///
+/// TODO: \<proc-params\> and \<block-expr\>
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProcDefnStmt {}
+
+impl StmtAst for ProcDefnStmt {}
+
+/// Procedure parameters
+///
+/// # Rule
+/// \<proc-params\> ::= (ID ":" \<type-ref\> ("," ID ":" \<type-ref\>)*)?
+///
+/// # See also
+/// - [`NameResolve`]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProcParams {
+    pub params: HashMap<String, NameResolve>,
+}
+
+#[macro_export(local_inner_macros)]
+macro_rules! new_proc_params {
+    (($first_name:expr,$first_resolve:expr) $(, ($name:expr,$resolve:expr))*) => {
+        ProcParams {
+            params: HashMap::from([(
+                String::from($first_name),
+                $first_resolve,
+            ), $((String::from($name), $resolve),)*]),
+        }
+    };
+}
+
+impl ProcParams {
+    /// Parses into a `ProcParams` using the input tokens.
+    ///
+    /// # Parameters
+    /// - `tokens` The input tokens.
+    /// - `line`, `pos` The position of the token just before the first in
+    ///   `tokens`. If no token has been popped out, use `(line, pos) = (1, 1)`.
+    pub fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        // Simply checks whether the first element is an identifier. If yes,
+        // return a tuple:
+        //   - First element is the identifier's name
+        //   - Second and third elements form the position of the identifier.
+        // Otherwise, the tuple is `(None, first_ln, first_pos)`
+        //
+        // # Parameters
+        // - `tok_lst` The token list, whose first element will be popped out.
+        // - `first_ln`, `first_pos`: Position of the token right before the
+        //   first in `tok_lst`.
+        let get_id = |tok_lst: &mut VecDeque<Token>,
+                      first_ln: usize,
+                      first_pos: usize|
+         -> (Option<String>, usize, usize) {
+            tok_lst
+                .pop_front()
+                .and_then(|tok| match tok.tok_typ {
+                    TokenType::Identifier(s) => {
+                        Some((Some(s), tok.line_number, tok.line_position))
+                    }
+                    _ => None,
+                })
+                .unwrap_or((None, first_ln, first_pos))
+        };
+        let (mut id, mut id_ln, mut id_pos) = get_id(tokens, line, pos);
+        let mut params = HashMap::<String, NameResolve>::new();
+        // Assuming the token before calling this method is an Identifier.
+        //
+        // This method matches the Colon, returning an error if not, otherwise
+        // then tries parse the `NameResolve` (also returning an error if not
+        // successful). If both steps are successful, return a tuple:
+        //  - First element is the `NameResolve` parsed.
+        //  - Second and third elements form the position of the last token
+        //    popped out of `tok_lst`
+        //
+        //  # Parameters
+        //  - `tok_lst` The token list.
+        //  - `curr_ln`, `curr_pos` Position of the token just before the first
+        //    in `tok_lst`.
+        let get_id_type_ref =
+            |tok_lst: &mut VecDeque<Token>,
+             curr_ln: usize,
+             curr_pos: usize|
+             -> Result<(NameResolve, usize, usize), ParseError> {
+                tok_lst
+                    .pop_front()
+                    .and_then(|tok| {
+                        // match the Colon
+                        if matches!(tok.tok_typ, TokenType::Colon) {
+                            Some((tok.line_number, tok.line_position))
+                        } else {
+                            None
+                        }
+                    })
+                    // if there's no Colon, it's an error.
+                    .ok_or_else(|| ParseError::ExpectedToken {
+                        line: curr_ln,
+                        pos: curr_pos,
+                    })
+                    .map(|(tok_ln, tok_pos)| {
+                        NameResolve::parse_no_vtable(tok_lst, tok_ln, tok_pos)
+                    })
+                    .and_then(|res| res)
+            };
+
+        while let Some(id_str) = id.take() {
+            // get the type reference
+            let (id_typ, typ_ln, typ_pos) =
+                get_id_type_ref(tokens, id_ln, id_pos)?;
+            (id_ln, id_pos) = (typ_ln, typ_pos);
+            params.insert(id_str, id_typ);
+
+            // if there's no comma after the type reference, done with the loop
+            if !matches!(
+                tokens.front().map(Token::token_type),
+                Some(&TokenType::Comma)
+            ) {
+                break;
+            }
+            // otherwise, try parse the next identifier
+            tokens.pop_front();
+            (id, id_ln, id_pos) = get_id(tokens, id_ln, id_pos);
+        }
+
+        Ok((Self { params }, id_ln, id_pos))
+    }
+}
+
 /// Type definition statement.
 ///
 /// Includes type and procedure definition and alias.

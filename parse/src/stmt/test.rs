@@ -1,10 +1,11 @@
+use super::ProcParams;
 use super::{NameResolve, Scope, StmtParse, TypeParse, VarDeclStmt};
-use crate::ExprBoxWrap;
 use crate::StmtAstBoxWrap;
 use crate::{
     new_name_resolve, new_test_deque, new_var_decl_expr, ParseError,
     PrimaryExpr, ResolveStep, TypeInfoKind,
 };
+use crate::{new_proc_params, ExprBoxWrap};
 use std::collections::{HashMap, VecDeque};
 use tokenize::{Token, TokenType};
 
@@ -163,4 +164,66 @@ fn var_decl_stmt() {
         assert_eq!(vardecl, Err(ParseError::ExpectedToken { line: 1, pos: 2 }));
         assert!(!scope.symbols.contains_key("urmom"));
     }
+}
+
+#[test]
+fn proc_params() {
+    // empty params list
+    {
+        let mut deque = VecDeque::<Token>::new();
+        let (params, ..) = ProcParams::parse(&mut deque, 1, 1).unwrap();
+        assert_eq!(
+            params,
+            ProcParams {
+                params: HashMap::new(),
+            }
+        )
+    }
+    // single param
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Colon,
+            TokenType::Identifier("Fat".to_string())
+        ];
+        let (params, .., pos) = ProcParams::parse(&mut deque, 1, 1).unwrap();
+        assert_eq!(
+            params,
+            new_proc_params![(
+                "urmom",
+                new_name_resolve!(ResolveStep::Child("Fat".to_string()))
+            )]
+        );
+        assert_eq!(pos, 3);
+    }
+    // comma-separated
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Colon,
+            TokenType::Identifier("Fat".to_string()),
+            TokenType::Comma,
+            TokenType::Identifier("urdad".to_string()),
+            TokenType::Colon,
+            TokenType::Identifier("Unemployed".to_string()),
+        ];
+        let (params, .., pos) = ProcParams::parse(&mut deque, 1, 1).unwrap();
+        assert_eq!(
+            params,
+            new_proc_params![
+                (
+                    "urmom",
+                    new_name_resolve!(ResolveStep::Child("Fat".to_string()))
+                ),
+                (
+                    "urdad",
+                    new_name_resolve!(ResolveStep::Child(
+                        "Unemployed".to_string()
+                    ))
+                )
+            ]
+        );
+        assert_eq!(pos, 7);
+    }
+    // TODO: test error cases
 }
