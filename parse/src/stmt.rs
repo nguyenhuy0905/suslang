@@ -567,7 +567,7 @@ impl StmtAst for ProcDefnStmt {}
 /// Procedure parameters
 ///
 /// # Rule
-/// \<proc-params\> ::= (ID ":" \<type-ref\> ("," ID ":" \<type-ref\>)*)?
+/// \<proc-params\> ::= (ID ":" \<type-ref\> ("," ID ":" \<type-ref\>)* ","?)?
 ///
 /// # See also
 /// - [`NameResolve`]
@@ -604,7 +604,7 @@ impl ProcParams {
         // return a tuple:
         //   - First element is the identifier's name
         //   - Second and third elements form the position of the identifier.
-        // Otherwise, the tuple is `(None, first_ln, first_pos)`
+        //     Otherwise, the tuple is `(None, first_ln, first_pos)`
         //
         // # Parameters
         // - `tok_lst` The token list, whose first element will be popped out.
