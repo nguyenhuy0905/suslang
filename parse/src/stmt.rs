@@ -567,7 +567,7 @@ impl StmtAst for ProcDefnStmt {}
 /// Procedure parameters
 ///
 /// # Rule
-/// \<proc-params\> ::= (ID ":" \<type-ref\> ("," ID ":" \<type-ref\>)* ","?)?
+/// \<proc-params\> ::= (ID ":" \<type-ref\> ("," ID ":" \<type-ref\>)* )? ","?
 ///
 /// # See also
 /// - [`NameResolve`]
