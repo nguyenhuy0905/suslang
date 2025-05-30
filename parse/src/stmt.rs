@@ -600,91 +600,104 @@ impl ProcParams {
         line: usize,
         pos: usize,
     ) -> Result<(Self, usize, usize), ParseError> {
-        // Simply checks whether the first element is an identifier. If yes,
-        // return a tuple:
-        //   - First element is the identifier's name
-        //   - Second and third elements form the position of the identifier.
-        //     Otherwise, the tuple is `(None, first_ln, first_pos)`
+        // Convenient function (closure-that-captures-nothing) to get an
+        // identifier.
+        //
+        // If the next token is an identifier indeed, return Some((identifier-name,
+        // identifier-line, identifier-position)). Otherwise, return None.
+        let get_id =
+            |tokens: &mut VecDeque<Token>| -> Option<(String, usize, usize)> {
+                tokens
+                    .front()
+                    .and_then(|tok| match tok.tok_typ {
+                        // we have an identifier yay
+                        TokenType::Identifier(_) => Some(()),
+                        // if nothing then it's the end of us
+                        _ => None,
+                    })
+                    .and_then(|_| tokens.pop_front())
+                    .map(|tok| {
+                        (
+                            match tok.tok_typ {
+                                TokenType::Identifier(s) => s,
+                                _ => unreachable!(),
+                            },
+                            tok.line_number,
+                            tok.line_position,
+                        )
+                    })
+            };
+        // Should be called after an identifier. First detects if the next token is Colon, and
+        // errors out otherwise. If it is indeed a Colon, pop it out and try parse (some of) the
+        // following tokens into a `NameResolve`, returning the result of calling
+        // NameResolve::parse_no_vtable
         //
         // # Parameters
-        // - `tok_lst` The token list, whose first element will be popped out.
-        // - `first_ln`, `first_pos`: Position of the token right before the
-        //   first in `tok_lst`.
-        let get_id = |tok_lst: &mut VecDeque<Token>,
-                      first_ln: usize,
-                      first_pos: usize|
-         -> (Option<String>, usize, usize) {
-            tok_lst
-                .pop_front()
-                .and_then(|tok| match tok.tok_typ {
-                    TokenType::Identifier(s) => {
-                        Some((Some(s), tok.line_number, tok.line_position))
-                    }
-                    _ => None,
-                })
-                .unwrap_or((None, first_ln, first_pos))
-        };
-        let (mut id, mut id_ln, mut id_pos) = get_id(tokens, line, pos);
-        let mut params = HashMap::<String, NameResolve>::new();
-        // Assuming the token before calling this method is an Identifier.
-        //
-        // This method matches the Colon, returning an error if not, otherwise
-        // then tries parse the `NameResolve` (also returning an error if not
-        // successful). If both steps are successful, return a tuple:
-        //  - First element is the `NameResolve` parsed.
-        //  - Second and third elements form the position of the last token
-        //    popped out of `tok_lst`
-        //
-        //  # Parameters
-        //  - `tok_lst` The token list.
-        //  - `curr_ln`, `curr_pos` Position of the token just before the first
-        //    in `tok_lst`.
-        let get_id_type_ref =
-            |tok_lst: &mut VecDeque<Token>,
-             curr_ln: usize,
-             curr_pos: usize|
+        // - `tokens` The same token list passed in.
+        // - `line` `pos` Same stuff returned by `get_id`
+        let get_type_anno =
+            |tokens: &mut VecDeque<Token>,
+             line: usize,
+             pos: usize|
              -> Result<(NameResolve, usize, usize), ParseError> {
-                tok_lst
+                tokens
                     .pop_front()
+                    // if empty, it's an error
+                    .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+                    // otherwise, it must be a Colon
                     .and_then(|tok| {
-                        // match the Colon
                         if matches!(tok.tok_typ, TokenType::Colon) {
-                            Some((tok.line_number, tok.line_position))
+                            Ok((tok.line_number, tok.line_position))
                         } else {
-                            None
+                            Err(ParseError::UnexpectedToken(tok))
                         }
                     })
-                    // if there's no Colon, it's an error.
-                    .ok_or_else(|| ParseError::ExpectedToken {
-                        line: curr_ln,
-                        pos: curr_pos,
+                    // if the stars align, try parse the other tokens into a
+                    // `NameResolve`
+                    .and_then(|(old_ln, old_pos)| {
+                        NameResolve::parse_no_vtable(tokens, old_ln, old_pos)
                     })
-                    .map(|(tok_ln, tok_pos)| {
-                        NameResolve::parse_no_vtable(tok_lst, tok_ln, tok_pos)
-                    })
-                    .and_then(|res| res)
             };
 
-        while let Some(id_str) = id.take() {
-            // get the type reference
-            let (id_typ, typ_ln, typ_pos) =
-                get_id_type_ref(tokens, id_ln, id_pos)?;
-            (id_ln, id_pos) = (typ_ln, typ_pos);
-            params.insert(id_str, id_typ);
+        let Some((first_id, first_ln, first_pos)) = get_id(tokens) else {
+            return Ok((
+                Self {
+                    params: HashMap::new(),
+                },
+                line,
+                pos,
+            ));
+        };
+        let (first_anno, first_anno_ln, first_anno_pos) =
+            get_type_anno(tokens, first_ln, first_pos)?;
 
-            // if there's no comma after the type reference, done with the loop
-            if !matches!(
-                tokens.front().map(Token::token_type),
-                Some(&TokenType::Comma)
-            ) {
-                break;
-            }
-            // otherwise, try parse the next identifier
-            tokens.pop_front();
-            (id, id_ln, id_pos) = get_id(tokens, id_ln, id_pos);
+        let mut params = HashMap::from([(first_id, first_anno)]);
+        let (mut ret_ln, mut ret_pos) = (first_anno_ln, first_anno_pos);
+        while let Some((comma_ln, comma_pos)) = tokens
+            // if next token is comma,
+            .front()
+            .and_then(|tok| {
+                if matches!(tok.tok_typ, TokenType::Comma) {
+                    Some((tok.line_number, tok.line_position))
+                } else {
+                    None
+                }
+            })
+            // pop that token
+            .inspect(|_| {
+                tokens.pop_front();
+            })
+        // and go on with the loop
+        {
+            let Some((next_id, id_ln, id_pos)) = get_id(tokens) else {
+                return Ok((Self { params }, comma_ln, comma_pos));
+            };
+            let (next_anno, anno_ln, anno_pos) =
+                get_type_anno(tokens, id_ln, id_pos)?;
+            params.insert(next_id, next_anno);
+            (ret_ln, ret_pos) = (anno_ln, anno_pos);
         }
-
-        Ok((Self { params }, id_ln, id_pos))
+        Ok((Self { params }, ret_ln, ret_pos))
     }
 }
 
