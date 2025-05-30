@@ -305,5 +305,53 @@ fn proc_params() {
         );
         assert_eq!(pos, 7);
     }
-    // TODO: test error cases
+    // comma at the end
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Colon,
+            TokenType::Identifier("Fat".to_string()),
+            TokenType::Comma,
+            TokenType::Identifier("urdad".to_string()),
+            TokenType::Colon,
+            TokenType::Identifier("Unemployed".to_string()),
+            TokenType::Comma,
+        ];
+        let (params, ..) = ProcParams::parse(&mut deque, 1, 1).unwrap();
+        assert_eq!(
+            params,
+            ProcParams {
+                params: HashMap::from([
+                    (
+                        "urmom".to_string(),
+                        new_name_resolve![ResolveStep::Child(
+                            "Fat".to_string()
+                        )]
+                    ),
+                    (
+                        "urdad".to_string(),
+                        new_name_resolve![ResolveStep::Child(
+                            "Unemployed".to_string()
+                        )]
+                    )
+                ])
+            }
+        )
+    }
+    // no type annotation
+    {
+        let mut deque =
+            new_test_deque![TokenType::Identifier("urmom".to_string()),];
+        let params = ProcParams::parse(&mut deque, 1, 1);
+        assert_eq!(params, Err(ParseError::ExpectedToken { line: 1, pos: 1 }));
+    }
+    // colon but no annotation
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Colon
+        ];
+        let params = ProcParams::parse(&mut deque, 1, 1);
+        assert_eq!(params, Err(ParseError::ExpectedToken { line: 1, pos: 2 }));
+    }
 }
