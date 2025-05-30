@@ -61,7 +61,7 @@ pub trait ExprParse: AstClone {
     /// [`ParseError`]
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<ExprBoxWrap, Option<ParseError>>;
+    ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>>;
 }
 
 impl<T: Ast + PartialEq> AstCmp for T {
@@ -89,7 +89,7 @@ impl Ast for Expr {}
 impl ExprParse for Expr {
     fn parse(
         tokens: &mut VecDeque<Token>,
-    ) -> Result<ExprBoxWrap, Option<ParseError>> {
+    ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         LogicOrExpr::parse(tokens)
     }
 }

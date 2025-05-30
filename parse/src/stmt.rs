@@ -532,13 +532,14 @@ impl StmtParse for VarDeclStmt {
 
         // TODO: refactor ExprAst to return a tuple with line and pos alongside
         // the box wrap.
-        let init_val = Expr::parse(tokens).map_err(|e| match e {
-            None => ParseError::ExpectedToken {
-                line: new_ln,
-                pos: new_pos,
-            },
-            Some(e) => e,
-        })?;
+        let (init_val, init_ln, init_pos) =
+            Expr::parse(tokens).map_err(|e| match e {
+                None => ParseError::ExpectedToken {
+                    line: new_ln,
+                    pos: new_pos,
+                },
+                Some(e) => e,
+            })?;
 
         Ok((
             StmtAstBoxWrap::new(Self {
@@ -546,8 +547,8 @@ impl StmtParse for VarDeclStmt {
                 typ,
                 init_val,
             }),
-            line,
-            pos,
+            init_ln,
+            init_pos,
         ))
     }
 }

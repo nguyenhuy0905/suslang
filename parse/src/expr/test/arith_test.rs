@@ -10,15 +10,15 @@ fn primary_types() {
         TokenType::Na,
     ];
 
-    let prim1 = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim1, ..) = PrimaryExpr::parse(&mut deque).unwrap();
     assert_ast_eq!(prim1, PrimaryExpr::Integer(3));
-    let prim2 = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim2, ..) = PrimaryExpr::parse(&mut deque).unwrap();
     assert_ast_eq!(prim2, PrimaryExpr::Float(4.2));
-    let prim3 = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim3, ..) = PrimaryExpr::parse(&mut deque).unwrap();
     assert_ast_eq!(prim3, PrimaryExpr::String("hello".to_string()));
-    let prim4 = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim4, ..) = PrimaryExpr::parse(&mut deque).unwrap();
     assert_ast_eq!(prim4, PrimaryExpr::Boolean(true));
-    let prim5 = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim5, ..) = PrimaryExpr::parse(&mut deque).unwrap();
     assert_ast_eq!(prim5, PrimaryExpr::Boolean(false));
 }
 
@@ -27,7 +27,7 @@ fn unary_expr() {
     // fallthrough
     {
         let mut deque = new_test_deque![TokenType::Integer("3".to_string())];
-        let un = UnaryExpr::parse(&mut deque).unwrap();
+        let (un, ..) = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(un, PrimaryExpr::Integer(3));
     }
     // coverage farming
@@ -36,7 +36,7 @@ fn unary_expr() {
             TokenType::Plus,
             TokenType::Integer("3".to_string())
         ];
-        let un1 = UnaryExpr::parse(&mut deque).unwrap();
+        let (un1, ..) = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un1,
             UnaryExpr {
@@ -50,7 +50,7 @@ fn unary_expr() {
             TokenType::Dash,
             TokenType::Integer("3".to_string())
         ];
-        let un2 = UnaryExpr::parse(&mut deque).unwrap();
+        let (un2, ..) = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un2,
             UnaryExpr {
@@ -66,7 +66,7 @@ fn unary_expr() {
             TokenType::Star,
             TokenType::Integer("3".to_string())
         ];
-        let un3 = UnaryExpr::parse(&mut deque).unwrap();
+        let (un3, ..) = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un3,
             UnaryExpr {
@@ -80,7 +80,7 @@ fn unary_expr() {
             TokenType::Ampersand,
             TokenType::Integer("3".to_string())
         ];
-        let un4 = UnaryExpr::parse(&mut deque).unwrap();
+        let (un4, ..) = UnaryExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             un4,
             UnaryExpr {
@@ -109,7 +109,7 @@ fn factor_expr() {
             1,
             1,
         )]);
-        let fac = FactorExpr::parse(&mut deque).unwrap();
+        let (fac, ..) = FactorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(fac, PrimaryExpr::Integer(3));
     }
     // simple non-fallthrough
@@ -122,7 +122,7 @@ fn factor_expr() {
             TokenType::Integer("4".to_string())
         ];
 
-        let fac = FactorExpr::parse(&mut deque).unwrap();
+        let (fac, ..) = FactorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             fac,
             new_factor_expr![
@@ -142,7 +142,7 @@ fn factor_expr() {
             TokenType::Star,
             TokenType::Integer("4".to_string())
         ];
-        let fac = FactorExpr::parse(&mut deque).unwrap();
+        let (fac, ..) = FactorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             fac,
             new_factor_expr![
@@ -175,7 +175,7 @@ fn term_expr() {
             TokenType::Star,
             TokenType::Integer("4".to_string()),
         ];
-        let term = TermExpr::parse(&mut deque).unwrap();
+        let (term, ..) = TermExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             term,
             new_factor_expr![
@@ -196,7 +196,7 @@ fn term_expr() {
             TokenType::Star,
             TokenType::Integer("5".to_string()),
         ];
-        let term = TermExpr::parse(&mut deque).unwrap();
+        let (term, ..) = TermExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             term,
             new_term_expr![
@@ -233,7 +233,7 @@ fn bit_and_expr() {
             TokenType::Plus,
             TokenType::Integer("4".to_string())
         ];
-        let bit_and = BitAndExpr::parse(&mut deque).unwrap();
+        let (bit_and, ..) = BitAndExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_and,
             new_term_expr![
@@ -254,7 +254,7 @@ fn bit_and_expr() {
             TokenType::Dash,
             TokenType::Integer("6".to_string()),
         ];
-        let bit_and = BitAndExpr::parse(&mut deque).unwrap();
+        let (bit_and, ..) = BitAndExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_and,
             new_bit_and_expr![
@@ -294,7 +294,7 @@ fn bit_xor_expr() {
             TokenType::Ampersand,
             TokenType::Integer("4".to_string()),
         ];
-        let bit_xor = BitXorExpr::parse(&mut deque).unwrap();
+        let (bit_xor, ..) = BitXorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_xor,
             new_bit_and_expr![PrimaryExpr::Integer(3), PrimaryExpr::Integer(4),]
@@ -311,7 +311,7 @@ fn bit_xor_expr() {
             TokenType::Ampersand,
             TokenType::Integer("4".to_string()),
         ];
-        let bit_xor = BitXorExpr::parse(&mut deque).unwrap();
+        let (bit_xor, ..) = BitXorExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_xor,
             new_bit_xor_expr![
@@ -349,7 +349,7 @@ fn bit_or_expr() {
             TokenType::Hat,
             TokenType::Integer("4".to_string()),
         ];
-        let bit_or = BitOrExpr::parse(&mut deque).unwrap();
+        let (bit_or, ..) = BitOrExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_or,
             new_bit_xor_expr![PrimaryExpr::Integer(3), PrimaryExpr::Integer(4),]
@@ -366,7 +366,7 @@ fn bit_or_expr() {
             TokenType::Hat,
             TokenType::Integer("4".to_string()),
         ];
-        let bit_or = BitOrExpr::parse(&mut deque).unwrap();
+        let (bit_or, ..) = BitOrExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             bit_or,
             new_bit_or_expr![

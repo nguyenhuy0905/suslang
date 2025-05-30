@@ -9,7 +9,7 @@ fn comparison_test() {
             TokenType::Beam,
             TokenType::Integer(4.to_string()),
         ];
-        let comp = ComparisonExpr::parse(&mut deque).unwrap();
+        let (comp, ..) = ComparisonExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             comp,
             new_bit_or_expr![PrimaryExpr::Integer(3), PrimaryExpr::Integer(4),]
@@ -26,7 +26,7 @@ fn comparison_test() {
             TokenType::Beam,
             TokenType::Integer(129.to_string()),
         ];
-        let comp = ComparisonExpr::parse(&mut deque).unwrap();
+        let (comp, ..) = ComparisonExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             comp,
             new_comparison_expr![
@@ -65,7 +65,7 @@ fn logic_and_expr() {
             TokenType::LPBraceEqual,
             TokenType::Integer(4.to_string()),
         ];
-        let logic_and = LogicAndExpr::parse(&mut deque).unwrap();
+        let (logic_and, ..) = LogicAndExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             logic_and,
             new_comparison_expr![
@@ -86,7 +86,7 @@ fn logic_and_expr() {
             TokenType::LPBraceEqual,
             TokenType::Integer(6.to_string()),
         ];
-        let logic_and = LogicAndExpr::parse(&mut deque).unwrap();
+        let (logic_and, ..) = LogicAndExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             logic_and,
             new_logic_and_expr![
@@ -126,7 +126,7 @@ fn logic_or_expr() {
             TokenType::AmpersandAmpersand,
             TokenType::Integer(4.to_string()),
         ];
-        let logic_or = LogicOrExpr::parse(&mut deque).unwrap();
+        let (logic_or, ..) = LogicOrExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             logic_or,
             new_logic_and_expr![
@@ -146,7 +146,7 @@ fn logic_or_expr() {
             TokenType::AmpersandAmpersand,
             TokenType::Integer(4.to_string()),
         ];
-        let logic_or = LogicOrExpr::parse(&mut deque).unwrap();
+        let (logic_or, ..) = LogicOrExpr::parse(&mut deque).unwrap();
         assert_ast_eq!(
             logic_or,
             new_logic_or_expr![
