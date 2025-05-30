@@ -111,14 +111,14 @@ fn var_decl_stmt() {
             name: "hello".to_string(),
             parent_idx: None,
         };
-        let (vardecl, _, _) =
+        let (vardecl, .., pos) =
             VarDeclStmt::parse(&mut deque, &mut scope, 1, 1).unwrap();
         assert_stmt_ast_eq!(
             vardecl,
             new_var_decl_expr!("num", None, PrimaryExpr::Integer(1))
         );
-        // TODO: refactor ExprParse
-        // assert_eq!(pos, 4);
+        // the last token's position
+        assert_eq!(pos, 4);
     }
     // with type anno
     {
