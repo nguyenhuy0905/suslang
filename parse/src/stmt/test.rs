@@ -117,6 +117,7 @@ fn var_decl_stmt() {
             vardecl,
             new_var_decl_expr!("num", None, PrimaryExpr::Integer(1))
         );
+        assert!(scope.symbols.contains_key("num"));
         // the last token's position
         assert_eq!(pos, 4);
     }
@@ -145,5 +146,21 @@ fn var_decl_stmt() {
                 PrimaryExpr::String("fat".to_string())
             )
         );
+        assert!(scope.symbols.contains_key("num"));
+    }
+    // only LHS
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Identifier("urmom".to_string())
+        ];
+        let mut scope = Scope {
+            symbols: HashMap::new(),
+            name: "hello".to_string(),
+            parent_idx: None,
+        };
+        let vardecl = VarDeclStmt::parse(&mut deque, &mut scope, 1, 1);
+        assert_eq!(vardecl, Err(ParseError::ExpectedToken { line: 1, pos: 2 }));
+        assert!(!scope.symbols.contains_key("urmom"));
     }
 }
