@@ -71,3 +71,16 @@ pub trait ExprStmtParse: ExprStmtImpl {
     /// - If parsing fails, a [`ParseError`] is returned.
     fn parse(tokens: VecDeque<Token>) -> Result<ExprStmtBoxWrap, ParseError>;
 }
+
+/// Dummy expression statement struct.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExprStmt {}
+
+impl ExprStmtAst for ExprStmt {}
+
+impl ExprStmtParse for ExprStmt {
+    fn parse(tokens: VecDeque<Token>) -> Result<ExprStmtBoxWrap, ParseError> {
+        let _ = tokens;
+        todo!()
+    }
+}
