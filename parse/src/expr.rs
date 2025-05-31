@@ -1,6 +1,7 @@
 #[allow(clippy::wildcard_imports)]
 use crate::*;
 pub mod arith;
+pub mod block;
 pub mod cond;
 #[cfg(test)]
 mod test;
