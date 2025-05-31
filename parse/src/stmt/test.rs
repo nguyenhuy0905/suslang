@@ -1,6 +1,6 @@
 use super::ProcParams;
 use super::{DeclStmtParse, NameResolve, Scope, VarDeclStmt};
-use crate::StmtAstBoxWrap;
+use crate::DeclStmtBoxWrap;
 use crate::{
     new_name_resolve, new_test_deque, new_var_decl_expr, ParseError,
     PrimaryExpr, ResolveStep,
@@ -11,7 +11,7 @@ use tokenize::{Token, TokenType};
 
 macro_rules! assert_stmt_ast_eq {
     ($actual:expr,$expect:expr) => {
-        assert_eq!($actual, StmtAstBoxWrap::new($expect))
+        assert_eq!($actual, DeclStmtBoxWrap::new($expect))
     };
 }
 

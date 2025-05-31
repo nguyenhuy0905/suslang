@@ -85,29 +85,29 @@ where
 }
 
 /// Wrapper around a `dyn StmtImpl`.
-pub struct StmtAstBoxWrap {
+pub struct DeclStmtBoxWrap {
     pub val: Box<dyn StmtImpl>,
 }
 
-impl StmtAstBoxWrap {
+impl DeclStmtBoxWrap {
     pub fn new<T: StmtImpl>(v: T) -> Self {
         Self { val: Box::new(v) }
     }
 }
 
-impl Debug for StmtAstBoxWrap {
+impl Debug for DeclStmtBoxWrap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.val.fmt(f)
     }
 }
 
-impl PartialEq for StmtAstBoxWrap {
+impl PartialEq for DeclStmtBoxWrap {
     fn eq(&self, other: &Self) -> bool {
         self.val.accept_cmp(other.val.as_ref())
     }
 }
 
-impl Clone for StmtAstBoxWrap {
+impl Clone for DeclStmtBoxWrap {
     fn clone(&self) -> Self {
         Self {
             val: self.val.boxed_clone(),
@@ -115,7 +115,7 @@ impl Clone for StmtAstBoxWrap {
     }
 }
 
-impl AsRef<dyn StmtImpl> for StmtAstBoxWrap {
+impl AsRef<dyn StmtImpl> for DeclStmtBoxWrap {
     fn as_ref(&self) -> &dyn StmtImpl {
         self.val.as_ref()
     }

@@ -6,8 +6,8 @@ use crate::ExprBoxWrap;
 use crate::ExprParse;
 use crate::ParseError;
 
+use super::DeclStmtBoxWrap;
 use super::StmtAst;
-use super::StmtAstBoxWrap;
 use super::StmtImpl;
 use super::Type;
 use super::TypeImpl;
@@ -42,7 +42,7 @@ pub trait DeclStmtParse: StmtImpl {
         scope: &mut Scope,
         line: usize,
         pos: usize,
-    ) -> Result<(StmtAstBoxWrap, usize, usize), ParseError>;
+    ) -> Result<(DeclStmtBoxWrap, usize, usize), ParseError>;
 }
 
 /// Contains info about a scope: what symbols are declared, what other scopes
@@ -306,7 +306,7 @@ impl DeclStmtParse for VarDeclStmt {
         scope: &mut Scope,
         mut line: usize,
         mut pos: usize,
-    ) -> Result<(StmtAstBoxWrap, usize, usize), ParseError> {
+    ) -> Result<(DeclStmtBoxWrap, usize, usize), ParseError> {
         // check for the "let"
         let (new_ln, new_pos) = tokens
             .pop_front()
@@ -428,7 +428,7 @@ impl DeclStmtParse for VarDeclStmt {
             })?;
 
         Ok((
-            StmtAstBoxWrap::new(Self {
+            DeclStmtBoxWrap::new(Self {
                 name,
                 typ,
                 init_val,
