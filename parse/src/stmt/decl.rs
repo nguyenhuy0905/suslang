@@ -6,17 +6,80 @@ use crate::ExprBoxWrap;
 use crate::ExprParse;
 use crate::ParseError;
 
-use super::DeclStmtBoxWrap;
-use super::StmtAst;
-use super::StmtImpl;
 use super::Type;
 use super::TypeImpl;
+use std::any::Any;
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
 
-pub trait DeclStmtParse: StmtImpl {
+/// Statement AST node tag.
+///
+/// Must also implement traits [`Debug`], [`Clone`], [`PartialEq`] for blanket [`StmtImpl`]
+/// implementation.
+pub trait DeclStmtAst: Any + Debug {}
+
+/// Blanket implementation for [`DeclStmtAst`]
+pub trait DeclStmtImpl: DeclStmtAst {
+    /// Double-dispatch comparison.
+    fn accept_cmp(&self, other: &dyn DeclStmtImpl) -> bool;
+    /// Dispatched clone.
+    fn boxed_clone(&self) -> Box<dyn DeclStmtImpl>;
+}
+
+impl<T> DeclStmtImpl for T
+where
+    T: DeclStmtAst + Clone + PartialEq,
+{
+    fn accept_cmp(&self, other: &dyn DeclStmtImpl) -> bool {
+        (other as &dyn Any).downcast_ref::<T>() == Some(self)
+    }
+
+    fn boxed_clone(&self) -> Box<dyn DeclStmtImpl> {
+        Box::new(self.clone())
+    }
+}
+
+/// Wrapper around a `dyn` [`DeclStmtImpl`].
+pub struct DeclStmtBoxWrap {
+    pub val: Box<dyn DeclStmtImpl>,
+}
+
+impl DeclStmtBoxWrap {
+    pub fn new<T: DeclStmtImpl>(v: T) -> Self {
+        Self { val: Box::new(v) }
+    }
+}
+
+impl Debug for DeclStmtBoxWrap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.val.fmt(f)
+    }
+}
+
+impl PartialEq for DeclStmtBoxWrap {
+    fn eq(&self, other: &Self) -> bool {
+        self.val.accept_cmp(other.val.as_ref())
+    }
+}
+
+impl Clone for DeclStmtBoxWrap {
+    fn clone(&self) -> Self {
+        Self {
+            val: self.val.boxed_clone(),
+        }
+    }
+}
+
+impl AsRef<dyn DeclStmtImpl> for DeclStmtBoxWrap {
+    fn as_ref(&self) -> &dyn DeclStmtImpl {
+        self.val.as_ref()
+    }
+}
+
+pub trait DeclStmtParse: DeclStmtImpl {
     /// Parse the tokens into a statement, and update the scope passed in if
     /// any definition or block is parsed.
     ///
@@ -297,7 +360,7 @@ macro_rules! new_var_decl_expr {
     };
 }
 
-impl StmtAst for VarDeclStmt {}
+impl DeclStmtAst for VarDeclStmt {}
 
 impl DeclStmtParse for VarDeclStmt {
     #[allow(clippy::too_many_lines)]
@@ -448,7 +511,7 @@ impl DeclStmtParse for VarDeclStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProcDefnStmt {}
 
-impl StmtAst for ProcDefnStmt {}
+impl DeclStmtAst for ProcDefnStmt {}
 
 /// Procedure parameters
 ///
@@ -610,6 +673,6 @@ impl ProcParams {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeDefnStmt {}
 
-impl StmtAst for TypeDefnStmt {}
+impl DeclStmtAst for TypeDefnStmt {}
 
 // TODO: impl StmtParse for TypeDefnStmt {}
