@@ -126,6 +126,22 @@ macro_rules! new_name_resolve {
 }
 
 impl NameResolve {
+    /// Parses the token list `tokens` into a `NameResolve`.
+    ///
+    /// # Parameters
+    /// - `tokens` The token list
+    /// - `line`, `pos` The position of the token before the first token in
+    ///   `tokens` (aka, the token popped) just before `tokens` is passed into
+    ///   this function.
+    ///   If there's no token before the first in `tokens`, put `1, 1`
+    ///   in.
+    ///
+    /// # Errors
+    /// - If a `ColonColon` is not followed by "overlord" or an `Identifier`.
+    /// - If the very first token parsed is a `ColonColon`, but the token
+    ///   following that is not an `Identifier`.
+    ///   - No one in their right mind globs the entire global module.
+    #[allow(clippy::missing_panics_doc)]
     pub fn parse(
         tokens: &mut VecDeque<Token>,
         mut line: usize,
@@ -152,7 +168,7 @@ impl NameResolve {
             acc_vec.push(ResolveStep::Global);
             tok_lst
                 .pop_front()
-                .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+                .ok_or(ParseError::ExpectedToken { line, pos })
                 .and_then(|tok| match tok.tok_typ {
                     TokenType::Identifier(s) => {
                         acc_vec.push(ResolveStep::Child(s));
@@ -190,7 +206,7 @@ impl NameResolve {
         let (mut resolve, new_ln, new_pos): (Vec<_>, usize, usize) = tokens
             .pop_front()
             // must have at least 1 token
-            .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+            .ok_or(ParseError::ExpectedToken { line, pos })
             .and_then(|tok| init_resolve_vec(tok, tokens))?;
         (line, pos) = (new_ln, new_pos);
 
@@ -244,7 +260,7 @@ pub enum ResolveStep {
 /// \<var-decl\> ::= "let" "mut"? ID (":" \<type-ref\>)? "=" \<expr\>
 ///
 /// # Note
-/// - When parsing, TYPE_ID is equivalent to [`TypeInfoKind::Reference`].
+/// - When parsing, `TYPE_ID` is equivalent to [`TypeInfoKind::Reference`].
 /// - How do we know if a `TypeInfoKind` is a `Reference` or a `Definition`?
 ///   - We should have a keyword for each kind of type
 ///     definition. For example, [`proc`](tokenize::TokenType::Proc) before a
@@ -286,6 +302,7 @@ macro_rules! new_var_decl_expr {
 impl StmtAst for VarDeclStmt {}
 
 impl DeclStmtParse for VarDeclStmt {
+    #[allow(clippy::too_many_lines)]
     fn parse(
         tokens: &mut VecDeque<Token>,
         scope: &mut Scope,
@@ -298,12 +315,12 @@ impl DeclStmtParse for VarDeclStmt {
             .ok_or(ParseError::ExpectedToken { line, pos })
             .map(Token::bind)
             .and_then(|(typ, new_line, new_pos)| {
-                if typ != TokenType::Let {
+                if typ == TokenType::Let {
+                    Ok((new_line, new_pos))
+                } else {
                     Err(ParseError::UnexpectedToken(Token::new(
                         typ, new_line, new_pos,
                     )))
-                } else {
-                    Ok((new_line, new_pos))
                 }
             })?;
 
@@ -334,7 +351,7 @@ impl DeclStmtParse for VarDeclStmt {
         // Get the type if there's the annotation
         let type_anno: Option<(NameResolve, usize, usize)> = tokens
             .front()
-            .ok_or_else(|| ParseError::ExpectedToken {
+            .ok_or(ParseError::ExpectedToken {
                 line: new_ln,
                 pos: new_pos,
             })
@@ -357,18 +374,18 @@ impl DeclStmtParse for VarDeclStmt {
             // change to Option<Result<...>>
             .transpose()
             // if Some then check for the name identifier
-            .and_then(|tok_res| {
-                Some(tok_res.and_then(|(line, pos)| {
+            .map(|tok_res| {
+                tok_res.and_then(|(line, pos)| {
                     // if there's no token after this, it's an error.
                     tokens
                         .front()
-                        .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+                        .ok_or(ParseError::ExpectedToken { line, pos })
                         // otherwise, it must be a valid NameResolve
                         .map(|tok| (tok.line_number(), tok.line_position()))
                         .and_then(|(line, pos)| {
                             NameResolve::parse(tokens, line, pos)
                         })
-                }))
+                })
                 // otherwise just return the same error
             })
             // change back to Result<Option<...>>
@@ -379,7 +396,7 @@ impl DeclStmtParse for VarDeclStmt {
             .unwrap_or((None, new_ln, new_pos));
         if let Some((def_ln, def_pos, _)) = scope.symbols.insert(
             name.clone(),
-            (line, pos, typ.clone().map(|t| TypeInfoKind::Reference(t))),
+            (line, pos, typ.clone().map(TypeInfoKind::Reference)),
         ) {
             return Err(ParseError::SymbolAlreadyExists {
                 name,
@@ -391,7 +408,7 @@ impl DeclStmtParse for VarDeclStmt {
         // check for the equal
         tokens
             .pop_front()
-            .ok_or_else(|| ParseError::ExpectedToken {
+            .ok_or(ParseError::ExpectedToken {
                 line: new_ln,
                 pos: new_pos,
             })
@@ -466,6 +483,14 @@ impl ProcParams {
     /// - `tokens` The input tokens.
     /// - `line`, `pos` The position of the token just before the first in
     ///   `tokens`. If no token has been popped out, use `(line, pos) = (1, 1)`.
+    ///
+    /// # Errors
+    /// - If it fails, it fails, returning a `ParseError`. Currently, there are
+    ///   some ways through which it could fail:
+    ///   - If the token after an `Identifier` is nonexistent or is not a `Colon`,
+    ///     it's an `ExpectedToken` if empty or `UnexpectedToken` if not.
+    ///   - After that, if parsing [`NameResolve`] fails, the error of calling
+    ///     [`NameResolve::parse`] is percolated up.
     pub fn parse(
         tokens: &mut VecDeque<Token>,
         line: usize,
@@ -486,7 +511,7 @@ impl ProcParams {
                         // if nothing then it's the end of us
                         _ => None,
                     })
-                    .and_then(|_| tokens.pop_front())
+                    .and_then(|()| tokens.pop_front())
                     .map(|tok| {
                         (
                             match tok.tok_typ {
@@ -501,7 +526,7 @@ impl ProcParams {
         // Should be called after an identifier. First detects if the next token is Colon, and
         // errors out otherwise. If it is indeed a Colon, pop it out and try parse (some of) the
         // following tokens into a `NameResolve`, returning the result of calling
-        // NameResolve::parse_no_vtable
+        // `NameResolve::parse`
         //
         // # Parameters
         // - `tokens` The same token list passed in.
@@ -514,7 +539,7 @@ impl ProcParams {
                 tokens
                     .pop_front()
                     // if empty, it's an error
-                    .ok_or_else(|| ParseError::ExpectedToken { line, pos })
+                    .ok_or(ParseError::ExpectedToken { line, pos })
                     // otherwise, it must be a Colon
                     .and_then(|tok| {
                         if matches!(tok.tok_typ, TokenType::Colon) {

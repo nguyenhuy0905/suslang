@@ -7,15 +7,15 @@ use std::{
 pub mod decl;
 pub mod expr;
 pub use decl::*;
-pub use expr::*;
+// pub use expr::*;
 #[cfg(test)]
 mod test;
 
-/// A tag that a struct is a `Type`. Must implement `Debug`. Y'know, so that
-/// we can assert_eq and all.
+/// A tag that a struct is a `Type`. Must implement [`Debug`]. Y'know, so that
+/// we can [`assert_eq`] and all.
 ///
-/// Must also implement PartialEq + Hash + Clone in order to get `TypeImpl`
-/// auto-implemented.
+/// Must also implement [`PartialEq`] + [`Hash`] + [`Clone`] in order to get
+/// [`TypeImpl`] auto-implemented.
 pub trait Type: Any + Debug {}
 
 /// Auto-impl of stuff for any `Type`.
@@ -36,7 +36,7 @@ where
     fn accept_cmp(&self, other: &dyn TypeImpl) -> bool {
         (other as &dyn Any)
             .downcast_ref::<T>()
-            .map_or(false, |typ| self == typ)
+            .is_none_or(|typ| self == typ)
     }
     fn boxed_clone(&self) -> Box<dyn TypeImpl> {
         Box::new(self.clone())
@@ -59,7 +59,7 @@ impl Eq for dyn TypeImpl {}
 
 /// Statement AST node tag.
 ///
-/// Must also implement traits Debug, Clone, PartialEq for blanket [`StmtImpl`]
+/// Must also implement traits [`Debug`], [`Clone`], [`PartialEq`] for blanket [`StmtImpl`]
 /// implementation.
 pub trait StmtAst: Any + Debug {}
 
@@ -76,9 +76,7 @@ where
     T: StmtAst + Clone + PartialEq,
 {
     fn accept_cmp(&self, other: &dyn StmtImpl) -> bool {
-        (other as &dyn Any)
-            .downcast_ref::<T>()
-            .map_or(false, |val| self == val)
+        (other as &dyn Any).downcast_ref::<T>() == Some(self)
     }
 
     fn boxed_clone(&self) -> Box<dyn StmtImpl> {
