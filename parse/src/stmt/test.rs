@@ -1,9 +1,9 @@
 use super::ProcParams;
-use super::{NameResolve, Scope, StmtParse, TypeParse, VarDeclStmt};
+use super::{DeclStmtParse, NameResolve, Scope, VarDeclStmt};
 use crate::StmtAstBoxWrap;
 use crate::{
     new_name_resolve, new_test_deque, new_var_decl_expr, ParseError,
-    PrimaryExpr, ResolveStep, TypeInfoKind,
+    PrimaryExpr, ResolveStep,
 };
 use crate::{new_proc_params, ExprBoxWrap};
 use std::collections::{HashMap, VecDeque};
@@ -25,9 +25,7 @@ fn name_resolve() {
             NameResolve::parse(&mut deque, 1, 1).map(|t| t.0).unwrap();
         assert_eq!(
             name_resolve,
-            TypeInfoKind::Reference(new_name_resolve![ResolveStep::Child(
-                "sus".to_string()
-            )])
+            new_name_resolve![ResolveStep::Child("sus".to_string())]
         )
     }
     // with global
@@ -40,10 +38,10 @@ fn name_resolve() {
             NameResolve::parse(&mut deque, 1, 1).map(|t| t.0).unwrap();
         assert_eq!(
             name_resolve,
-            TypeInfoKind::Reference(new_name_resolve![
+            new_name_resolve![
                 ResolveStep::Global,
                 ResolveStep::Child("sus".to_string()),
-            ])
+            ]
         )
     }
     // with parent reference
@@ -60,25 +58,25 @@ fn name_resolve() {
             NameResolve::parse(&mut deque, 1, 1).map(|t| t.0).unwrap();
         assert_eq!(
             name_resolve,
-            TypeInfoKind::Reference(new_name_resolve![
+            new_name_resolve![
                 ResolveStep::Global,
                 ResolveStep::Child("sus".to_string()),
                 ResolveStep::Parent,
                 ResolveStep::Child("sy".to_string()),
-            ])
+            ]
         )
     }
     // Empty global error
     {
         let mut deque = new_test_deque![TokenType::ColonColon,];
-        let ret = NameResolve::parse_no_vtable(&mut deque, 1, 1);
+        let ret = NameResolve::parse(&mut deque, 1, 1);
         assert_eq!(ret, Err(ParseError::ExpectedToken { line: 1, pos: 1 }));
     }
     // Overlord-of-global
     {
         let mut deque =
             new_test_deque![TokenType::ColonColon, TokenType::Overlord,];
-        let ret = NameResolve::parse_no_vtable(&mut deque, 1, 1);
+        let ret = NameResolve::parse(&mut deque, 1, 1);
         assert_eq!(
             ret,
             Err(ParseError::UnexpectedToken(Token::new(
@@ -92,7 +90,7 @@ fn name_resolve() {
     {
         let mut deque =
             new_test_deque![TokenType::Overlord, TokenType::ColonColon];
-        let ret = NameResolve::parse_no_vtable(&mut deque, 1, 1);
+        let ret = NameResolve::parse(&mut deque, 1, 1);
         assert_eq!(ret, Err(ParseError::ExpectedToken { line: 1, pos: 2 }));
     }
 }

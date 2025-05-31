@@ -91,7 +91,7 @@ macro_rules! new_name_resolve {
 }
 
 impl NameResolve {
-    fn parse_no_vtable(
+    fn parse(
         tokens: &mut VecDeque<Token>,
         mut line: usize,
         mut pos: usize,
@@ -190,18 +190,6 @@ impl NameResolve {
 
 impl Type for NameResolve {}
 
-impl TypeParse for NameResolve {
-    /// Need to make sure `tokens` is not empty before calling this function.
-    fn parse(
-        tokens: &mut VecDeque<Token>,
-        line: usize,
-        pos: usize,
-    ) -> Result<(TypeInfoKind, usize, usize), ParseError> {
-        Self::parse_no_vtable(tokens, line, pos)
-            .map(|(ret, line, pos)| (TypeInfoKind::Reference(ret), line, pos))
-    }
-}
-
 /// A single step in name resolution.
 ///
 /// - `Parent`: go to the parent scope.
@@ -233,14 +221,6 @@ pub trait TypeImpl: Type {
 }
 
 /// How to parse a type.
-pub trait TypeParse: TypeImpl {
-    fn parse(
-        tokens: &mut VecDeque<Token>,
-        line: usize,
-        pos: usize,
-    ) -> Result<(TypeInfoKind, usize, usize), ParseError>;
-}
-
 impl<T> TypeImpl for T
 where
     T: Type + PartialEq + Hash + Clone,
@@ -284,7 +264,7 @@ pub trait StmtImpl: StmtAst {
 }
 
 // TODO: I really should give the (line, pos) thingy a struct.
-pub trait StmtParse: StmtImpl {
+pub trait DeclStmtParse: StmtImpl {
     /// Parse the tokens into a statement, and update the scope passed in if
     /// any definition or block is parsed.
     ///
@@ -412,7 +392,7 @@ macro_rules! new_var_decl_expr {
 
 impl StmtAst for VarDeclStmt {}
 
-impl StmtParse for VarDeclStmt {
+impl DeclStmtParse for VarDeclStmt {
     fn parse(
         tokens: &mut VecDeque<Token>,
         scope: &mut Scope,
@@ -493,7 +473,7 @@ impl StmtParse for VarDeclStmt {
                         // otherwise, it must be a valid NameResolve
                         .map(|tok| (tok.line_number(), tok.line_position()))
                         .and_then(|(line, pos)| {
-                            NameResolve::parse_no_vtable(tokens, line, pos)
+                            NameResolve::parse(tokens, line, pos)
                         })
                 }))
                 // otherwise just return the same error
@@ -653,7 +633,7 @@ impl ProcParams {
                     // if the stars align, try parse the other tokens into a
                     // `NameResolve`
                     .and_then(|(old_ln, old_pos)| {
-                        NameResolve::parse_no_vtable(tokens, old_ln, old_pos)
+                        NameResolve::parse(tokens, old_ln, old_pos)
                     })
             };
 
