@@ -530,8 +530,6 @@ impl StmtParse for VarDeclStmt {
                 }
             })?;
 
-        // TODO: refactor ExprAst to return a tuple with line and pos alongside
-        // the box wrap.
         let (init_val, init_ln, init_pos) =
             Expr::parse(tokens).map_err(|e| match e {
                 None => ParseError::ExpectedToken {
