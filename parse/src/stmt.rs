@@ -368,7 +368,7 @@ impl AsRef<dyn StmtImpl> for StmtAstBoxWrap {
 /// Variable declaration statement.
 ///
 /// # Rule
-/// \<var-decl\> ::= "let" "mut"? ID (":" \<type-ref\>) "=" \<expr\>
+/// \<var-decl\> ::= "let" "mut"? ID (":" \<type-ref\>)? "=" \<expr\>
 ///
 /// # Note
 /// - When parsing, TYPE_ID is equivalent to [`TypeInfoKind::Reference`].
