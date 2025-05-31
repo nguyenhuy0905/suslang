@@ -193,7 +193,7 @@ impl Type for NameResolve {}
 /// A single step in name resolution.
 ///
 /// - `Parent`: go to the parent scope.
-/// - `Child`: go to the child scope with the specified name.
+/// - `Child`: go to the child scope (or type) with the specified name.
 /// - `Global`: can only appear as the very first step. Start searching at the
 ///   global scope.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
