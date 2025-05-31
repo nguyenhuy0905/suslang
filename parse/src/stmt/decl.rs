@@ -60,8 +60,6 @@ pub struct Scope {
     // At parsing stage, some auto-inferred declarations cannot be inferred
     // yet; in which case, symbol type is None.
     pub symbols: HashMap<String, (usize, usize, Option<TypeInfoKind>)>,
-    // name of this scope.
-    pub name: String,
     // parent module.
     pub parent_idx: Option<NameResolve>,
 }

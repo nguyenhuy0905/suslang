@@ -107,7 +107,6 @@ fn var_decl_stmt() {
         ];
         let mut scope = Scope {
             symbols: HashMap::new(),
-            name: "hello".to_string(),
             parent_idx: None,
         };
         let (vardecl, .., pos) =
@@ -132,7 +131,6 @@ fn var_decl_stmt() {
         ];
         let mut scope = Scope {
             symbols: HashMap::new(),
-            name: "hello".to_string(),
             parent_idx: None,
         };
         let (vardecl, ..) =
@@ -155,7 +153,6 @@ fn var_decl_stmt() {
         ];
         let mut scope = Scope {
             symbols: HashMap::new(),
-            name: "hello".to_string(),
             parent_idx: None,
         };
         let vardecl = VarDeclStmt::parse(&mut deque, &mut scope, 1, 1);
@@ -173,7 +170,6 @@ fn var_decl_stmt() {
         ];
         let mut scope = Scope {
             symbols: HashMap::new(),
-            name: "hello".to_string(),
             parent_idx: None,
         };
         let vardecl = VarDeclStmt::parse(&mut deque, &mut scope, 1, 1);
@@ -197,7 +193,6 @@ fn var_decl_stmt() {
         ];
         let mut scope = Scope {
             symbols: HashMap::new(),
-            name: "hello".to_string(),
             parent_idx: None,
         };
         let vardecl = VarDeclStmt::parse(&mut deque, &mut scope, 1, 1);
@@ -226,7 +221,6 @@ fn var_decl_stmt() {
         ];
         let mut scope = Scope {
             symbols: HashMap::new(),
-            name: "hello".to_string(),
             parent_idx: None,
         };
         let (_, ln, pos) =
