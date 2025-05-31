@@ -1,19 +1,14 @@
-use tokenize::Token;
-use tokenize::TokenType;
+use tokenize::{Token, TokenType};
 
-use crate::Expr;
-use crate::ExprBoxWrap;
-use crate::ExprParse;
-use crate::ParseError;
+use crate::{Expr, ExprBoxWrap, ExprParse, ParseError};
 
-use super::Type;
-use super::TypeImpl;
-use std::any::Any;
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::fmt::Debug;
-use std::hash::Hash;
-use std::hash::Hasher;
+use super::{Type, TypeImpl};
+use std::{
+    any::Any,
+    collections::{HashMap, VecDeque},
+    fmt::Debug,
+    hash::{Hash, Hasher},
+};
 
 /// Statement AST node tag.
 ///
