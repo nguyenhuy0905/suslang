@@ -125,8 +125,8 @@ impl ExprStmtParse for ExprSemicolonStmt {
         line: usize,
         pos: usize,
     ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError> {
-        let (expr, expr_ln, expr_pos) =
-            Expr::parse(tokens).map_err(|e| match e {
+        let (expr, expr_ln, expr_pos) = Expr::parse(tokens, line, pos)
+            .map_err(|e| match e {
                 Some(err) => err,
                 None => ParseError::ExpectedToken { line, pos },
             })?;
@@ -186,11 +186,12 @@ impl ExprStmtParse for ReturnStmt {
                 ret_pos,
             ));
         }
-        let (expr, expr_ln, expr_pos) = match Expr::parse(tokens) {
-            Ok((expr, ln, pos)) => Ok((Some(expr), ln, pos)),
-            Err(None) => Ok((None, ret_tok_ln, ret_tok_pos)),
-            Err(Some(e)) => Err(e),
-        }?;
+        let (expr, expr_ln, expr_pos) =
+            match Expr::parse(tokens, ret_tok_ln, ret_tok_pos) {
+                Ok((expr, ln, pos)) => Ok((Some(expr), ln, pos)),
+                Err(None) => Ok((None, ret_tok_ln, ret_tok_pos)),
+                Err(Some(e)) => Err(e),
+            }?;
 
         let (ret_ln, ret_pos) = tokens
             .pop_front()

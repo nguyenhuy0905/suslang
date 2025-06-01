@@ -49,7 +49,7 @@ fn expr_test() {
             TokenType::AmpersandAmpersand,
             TokenType::Na,
         ];
-        let (expr, ln, pos) = Expr::parse(&mut deque).unwrap();
+        let (expr, ln, pos) = Expr::parse(&mut deque, 1, 1).unwrap();
         assert_ast_eq!(
             expr,
             new_logic_and_expr![

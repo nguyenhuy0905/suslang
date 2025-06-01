@@ -23,6 +23,8 @@ impl ExprAst for PrimaryExpr {}
 impl ExprParse for PrimaryExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        _line: usize,
+        _pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         if let Some((typ, line, pos)) = tokens.pop_front().map(Token::bind) {
             match typ {
@@ -67,7 +69,7 @@ impl ExprParse for PrimaryExpr {
                     pos,
                 )),
                 TokenType::LParen => {
-                    let ret = Expr::parse(tokens)?;
+                    let ret = Expr::parse(tokens, line, pos)?;
                     if let Some((&TokenType::RParen, rp_line, rp_pos)) =
                         tokens.front().map(Token::bind_ref)
                     {
@@ -128,6 +130,8 @@ impl ExprAst for UnaryExpr {}
 impl ExprParse for UnaryExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        _line: usize,
+        _pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         if let Some((typ, line, pos)) = tokens.pop_front().map(Token::bind) {
             let Some(op) = (match typ {
@@ -139,11 +143,11 @@ impl ExprParse for UnaryExpr {
                 _ => None,
             }) else {
                 tokens.push_front(Token::new(typ, line, pos));
-                return PrimaryExpr::parse(tokens);
+                return PrimaryExpr::parse(tokens, line, pos);
             };
 
-            let (primary, prim_ln, prim_pos) = PrimaryExpr::parse(tokens)
-                .map_err(|e| {
+            let (primary, prim_ln, prim_pos) =
+                PrimaryExpr::parse(tokens, line, pos).map_err(|e| {
                     if e.is_none() {
                         Some(ParseError::ExpectedToken { line, pos })
                     } else {
@@ -197,8 +201,11 @@ impl ExprAst for FactorExpr {}
 impl ExprParse for FactorExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
-        let (first_fac, fst_line, fst_pos) = UnaryExpr::parse(tokens)?;
+        let (first_fac, fst_line, fst_pos) =
+            UnaryExpr::parse(tokens, line, pos)?;
         // if I don't wrap this inside a closure, the return statement inside
         // that else, returns through the entire function.
         let (follow_facs, fl_line, fl_pos) =
@@ -218,7 +225,7 @@ impl ExprParse for FactorExpr {
                     };
                     tokens.pop_front();
                     let (next_fac, fac_line, fac_pos) =
-                        UnaryExpr::parse(tokens).map_err(|e| {
+                        UnaryExpr::parse(tokens, line, pos).map_err(|e| {
                             if e.is_none() {
                                 Some(ParseError::ExpectedToken {
                                     line: front_ln,
@@ -275,8 +282,11 @@ macro_rules! new_term_expr {
 impl ExprParse for TermExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
-        let (first_term, fac_ln, fac_pos) = FactorExpr::parse(tokens)?;
+        let (first_term, fac_ln, fac_pos) =
+            FactorExpr::parse(tokens, line, pos)?;
         let (follow_terms, follow_ln, follow_pos) =
             || -> Result<(Vec<_>, usize, usize), Option<ParseError>> {
                 let mut ret = Vec::new();
@@ -293,7 +303,7 @@ impl ExprParse for TermExpr {
                     };
                     tokens.pop_front();
                     let (next_term, next_ln, next_pos) =
-                        FactorExpr::parse(tokens).map_err(|e| {
+                        FactorExpr::parse(tokens, line, pos).map_err(|e| {
                             if e.is_none() {
                                 Some(ParseError::ExpectedToken {
                                     line: front_ln,
@@ -351,8 +361,11 @@ impl ExprAst for BitAndExpr {}
 impl ExprParse for BitAndExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
-        let (first_bit_and, bit_ln, bit_pos) = TermExpr::parse(tokens)?;
+        let (first_bit_and, bit_ln, bit_pos) =
+            TermExpr::parse(tokens, line, pos)?;
         let (follow_bit_ands, follow_ln, follow_pos) =
             || -> Result<(Vec<_>, usize, usize), Option<ParseError>> {
                 let mut ret = Vec::new();
@@ -361,17 +374,19 @@ impl ExprParse for BitAndExpr {
                     tokens.front().map(Token::bind_ref)
                 {
                     tokens.pop_front();
-                    let (term_expr, term_ln, term_pos) =
-                        TermExpr::parse(tokens).map_err(|e| {
-                            if e.is_none() {
-                                Some(ParseError::ExpectedToken {
-                                    line: amp_ln,
-                                    pos: amp_pos,
-                                })
-                            } else {
-                                e
-                            }
-                        })?;
+                    let (term_expr, term_ln, term_pos) = TermExpr::parse(
+                        tokens, ret_ln, ret_pos,
+                    )
+                    .map_err(|e| {
+                        if e.is_none() {
+                            Some(ParseError::ExpectedToken {
+                                line: amp_ln,
+                                pos: amp_pos,
+                            })
+                        } else {
+                            e
+                        }
+                    })?;
                     ret.push(term_expr);
                     (ret_ln, ret_pos) = (term_ln, term_pos);
                 }
@@ -420,8 +435,11 @@ macro_rules! new_bit_xor_expr {
 impl ExprParse for BitXorExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
-        let (first_bit_xor, first_ln, first_pos) = BitAndExpr::parse(tokens)?;
+        let (first_bit_xor, first_ln, first_pos) =
+            BitAndExpr::parse(tokens, line, pos)?;
         let (follow_bit_xors, follow_ln, follow_pos) =
             || -> Result<(Vec<_>, usize, usize), Option<ParseError>> {
                 let mut ret = Vec::new();
@@ -431,13 +449,18 @@ impl ExprParse for BitXorExpr {
                 {
                     tokens.pop_front();
                     let (bit_and_expr, band_line, band_pos) =
-                        BitAndExpr::parse(tokens).map_err(|e| {
-                            if e.is_none() {
-                                Some(ParseError::ExpectedToken { line, pos })
-                            } else {
-                                e
-                            }
-                        })?;
+                        BitAndExpr::parse(tokens, ret_ln, ret_pos).map_err(
+                            |e| {
+                                if e.is_none() {
+                                    Some(ParseError::ExpectedToken {
+                                        line,
+                                        pos,
+                                    })
+                                } else {
+                                    e
+                                }
+                            },
+                        )?;
                     (ret_ln, ret_pos) = (band_line, band_pos);
                     ret.push(bit_and_expr);
                 }
@@ -486,8 +509,11 @@ macro_rules! new_bit_or_expr {
 impl ExprParse for BitOrExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
-        let (first_bit_or, first_ln, first_pos) = BitXorExpr::parse(tokens)?;
+        let (first_bit_or, first_ln, first_pos) =
+            BitXorExpr::parse(tokens, line, pos)?;
         let (follow_bit_ors, follow_ln, follow_pos) =
             || -> Result<(Vec<_>, usize, usize), Option<ParseError>> {
                 let mut ret = Vec::new();
@@ -496,14 +522,16 @@ impl ExprParse for BitOrExpr {
                     tokens.front().map(Token::bind_ref)
                 {
                     tokens.pop_front();
-                    let (bit_xor, bxor_ln, bxor_pos) =
-                        BitXorExpr::parse(tokens).map_err(|e| {
-                            if e.is_none() {
-                                Some(ParseError::ExpectedToken { line, pos })
-                            } else {
-                                e
-                            }
-                        })?;
+                    let (bit_xor, bxor_ln, bxor_pos) = BitXorExpr::parse(
+                        tokens, ret_ln, ret_pos,
+                    )
+                    .map_err(|e| {
+                        if e.is_none() {
+                            Some(ParseError::ExpectedToken { line, pos })
+                        } else {
+                            e
+                        }
+                    })?;
                     (ret_ln, ret_pos) = (bxor_ln, bxor_pos);
                     ret.push(bit_xor);
                 }

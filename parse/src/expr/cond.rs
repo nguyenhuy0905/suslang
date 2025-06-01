@@ -36,8 +36,10 @@ impl ExprAst for ComparisonExpr {}
 impl ExprParse for ComparisonExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
-        let (lhs, lhs_ln, lhs_pos) = BitOrExpr::parse(tokens)?;
+        let (lhs, lhs_ln, lhs_pos) = BitOrExpr::parse(tokens, line, pos)?;
         if let Some((Some(op), line, pos)) =
             tokens.front().map(Token::bind_ref).map(|(typ, line, pos)| {
                 (
@@ -60,8 +62,8 @@ impl ExprParse for ComparisonExpr {
             })
         {
             tokens.pop_front();
-            let (rhs, rhs_ln, rhs_pos) =
-                BitOrExpr::parse(tokens).map_err(|e| {
+            let (rhs, rhs_ln, rhs_pos) = BitOrExpr::parse(tokens, line, pos)
+                .map_err(|e| {
                     if e.is_none() {
                         Some(ParseError::ExpectedToken { line, pos })
                     } else {
@@ -125,9 +127,11 @@ impl ExprAst for LogicAndExpr {}
 impl ExprParse for LogicAndExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         let (first_logic_and, first_ln, first_pos) =
-            ComparisonExpr::parse(tokens)?;
+            ComparisonExpr::parse(tokens, line, pos)?;
         let (follow_logic_ands, follow_ln, follow_pos) = {
             let mut ret = Vec::new();
             let (mut ret_ln, mut ret_pos) = (first_ln, first_pos);
@@ -135,8 +139,8 @@ impl ExprParse for LogicAndExpr {
                 tokens.front().map(Token::bind_ref)
             {
                 tokens.pop_front();
-                let (log_and, and_ln, and_pos) = ComparisonExpr::parse(tokens)
-                    .map_err(|e| {
+                let (log_and, and_ln, and_pos) =
+                    ComparisonExpr::parse(tokens, line, pos).map_err(|e| {
                         if e.is_none() {
                             Some(ParseError::ExpectedToken { line, pos })
                         } else {
@@ -191,9 +195,11 @@ impl ExprAst for LogicOrExpr {}
 impl ExprParse for LogicOrExpr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         let (first_logic_or, first_ln, first_pos) =
-            LogicAndExpr::parse(tokens)?;
+            LogicAndExpr::parse(tokens, line, pos)?;
         let (follow_logic_ors, follow_ln, follow_pos) = {
             let mut ret = Vec::new();
             let (mut ret_ln, mut ret_pos) = (first_ln, first_pos);
@@ -201,8 +207,8 @@ impl ExprParse for LogicOrExpr {
                 tokens.front().map(Token::bind_ref)
             {
                 tokens.pop_front();
-                let (logor, or_ln, or_pos) = LogicAndExpr::parse(tokens)
-                    .map_err(|e| {
+                let (logor, or_ln, or_pos) =
+                    LogicAndExpr::parse(tokens, line, pos).map_err(|e| {
                         if e.is_none() {
                             Some(ParseError::ExpectedToken { line, pos })
                         } else {

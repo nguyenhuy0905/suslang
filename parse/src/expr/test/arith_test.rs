@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn primary_types() {
+    let (line, pos) = (1, 1);
     let mut deque = new_test_deque![
         TokenType::Integer("3".to_string()),
         TokenType::Double("4.20".to_string()),
@@ -10,24 +11,25 @@ fn primary_types() {
         TokenType::Na,
     ];
 
-    let (prim1, ..) = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim1, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
     assert_ast_eq!(prim1, PrimaryExpr::Integer(3));
-    let (prim2, ..) = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim2, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
     assert_ast_eq!(prim2, PrimaryExpr::Float(4.2));
-    let (prim3, ..) = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim3, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
     assert_ast_eq!(prim3, PrimaryExpr::String("hello".to_string()));
-    let (prim4, ..) = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim4, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
     assert_ast_eq!(prim4, PrimaryExpr::Boolean(true));
-    let (prim5, ..) = PrimaryExpr::parse(&mut deque).unwrap();
+    let (prim5, ..) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
     assert_ast_eq!(prim5, PrimaryExpr::Boolean(false));
 }
 
 #[test]
 fn unary_expr() {
+    let (line, pos) = (1, 1);
     // fallthrough
     {
         let mut deque = new_test_deque![TokenType::Integer("3".to_string())];
-        let (un, ..) = UnaryExpr::parse(&mut deque).unwrap();
+        let (un, ..) = UnaryExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(un, PrimaryExpr::Integer(3));
     }
     // coverage farming
@@ -36,7 +38,7 @@ fn unary_expr() {
             TokenType::Plus,
             TokenType::Integer("3".to_string())
         ];
-        let (un1, ..) = UnaryExpr::parse(&mut deque).unwrap();
+        let (un1, ..) = UnaryExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             un1,
             UnaryExpr {
@@ -50,7 +52,7 @@ fn unary_expr() {
             TokenType::Dash,
             TokenType::Integer("3".to_string())
         ];
-        let (un2, ..) = UnaryExpr::parse(&mut deque).unwrap();
+        let (un2, ..) = UnaryExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             un2,
             UnaryExpr {
@@ -66,7 +68,7 @@ fn unary_expr() {
             TokenType::Star,
             TokenType::Integer("3".to_string())
         ];
-        let (un3, ..) = UnaryExpr::parse(&mut deque).unwrap();
+        let (un3, ..) = UnaryExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             un3,
             UnaryExpr {
@@ -80,7 +82,7 @@ fn unary_expr() {
             TokenType::Ampersand,
             TokenType::Integer("3".to_string())
         ];
-        let (un4, ..) = UnaryExpr::parse(&mut deque).unwrap();
+        let (un4, ..) = UnaryExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             un4,
             UnaryExpr {
@@ -92,7 +94,7 @@ fn unary_expr() {
     // expected expression
     {
         let mut deque = new_test_deque![TokenType::Dash];
-        let un5 = UnaryExpr::parse(&mut deque);
+        let un5 = UnaryExpr::parse(&mut deque, line, pos);
         assert_eq!(
             un5,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 1 }))
@@ -102,6 +104,7 @@ fn unary_expr() {
 
 #[test]
 fn factor_expr() {
+    let (line, pos) = (1, 1);
     // fallthrough
     {
         let mut deque = VecDeque::from([Token::new(
@@ -109,7 +112,7 @@ fn factor_expr() {
             1,
             1,
         )]);
-        let (fac, ..) = FactorExpr::parse(&mut deque).unwrap();
+        let (fac, ..) = FactorExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(fac, PrimaryExpr::Integer(3));
     }
     // simple non-fallthrough
@@ -122,7 +125,7 @@ fn factor_expr() {
             TokenType::Integer("4".to_string())
         ];
 
-        let (fac, ..) = FactorExpr::parse(&mut deque).unwrap();
+        let (fac, ..) = FactorExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             fac,
             new_factor_expr![
@@ -142,7 +145,7 @@ fn factor_expr() {
             TokenType::Star,
             TokenType::Integer("4".to_string())
         ];
-        let (fac, ..) = FactorExpr::parse(&mut deque).unwrap();
+        let (fac, ..) = FactorExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             fac,
             new_factor_expr![
@@ -158,7 +161,7 @@ fn factor_expr() {
             TokenType::Integer("3".to_string()),
             TokenType::Star
         ];
-        let fac = FactorExpr::parse(&mut deque);
+        let fac = FactorExpr::parse(&mut deque, line, pos);
         assert_eq!(
             fac,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
@@ -168,6 +171,7 @@ fn factor_expr() {
 
 #[test]
 fn term_expr() {
+    let (line, pos) = (1, 1);
     // fallthrough
     {
         let mut deque = new_test_deque![
@@ -175,7 +179,7 @@ fn term_expr() {
             TokenType::Star,
             TokenType::Integer("4".to_string()),
         ];
-        let (term, ..) = TermExpr::parse(&mut deque).unwrap();
+        let (term, ..) = TermExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             term,
             new_factor_expr![
@@ -196,7 +200,7 @@ fn term_expr() {
             TokenType::Star,
             TokenType::Integer("5".to_string()),
         ];
-        let (term, ..) = TermExpr::parse(&mut deque).unwrap();
+        let (term, ..) = TermExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             term,
             new_term_expr![
@@ -216,7 +220,7 @@ fn term_expr() {
             TokenType::Integer("3".to_string()),
             TokenType::Plus,
         ];
-        let term = TermExpr::parse(&mut deque);
+        let term = TermExpr::parse(&mut deque, line, pos);
         assert_eq!(
             term,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
@@ -226,6 +230,7 @@ fn term_expr() {
 
 #[test]
 fn bit_and_expr() {
+    let (line, pos) = (1, 1);
     // fallthrough
     {
         let mut deque = new_test_deque![
@@ -233,7 +238,7 @@ fn bit_and_expr() {
             TokenType::Plus,
             TokenType::Integer("4".to_string())
         ];
-        let (bit_and, ..) = BitAndExpr::parse(&mut deque).unwrap();
+        let (bit_and, ..) = BitAndExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             bit_and,
             new_term_expr![
@@ -254,7 +259,7 @@ fn bit_and_expr() {
             TokenType::Dash,
             TokenType::Integer("6".to_string()),
         ];
-        let (bit_and, ..) = BitAndExpr::parse(&mut deque).unwrap();
+        let (bit_and, ..) = BitAndExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             bit_and,
             new_bit_and_expr![
@@ -277,7 +282,7 @@ fn bit_and_expr() {
             TokenType::Integer("3".to_string()),
             TokenType::Ampersand,
         ];
-        let bit_and = BitAndExpr::parse(&mut deque);
+        let bit_and = BitAndExpr::parse(&mut deque, line, pos);
         assert_eq!(
             bit_and,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
@@ -287,6 +292,7 @@ fn bit_and_expr() {
 
 #[test]
 fn bit_xor_expr() {
+    let (line, pos) = (1, 1);
     // fallthrough
     {
         let mut deque = new_test_deque![
@@ -294,7 +300,7 @@ fn bit_xor_expr() {
             TokenType::Ampersand,
             TokenType::Integer("4".to_string()),
         ];
-        let (bit_xor, ..) = BitXorExpr::parse(&mut deque).unwrap();
+        let (bit_xor, ..) = BitXorExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             bit_xor,
             new_bit_and_expr![PrimaryExpr::Integer(3), PrimaryExpr::Integer(4),]
@@ -311,7 +317,7 @@ fn bit_xor_expr() {
             TokenType::Ampersand,
             TokenType::Integer("4".to_string()),
         ];
-        let (bit_xor, ..) = BitXorExpr::parse(&mut deque).unwrap();
+        let (bit_xor, ..) = BitXorExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             bit_xor,
             new_bit_xor_expr![
@@ -332,7 +338,7 @@ fn bit_xor_expr() {
             TokenType::Integer("3".to_string()),
             TokenType::Hat,
         ];
-        let bit_xor = BitXorExpr::parse(&mut deque);
+        let bit_xor = BitXorExpr::parse(&mut deque, line, pos);
         assert_eq!(
             bit_xor,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
@@ -342,6 +348,7 @@ fn bit_xor_expr() {
 
 #[test]
 fn bit_or_expr() {
+    let (line, pos) = (1, 1);
     // fallthrough
     {
         let mut deque = new_test_deque![
@@ -349,7 +356,7 @@ fn bit_or_expr() {
             TokenType::Hat,
             TokenType::Integer("4".to_string()),
         ];
-        let (bit_or, ..) = BitOrExpr::parse(&mut deque).unwrap();
+        let (bit_or, ..) = BitOrExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             bit_or,
             new_bit_xor_expr![PrimaryExpr::Integer(3), PrimaryExpr::Integer(4),]
@@ -366,7 +373,7 @@ fn bit_or_expr() {
             TokenType::Hat,
             TokenType::Integer("4".to_string()),
         ];
-        let (bit_or, ..) = BitOrExpr::parse(&mut deque).unwrap();
+        let (bit_or, ..) = BitOrExpr::parse(&mut deque, line, pos).unwrap();
         assert_ast_eq!(
             bit_or,
             new_bit_or_expr![
@@ -387,7 +394,7 @@ fn bit_or_expr() {
             TokenType::Integer("3".to_string()),
             TokenType::Beam,
         ];
-        let bit_or = BitOrExpr::parse(&mut deque);
+        let bit_or = BitOrExpr::parse(&mut deque, line, pos);
         assert_eq!(
             bit_or,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))

@@ -86,6 +86,8 @@ pub trait ExprParse: ExprAstImpl {
     /// [`ParseError`]
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>>;
 }
 
@@ -104,7 +106,9 @@ impl ExprAst for Expr {}
 impl ExprParse for Expr {
     fn parse(
         tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
-        LogicOrExpr::parse(tokens)
+        LogicOrExpr::parse(tokens, line, pos)
     }
 }
