@@ -1,91 +1,63 @@
-use super::NameResolve;
-use crate::{new_name_resolve, new_test_deque, ParseError, ResolveStep};
 use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
 
-#[allow(unused)]
-macro_rules! assert_stmt_ast_eq {
-    ($actual:expr,$expect:expr) => {
-        assert_eq!($actual, DeclStmtBoxWrap::new($expect))
-    };
-}
+use crate::{
+    new_comparison_expr, new_test_deque, ComparisonExpr, ComparisonOp,
+    ExprBoxWrap, ParseError, PrimaryExpr,
+};
+
+use super::*;
 
 #[test]
-fn name_resolve() {
-    // simplest possible
-    {
-        let mut deque =
-            new_test_deque![TokenType::Identifier("sus".to_string())];
-        let name_resolve =
-            NameResolve::parse(&mut deque, 1, 1).map(|t| t.0).unwrap();
-        assert_eq!(
-            name_resolve,
-            new_name_resolve![ResolveStep::Child("sus".to_string())]
-        )
-    }
-    // with global
+fn expr_semicolon_stmt() {
+    // ur average stmt
     {
         let mut deque = new_test_deque![
-            TokenType::ColonColon,
-            TokenType::Identifier("sus".to_string())
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::Semicolon,
         ];
-        let name_resolve =
-            NameResolve::parse(&mut deque, 1, 1).map(|t| t.0).unwrap();
+        let (expr_stmt, line, pos) =
+            ExprSemicolonStmt::parse(&mut deque, 1, 1).unwrap();
         assert_eq!(
-            name_resolve,
-            new_name_resolve![
-                ResolveStep::Global,
-                ResolveStep::Child("sus".to_string()),
-            ]
-        )
+            expr_stmt.as_ref(),
+            &ExprSemicolonStmt {
+                expr: ExprBoxWrap::new(new_comparison_expr![
+                    PrimaryExpr::Integer(1),
+                    ComparisonOp::Equal,
+                    PrimaryExpr::Integer(1),
+                ])
+            } as &dyn ExprStmtImpl
+        );
+        assert_eq!(line, 1);
+        assert_eq!(pos, 4);
     }
-    // with parent reference
+    // no semicolon
     {
         let mut deque = new_test_deque![
-            TokenType::ColonColon,
-            TokenType::Identifier("sus".to_string()),
-            TokenType::ColonColon,
-            TokenType::Overlord,
-            TokenType::ColonColon,
-            TokenType::Identifier("sy".to_string()),
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
         ];
-        let name_resolve =
-            NameResolve::parse(&mut deque, 1, 1).map(|t| t.0).unwrap();
+        let expr_stmt = ExprSemicolonStmt::parse(&mut deque, 1, 1);
         assert_eq!(
-            name_resolve,
-            new_name_resolve![
-                ResolveStep::Global,
-                ResolveStep::Child("sus".to_string()),
-                ResolveStep::Parent,
-                ResolveStep::Child("sy".to_string()),
-            ]
-        )
-    }
-    // Empty global error
-    {
-        let mut deque = new_test_deque![TokenType::ColonColon,];
-        let ret = NameResolve::parse(&mut deque, 1, 1);
-        assert_eq!(ret, Err(ParseError::ExpectedToken { line: 1, pos: 1 }));
-    }
-    // Overlord-of-global
-    {
-        let mut deque =
-            new_test_deque![TokenType::ColonColon, TokenType::Overlord,];
-        let ret = NameResolve::parse(&mut deque, 1, 1);
-        assert_eq!(
-            ret,
-            Err(ParseError::UnexpectedToken(Token::new(
-                TokenType::Overlord,
-                1,
-                2
-            )))
+            expr_stmt,
+            Err(ParseError::ExpectedToken { line: 1, pos: 3 })
         );
     }
-    // Unmatched ColonColon
+    // no expression, just semicolon
     {
-        let mut deque =
-            new_test_deque![TokenType::Overlord, TokenType::ColonColon];
-        let ret = NameResolve::parse(&mut deque, 1, 1);
-        assert_eq!(ret, Err(ParseError::ExpectedToken { line: 1, pos: 2 }));
+        let mut deque = new_test_deque![TokenType::Semicolon,];
+        let expr_stmt = ExprSemicolonStmt::parse(&mut deque, 1, 1);
+        // this error is percolated up from PrimaryExpr::parse
+        assert_eq!(
+            expr_stmt,
+            Err(ParseError::UnexpectedToken(Token::new(
+                TokenType::Semicolon,
+                1,
+                1
+            )))
+        );
     }
 }

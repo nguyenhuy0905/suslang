@@ -1,6 +1,8 @@
-use std::{any::Any, collections::VecDeque, fmt::Debug, string::ParseError};
+use std::{any::Any, collections::VecDeque, fmt::Debug};
 
-use tokenize::Token;
+use tokenize::{Token, TokenType};
+
+use crate::{Expr, ExprBoxWrap, ExprParse, ParseError};
 
 /// Tag for any expression statement.
 ///
@@ -64,12 +66,22 @@ impl PartialEq for ExprStmtBoxWrap {
     }
 }
 
+impl AsRef<dyn ExprStmtImpl> for ExprStmtBoxWrap {
+    fn as_ref(&self) -> &dyn ExprStmtImpl {
+        self.val.as_ref()
+    }
+}
+
 pub trait ExprStmtParse: ExprStmtImpl {
     /// Parses the list of input tokens into a [`ExprStmtBoxWrap`].
     ///
     /// # Errors
     /// - If parsing fails, a [`ParseError`] is returned.
-    fn parse(tokens: VecDeque<Token>) -> Result<ExprStmtBoxWrap, ParseError>;
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError>;
 }
 
 /// Dummy expression statement struct.
@@ -79,8 +91,57 @@ pub struct ExprStmt {}
 impl ExprStmtAst for ExprStmt {}
 
 impl ExprStmtParse for ExprStmt {
-    fn parse(tokens: VecDeque<Token>) -> Result<ExprStmtBoxWrap, ParseError> {
-        let _ = tokens;
-        todo!()
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError> {
+        match tokens.front().map(Token::token_type) {
+            None => Err(ParseError::ExpectedToken { line, pos }),
+            Some(TokenType::Return) => ReturnStmt::parse(tokens, line, pos),
+            // TODO: add more types of statements as we go.
+            Some(_) => ExprSemicolonStmt::parse(tokens, line, pos),
+        }
+    }
+}
+
+/// An expression followed by a semicolon
+///
+/// # Rule
+/// \<expr-stmt\> ::= \<expr\> ";"
+///
+/// # See also
+/// [`Expr`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExprSemicolonStmt {
+    pub expr: ExprBoxWrap,
+}
+
+impl ExprStmtAst for ExprSemicolonStmt {}
+
+impl ExprStmtParse for ExprSemicolonStmt {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError> {
+        let (expr, expr_ln, expr_pos) =
+            Expr::parse(tokens).map_err(|e| match e {
+                Some(err) => err,
+                None => ParseError::ExpectedToken { line, pos },
+            })?;
+        let (ret_ln, ret_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken {
+                line: expr_ln,
+                pos: expr_pos,
+            })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Semicolon => {
+                    Ok((tok.line_number, tok.line_position))
+                }
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        Ok((ExprStmtBoxWrap::new(Self { expr }), ret_ln, ret_pos))
     }
 }

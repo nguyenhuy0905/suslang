@@ -7,7 +7,7 @@ use std::{
 pub mod decl;
 pub mod expr;
 pub use decl::*;
-// pub use expr::*;
+pub use expr::*;
 #[cfg(test)]
 mod test;
 
