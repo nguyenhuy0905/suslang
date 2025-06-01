@@ -8,13 +8,37 @@ mod test;
 pub use arith::*;
 pub use cond::*;
 
-// when are you gonna finish your language
-// impl !PartialEq for Box<dyn AstClone> {}
+/// Empty for now, but in case I need something down the line.
+/// Requires Debug so that the thing can be unit-tested.
+pub trait ExprAst: Any + Debug {}
+
+/// impl Ast and derive Clone and this is auto-implemented.
+pub trait ExprAstImpl: ExprAst {
+    /// Some double dispatch shenanigan, to compare two `&dyn AstCmp`
+    fn accept_cmp(&self, other: &dyn ExprAstImpl) -> bool;
+    fn boxed_clone(&self) -> Box<dyn ExprAstImpl>;
+}
+
+impl PartialEq for dyn ExprAstImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.accept_cmp(other)
+    }
+}
+
+impl<T: ExprAst + Clone + PartialEq> ExprAstImpl for T {
+    fn boxed_clone(&self) -> Box<dyn ExprAstImpl> {
+        Box::new(self.clone())
+    }
+
+    fn accept_cmp(&self, other: &dyn ExprAstImpl) -> bool {
+        (other as &dyn Any).downcast_ref::<T>() == Some(self)
+    }
+}
 
 /// Wrapper around a `Box<dyn AstClone>`
 #[derive(Debug)]
 pub struct ExprBoxWrap {
-    pub value: Box<dyn AstClone>,
+    pub value: Box<dyn ExprAstImpl>,
 }
 
 impl PartialEq for ExprBoxWrap {
@@ -32,7 +56,7 @@ impl Clone for ExprBoxWrap {
 }
 
 impl ExprBoxWrap {
-    pub fn new<T: AstClone>(val: T) -> Self {
+    pub fn new<T: ExprAstImpl>(val: T) -> Self {
         Self {
             value: Box::new(val),
         }
@@ -40,7 +64,7 @@ impl ExprBoxWrap {
 }
 
 impl std::ops::Deref for ExprBoxWrap {
-    type Target = dyn AstClone;
+    type Target = dyn ExprAstImpl;
 
     fn deref(&self) -> &Self::Target {
         self.value.as_ref()
@@ -48,7 +72,7 @@ impl std::ops::Deref for ExprBoxWrap {
 }
 
 /// Parses an expression.
-pub trait ExprParse: AstClone {
+pub trait ExprParse: ExprAstImpl {
     /// Parses into an `Ast`.
     ///
     /// # Errors
@@ -65,16 +89,6 @@ pub trait ExprParse: AstClone {
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>>;
 }
 
-impl<T: Ast + PartialEq> AstCmp for T {
-    fn accept_cmp(&self, other: &dyn AstCmp) -> bool {
-        // the function is the first dispatch
-        (other as &dyn Any)
-            // second dispatch
-            .downcast_ref::<T>()
-            .is_some_and(|ast| ast == self)
-    }
-}
-
 /// Dummy expression struct
 ///
 /// # Rule (for now)
@@ -85,7 +99,7 @@ impl<T: Ast + PartialEq> AstCmp for T {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expr {}
 
-impl Ast for Expr {}
+impl ExprAst for Expr {}
 
 impl ExprParse for Expr {
     fn parse(

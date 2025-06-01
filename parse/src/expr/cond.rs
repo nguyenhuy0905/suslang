@@ -31,7 +31,7 @@ pub enum ComparisonOp {
     GreaterEqual,
 }
 
-impl Ast for ComparisonExpr {}
+impl ExprAst for ComparisonExpr {}
 
 impl ExprParse for ComparisonExpr {
     fn parse(
@@ -120,7 +120,7 @@ macro_rules! new_logic_and_expr {
     };
 }
 
-impl Ast for LogicAndExpr {}
+impl ExprAst for LogicAndExpr {}
 
 impl ExprParse for LogicAndExpr {
     fn parse(
@@ -186,7 +186,7 @@ macro_rules! new_logic_or_expr {
     };
 }
 
-impl Ast for LogicOrExpr {}
+impl ExprAst for LogicOrExpr {}
 
 impl ExprParse for LogicOrExpr {
     fn parse(

@@ -1,5 +1,5 @@
 use super::Expr;
-use crate::{Ast, ExprBoxWrap, ExprParse, ParseError};
+use crate::{ExprAst, ExprBoxWrap, ExprParse, ParseError};
 use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
 
@@ -18,7 +18,7 @@ pub enum PrimaryExpr {
     Identifier(String),
 }
 
-impl Ast for PrimaryExpr {}
+impl ExprAst for PrimaryExpr {}
 
 impl ExprParse for PrimaryExpr {
     fn parse(
@@ -123,7 +123,7 @@ pub enum UnaryOp {
     Negate, // !
 }
 
-impl Ast for UnaryExpr {}
+impl ExprAst for UnaryExpr {}
 
 impl ExprParse for UnaryExpr {
     fn parse(
@@ -192,7 +192,7 @@ pub enum FactorOp {
     Mod,      // %
 }
 
-impl Ast for FactorExpr {}
+impl ExprAst for FactorExpr {}
 
 impl ExprParse for FactorExpr {
     fn parse(
@@ -260,7 +260,7 @@ pub enum TermOp {
     Minus,
 }
 
-impl Ast for TermExpr {}
+impl ExprAst for TermExpr {}
 
 #[macro_export]
 macro_rules! new_term_expr {
@@ -346,7 +346,7 @@ macro_rules! new_bit_and_expr {
     }
 }
 
-impl Ast for BitAndExpr {}
+impl ExprAst for BitAndExpr {}
 
 impl ExprParse for BitAndExpr {
     fn parse(
@@ -405,7 +405,7 @@ pub struct BitXorExpr {
     pub follow_bit_xors: Vec<ExprBoxWrap>,
 }
 
-impl Ast for BitXorExpr {}
+impl ExprAst for BitXorExpr {}
 
 #[macro_export]
 macro_rules! new_bit_xor_expr {
@@ -471,7 +471,7 @@ pub struct BitOrExpr {
     pub follow_bit_ors: Vec<ExprBoxWrap>,
 }
 
-impl Ast for BitOrExpr {}
+impl ExprAst for BitOrExpr {}
 
 #[macro_export]
 macro_rules! new_bit_or_expr {

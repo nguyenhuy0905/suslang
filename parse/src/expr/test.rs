@@ -10,7 +10,10 @@ mod cond_test;
 #[macro_export]
 macro_rules! assert_ast_eq {
     ($first:expr,$second:expr) => {
-        assert_eq!($first.deref() as &dyn AstCmp, &$second as &dyn AstCmp)
+        assert_eq!(
+            $first.deref() as &dyn ExprAstImpl,
+            &$second as &dyn ExprAstImpl
+        )
     };
 }
 
