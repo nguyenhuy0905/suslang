@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    collections::VecDeque,
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
 };
@@ -8,6 +9,9 @@ pub mod decl;
 pub mod expr;
 pub use decl::*;
 pub use expr::*;
+use tokenize::Token;
+
+use crate::ParseError;
 #[cfg(test)]
 mod test;
 
@@ -62,4 +66,40 @@ impl Eq for dyn TypeImpl {}
 pub enum Stmt {
     Expr(ExprStmtBoxWrap),
     Decl(DeclStmtBoxWrap),
+}
+
+#[macro_export]
+macro_rules! new_stmt {
+    (Expr($val:expr)) => {
+        Stmt::Expr(ExprStmtBoxWrap::new($val))
+    };
+    (Decl($val:expr)) => {
+        Stmt::Decl(DeclStmtBoxWrap::new($val))
+    };
+}
+
+impl Stmt {
+    /// # Errors
+    /// - Percolated up from either type of statement.
+    /// - Or an error if the token list is empty
+    pub fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        // TODO: update Stmt::parse every time I'm done with a new type of statement.
+        //     match tokens
+        //         .front()
+        //         .ok_or(ParseError::ExpectedToken { line, pos })
+        //         .map(Token::token_type)?
+        //     {
+        //         _ => {
+        //             let (expr_stmt, ret_ln, ret_pos) =
+        //                 ExprStmt::parse(tokens, line, pos)?;
+        //             Ok((Self::Expr(expr_stmt), line, pos))
+        //         }
+        //     }
+        let (expr_stmt, ret_ln, ret_pos) = ExprStmt::parse(tokens, line, pos)?;
+        Ok((Self::Expr(expr_stmt), ret_ln, ret_pos))
+    }
 }

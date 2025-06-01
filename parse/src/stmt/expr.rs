@@ -117,6 +117,15 @@ pub struct ExprSemicolonStmt {
     pub expr: ExprBoxWrap,
 }
 
+#[macro_export]
+macro_rules! new_expr_semicolon_stmt {
+    ($expr:expr) => {
+        ExprSemicolonStmt {
+            expr: ExprBoxWrap::new($expr),
+        }
+    };
+}
+
 impl ExprStmtAst for ExprSemicolonStmt {}
 
 impl ExprStmtParse for ExprSemicolonStmt {
@@ -156,6 +165,18 @@ impl ExprStmtParse for ExprSemicolonStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReturnStmt {
     pub expr: Option<ExprBoxWrap>,
+}
+
+#[macro_export]
+macro_rules! new_return_stmt {
+    () => {
+        ReturnStmt { expr: None }
+    };
+    ($expr:expr) => {
+        ReturnStmt {
+            expr: Some(ExprBoxWrap::new($expr)),
+        }
+    };
 }
 
 impl ExprStmtAst for ReturnStmt {}

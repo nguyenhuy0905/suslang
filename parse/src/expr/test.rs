@@ -3,6 +3,7 @@ use arith::*;
 use std::ops::Deref;
 use tokenize::TokenType;
 mod arith_test;
+mod block_test;
 mod cond_test;
 
 /// The first side must be an `ExprBoxWrap`, and the second must implement
