@@ -145,3 +145,67 @@ impl ExprStmtParse for ExprSemicolonStmt {
         Ok((ExprStmtBoxWrap::new(Self { expr }), ret_ln, ret_pos))
     }
 }
+
+/// Return, then optionally a statement, then a semicolon
+///
+/// # Rule
+/// \<expr-stmt\> ::= "return" \<expr\>? ";"
+///
+/// # See also
+/// [`Expr`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReturnStmt {
+    pub expr: Option<ExprBoxWrap>,
+}
+
+impl ExprStmtAst for ReturnStmt {}
+
+impl ExprStmtParse for ReturnStmt {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError> {
+        let (ret_tok_ln, ret_tok_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Return => Ok((tok.line_number, tok.line_position)),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+
+        if tokens.front().map(Token::token_type) == Some(&TokenType::Semicolon)
+        {
+            let (ret_ln, ret_pos) = tokens
+                .pop_front()
+                .map(|tok| (tok.line_number, tok.line_position))
+                .unwrap();
+            return Ok((
+                ExprStmtBoxWrap::new(Self { expr: None }),
+                ret_ln,
+                ret_pos,
+            ));
+        }
+        let (expr, expr_ln, expr_pos) = match Expr::parse(tokens) {
+            Ok((expr, ln, pos)) => Ok((Some(expr), ln, pos)),
+            Err(None) => Ok((None, ret_tok_ln, ret_tok_pos)),
+            Err(Some(e)) => Err(e),
+        }?;
+
+        let (ret_ln, ret_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken {
+                line: expr_ln,
+                pos: expr_pos,
+            })
+            .and_then(|tok| {
+                if matches!(tok.tok_typ, TokenType::Semicolon) {
+                    Ok((tok.line_number, tok.line_position))
+                } else {
+                    Err(ParseError::UnexpectedToken(tok))
+                }
+            })?;
+
+        Ok((ExprStmtBoxWrap::new(Self { expr }), ret_ln, ret_pos))
+    }
+}

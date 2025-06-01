@@ -56,3 +56,10 @@ impl PartialEq for dyn TypeImpl {
 }
 
 impl Eq for dyn TypeImpl {}
+
+/// A statement is either an expression-statement or a declaration statement.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Stmt {
+    Expr(ExprStmtBoxWrap),
+    Decl(DeclStmtBoxWrap),
+}
