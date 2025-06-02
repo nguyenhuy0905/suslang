@@ -63,4 +63,17 @@ fn block_expr() {
         );
         assert_eq!(pos, 8);
     }
+    // no closing brace
+    {
+        let mut deque = new_test_deque![
+            TokenType::LCParen,
+            TokenType::Integer(1.to_string()),
+            TokenType::Semicolon
+        ];
+        let block = BlockExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            block,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 3 }))
+        );
+    }
 }

@@ -74,7 +74,7 @@ impl BlockExpr {
 
         let mut statements: Vec<Stmt> = Vec::new();
         let (mut while_ln, mut while_pos) = (lc_line, lc_pos);
-        while !check_rc_paren(tokens, line, pos)? {
+        while !check_rc_paren(tokens, while_ln, while_pos)? {
             let (push_stmt, stmt_ln, stmt_pos) =
                 Stmt::parse(tokens, while_ln, while_pos)?;
             statements.push(push_stmt);
