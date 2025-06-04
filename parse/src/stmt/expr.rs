@@ -100,7 +100,7 @@ impl ExprStmtParse for ExprStmt {
             None => Err(ParseError::ExpectedToken { line, pos }),
             Some(TokenType::Return) => ReturnStmt::parse(tokens, line, pos),
             // TODO: add more types of statements as we go.
-            Some(_) => ExprSemicolonStmt::parse(tokens, line, pos),
+            Some(_) => ExprValStmt::parse(tokens, line, pos),
         }
     }
 }
@@ -108,27 +108,27 @@ impl ExprStmtParse for ExprStmt {
 /// An expression followed by a semicolon
 ///
 /// # Rule
-/// \<expr-stmt\> ::= \<expr\> ";"
+/// \<expr-stmt\> ::= \<expr\>
 ///
 /// # See also
 /// [`Expr`]
 #[derive(Debug, Clone, PartialEq)]
-pub struct ExprSemicolonStmt {
+pub struct ExprValStmt {
     pub expr: ExprBoxWrap,
 }
 
 #[macro_export]
 macro_rules! new_expr_semicolon_stmt {
     ($expr:expr) => {
-        ExprSemicolonStmt {
+        ExprValStmt {
             expr: ExprBoxWrap::new($expr),
         }
     };
 }
 
-impl ExprStmtAst for ExprSemicolonStmt {}
+impl ExprStmtAst for ExprValStmt {}
 
-impl ExprStmtParse for ExprSemicolonStmt {
+impl ExprStmtParse for ExprValStmt {
     fn parse(
         tokens: &mut VecDeque<Token>,
         line: usize,
@@ -139,19 +139,7 @@ impl ExprStmtParse for ExprSemicolonStmt {
                 Some(err) => err,
                 None => ParseError::ExpectedToken { line, pos },
             })?;
-        let (ret_ln, ret_pos) = tokens
-            .pop_front()
-            .ok_or(ParseError::ExpectedToken {
-                line: expr_ln,
-                pos: expr_pos,
-            })
-            .and_then(|tok| match tok.tok_typ {
-                TokenType::Semicolon => {
-                    Ok((tok.line_number, tok.line_position))
-                }
-                _ => Err(ParseError::UnexpectedToken(tok)),
-            })?;
-        Ok((ExprStmtBoxWrap::new(Self { expr }), ret_ln, ret_pos))
+        Ok((ExprStmtBoxWrap::new(Self { expr }), expr_ln, expr_pos))
     }
 }
 

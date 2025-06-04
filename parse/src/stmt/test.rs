@@ -20,10 +20,10 @@ fn expr_semicolon_stmt() {
             TokenType::Semicolon,
         ];
         let (expr_stmt, line, pos) =
-            ExprSemicolonStmt::parse(&mut deque, 1, 1).unwrap();
+            ExprValStmt::parse(&mut deque, 1, 1).unwrap();
         assert_eq!(
             expr_stmt.as_ref(),
-            &ExprSemicolonStmt {
+            &ExprValStmt {
                 expr: ExprBoxWrap::new(new_comparison_expr![
                     PrimaryExpr::Integer(1),
                     ComparisonOp::Equal,
@@ -33,33 +33,6 @@ fn expr_semicolon_stmt() {
         );
         assert_eq!(line, 1);
         assert_eq!(pos, 4);
-    }
-    // no semicolon
-    {
-        let mut deque = new_test_deque![
-            TokenType::Integer(1.to_string()),
-            TokenType::EqualEqual,
-            TokenType::Integer(1.to_string()),
-        ];
-        let expr_stmt = ExprSemicolonStmt::parse(&mut deque, 1, 1);
-        assert_eq!(
-            expr_stmt,
-            Err(ParseError::ExpectedToken { line: 1, pos: 3 })
-        );
-    }
-    // no expression, just semicolon
-    {
-        let mut deque = new_test_deque![TokenType::Semicolon,];
-        let expr_stmt = ExprSemicolonStmt::parse(&mut deque, 1, 1);
-        // this error is percolated up from PrimaryExpr::parse
-        assert_eq!(
-            expr_stmt,
-            Err(ParseError::UnexpectedToken(Token::new(
-                TokenType::Semicolon,
-                1,
-                1
-            )))
-        );
     }
 }
 

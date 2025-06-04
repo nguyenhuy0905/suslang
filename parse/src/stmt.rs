@@ -9,7 +9,7 @@ pub mod decl;
 pub mod expr;
 pub use decl::*;
 pub use expr::*;
-use tokenize::Token;
+use tokenize::{Token, TokenType};
 
 use crate::ParseError;
 #[cfg(test)]
@@ -62,6 +62,9 @@ impl PartialEq for dyn TypeImpl {
 impl Eq for dyn TypeImpl {}
 
 /// A statement is either an expression-statement or a declaration statement.
+///
+/// # Rule
+/// \<stmt\> ::= (\<expr-stmt\> | \<decl-stmt\>) ";"
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expr(ExprStmtBoxWrap),
@@ -100,6 +103,19 @@ impl Stmt {
         //         }
         //     }
         let (expr_stmt, ret_ln, ret_pos) = ExprStmt::parse(tokens, line, pos)?;
-        Ok((Self::Expr(expr_stmt), ret_ln, ret_pos))
+        let (semicolon_ln, semicolon_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken {
+                line: ret_ln,
+                pos: ret_pos,
+            })
+            .and_then(|tok| {
+                if matches!(tok.tok_typ, TokenType::Semicolon) {
+                    Ok((tok.line_number, tok.line_position))
+                } else {
+                    Err(ParseError::UnexpectedToken(tok))
+                }
+            })?;
+        Ok((Self::Expr(expr_stmt), semicolon_ln, semicolon_pos))
     }
 }
