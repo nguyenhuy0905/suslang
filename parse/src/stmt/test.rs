@@ -150,5 +150,35 @@ fn let_stmt() {
         );
         assert_eq!(pos, 6);
     }
-    // TODO: test some error cases
+    // let followed by nothing at all
+    {
+        let mut deque = new_test_deque![TokenType::Let];
+        let let_stmt = LetStmt::parse(&mut deque, 1, 1);
+        assert_eq!(
+            let_stmt,
+            Err(ParseError::ExpectedToken { line: 1, pos: 1 })
+        );
+    }
+    // same case as above but let mut
+    {
+        let mut deque = new_test_deque![TokenType::Let, TokenType::Mut];
+        let let_stmt = LetStmt::parse(&mut deque, 1, 1);
+        assert_eq!(
+            let_stmt,
+            Err(ParseError::ExpectedToken { line: 1, pos: 2 })
+        );
+    }
+    // no RHS
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Mut,
+            TokenType::Identifier("sus".to_string()),
+            TokenType::Equal
+        ];
+        let let_stmt = LetStmt::parse(&mut deque, 1, 1);
+        // NOTE: should this return the starting position of the
+        // statement, or the position where the error is encountered.
+        assert_eq!(let_stmt, Err(ParseError::UnendedStmt { line: 1, pos: 1 }));
+    }
 }
