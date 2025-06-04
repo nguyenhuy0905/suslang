@@ -1,4 +1,8 @@
-use std::{any::Any, fmt::Debug};
+use std::{any::Any, collections::VecDeque, fmt::Debug};
+
+use tokenize::{Token, TokenType};
+
+use crate::{Expr, ExprBoxWrap, ExprParse, ParseError};
 
 /// Statement AST node tag.
 ///
@@ -25,6 +29,12 @@ where
 
     fn boxed_clone(&self) -> Box<dyn DeclStmtImpl> {
         Box::new(self.clone())
+    }
+}
+
+impl PartialEq for dyn DeclStmtImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.accept_cmp(other)
     }
 }
 
@@ -62,5 +72,153 @@ impl Clone for DeclStmtBoxWrap {
 impl AsRef<dyn DeclStmtImpl> for DeclStmtBoxWrap {
     fn as_ref(&self) -> &dyn DeclStmtImpl {
         self.val.as_ref()
+    }
+}
+
+pub trait DeclStmtParse: DeclStmtImpl {
+    /// Parses into a [`DeclStmtBoxWrap`].
+    ///
+    /// # Errors
+    /// - If it fails, it fails.
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(DeclStmtBoxWrap, usize, usize), ParseError>;
+}
+
+/// Let statement.
+///
+/// # Rule
+/// "let" "mut"? ID "=" \<expr\>
+///
+/// # See also
+/// [`Expr`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct LetStmt {
+    pub name: String,
+    pub init_val: ExprBoxWrap,
+    pub mutability: LetStmtMut,
+}
+
+#[macro_export]
+macro_rules! new_let_stmt {
+    ($id:expr, $expr:expr, $mut:expr) => {
+        LetStmt {
+            name: String::from($id),
+            init_val: ExprBoxWrap::new($expr),
+            mutability: $mut,
+        }
+    };
+}
+
+impl LetStmt {
+    /// Parses into a `LetStmt`.
+    ///
+    /// # Errors
+    /// - If the tokens list is empty at any point where a token is expected,
+    ///   fail with [`ParseError::ExpectedToken`].
+    /// - Otherwise, if the very first token read is not a [`TokenType::Let`],
+    ///   fail with [`ParseError::UnexpectedToken`].
+    /// - If the 2nd token (or the 3rd if the 2nd is [`TokenType::Mut`]) is not
+    ///   a [`TokenType::Identifier`], fail with [`ParseError::UnexpectedToken`].
+    /// - If the token following the identifier mentioned above is not a
+    ///   [`TokenType::Equal`], fail with [`ParseError::UnexpectedToken`].
+    /// - After that, follow the return of [`Expr::parse`]. Save for
+    ///   [`Option::None`] error. In that case, return a
+    ///   [`ParseError::UnendedStmt`].
+    pub fn new_from(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        // check the "let"
+        let (let_ln, let_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Let => Ok((tok.line_number, tok.line_position)),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        // check mutability
+        let (mutability, mut_ln, mut_pos) = tokens
+            .front()
+            .ok_or(ParseError::ExpectedToken {
+                line: let_ln,
+                pos: let_pos,
+            })
+            .map(|tok| match tok.tok_typ {
+                TokenType::Mut => {
+                    (LetStmtMut::Mutable, tok.line_number, tok.line_position)
+                }
+                _ => {
+                    (LetStmtMut::Immutable, tok.line_number, tok.line_position)
+                }
+            })
+            .inspect(|(mutability, ..)| {
+                if mutability == &LetStmtMut::Mutable {
+                    tokens.pop_front();
+                }
+            })?;
+        let (name, name_ln, name_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken {
+                line: mut_ln,
+                pos: mut_pos,
+            })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Identifier(s) => {
+                    Ok((s, tok.line_number, tok.line_position))
+                }
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        // get the equal sign
+        let (eq_ln, eq_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken {
+                line: name_ln,
+                pos: name_pos,
+            })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Equal => Ok((tok.line_number, tok.line_position)),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        // parse the expr
+        let (init_val, ret_ln, ret_pos) = Expr::parse(tokens, eq_ln, eq_pos)
+            .map_err(|e| match e {
+                Some(err) => err,
+                None => ParseError::UnendedStmt {
+                    line: let_ln,
+                    pos: let_pos,
+                },
+            })?;
+        Ok((
+            Self {
+                name,
+                init_val,
+                mutability,
+            },
+            ret_ln,
+            ret_pos,
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LetStmtMut {
+    Immutable,
+    Mutable,
+}
+
+impl DeclStmtAst for LetStmt {}
+
+impl DeclStmtParse for LetStmt {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(DeclStmtBoxWrap, usize, usize), ParseError> {
+        Self::new_from(tokens, line, pos)
+            .map(|(ret, ln, ps)| (DeclStmtBoxWrap::new(ret), ln, ps))
     }
 }

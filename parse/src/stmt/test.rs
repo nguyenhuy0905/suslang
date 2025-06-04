@@ -1,9 +1,10 @@
+use crate::block::BlockExpr;
 use std::collections::VecDeque;
 use tokenize::{Token, TokenType};
 
 use crate::{
-    new_comparison_expr, new_test_deque, ComparisonExpr, ComparisonOp,
-    ExprBoxWrap, ParseError, PrimaryExpr,
+    new_block_expr, new_comparison_expr, new_let_stmt, new_test_deque,
+    ComparisonExpr, ComparisonOp, ExprBoxWrap, ParseError, PrimaryExpr,
 };
 
 use super::*;
@@ -110,4 +111,44 @@ fn return_stmt() {
             Err(ParseError::ExpectedToken { line: 1, pos: 1 })
         );
     }
+}
+
+#[test]
+fn let_stmt() {
+    // simplest case
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Identifier("void".to_string()),
+            TokenType::Equal,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let (let_stmt, .., pos) = LetStmt::parse(&mut deque, 1, 1).unwrap();
+        assert_eq!(
+            let_stmt.as_ref() as &dyn DeclStmtImpl,
+            &new_let_stmt!("void", new_block_expr!(), LetStmtMut::Immutable)
+                as &dyn DeclStmtImpl,
+        );
+        assert_eq!(pos, 5);
+    }
+    // mutable
+    {
+        let mut deque = new_test_deque![
+            TokenType::Let,
+            TokenType::Mut,
+            TokenType::Identifier("void".to_string()),
+            TokenType::Equal,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let (let_stmt, .., pos) = LetStmt::parse(&mut deque, 1, 1).unwrap();
+        assert_eq!(
+            let_stmt.as_ref() as &dyn DeclStmtImpl,
+            &new_let_stmt!("void", new_block_expr!(), LetStmtMut::Mutable)
+                as &dyn DeclStmtImpl,
+        );
+        assert_eq!(pos, 6);
+    }
+    // TODO: test some error cases
 }
