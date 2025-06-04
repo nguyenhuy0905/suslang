@@ -129,4 +129,44 @@ fn proc_expr() {
         );
         assert_eq!(pos, 10);
     }
+    // proc only
+    {
+        let mut deque = new_test_deque![TokenType::Proc];
+        let proc = ProcExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            proc,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 1 }))
+        );
+    }
+    // no closing paren
+    {
+        let mut deque = new_test_deque![
+            TokenType::Proc,
+            TokenType::LParen,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Comma,
+            TokenType::Identifier("yomama".to_string())
+        ];
+        let proc = ProcExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            proc,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 5 }))
+        );
+    }
+    // no block
+    {
+        let mut deque = new_test_deque![
+            TokenType::Proc,
+            TokenType::LParen,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Comma,
+            TokenType::Identifier("yomama".to_string()),
+            TokenType::RParen,
+        ];
+        let proc = ProcExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            proc,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 6 }))
+        );
+    }
 }

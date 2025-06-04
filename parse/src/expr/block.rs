@@ -110,7 +110,7 @@ impl ExprParse for BlockExpr {
 /// Declare a procedure
 ///
 /// # Rule
-/// \<proc-expr\> ::= "proc" "(" (ID ("," ID)*)? ")" \<block-expr\>
+/// \<proc-expr\> ::= "proc" "(" (ID ("," ID)*)? ","? ")" \<block-expr\>
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProcExpr {
     pub idents: HashSet<String>,
@@ -185,7 +185,7 @@ impl ExprParse for ProcExpr {
             idents.insert(id);
             // see if there's a comma following the identifier.
             // If yes, remove it so that the next iteration doesn't return
-            // error.
+            // error because of the comma. (UnexpectedToken)
             // Otherwise, it can be a right paren (which ends the parameter list)
             // or a random token which will error out in the next iteration.
             match tokens.front().map(Token::bind_ref) {
