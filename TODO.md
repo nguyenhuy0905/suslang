@@ -1,8 +1,8 @@
 ## Todo
 
-- Last updated June 3rd 2025.
+- Last updated June 4th 2025.
   - Add error test cases for LetStmt. DONE
-  - Add error test cases for BlockExpr.
+  - Add error test cases for BlockExpr. DONE (already)
   - Implement a proc-call expr with equal precedence to the current highest
     (that is, PrimaryExpr).
   - Implement if-elif-else expr.
