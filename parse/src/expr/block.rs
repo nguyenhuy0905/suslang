@@ -165,36 +165,51 @@ impl ExprParse for ProcExpr {
         let (mut while_ln, mut while_pos) = (brace_ln, brace_pos);
         let mut idents: HashSet<String> = HashSet::new();
         // get the parameter list
-        while !matches!(
+        if !matches!(
             tokens.front().map(Token::token_type),
             Some(&TokenType::RParen),
         ) {
-            // match the identifier
-            let (id, id_ln, id_pos) = tokens
-                .pop_front()
-                .ok_or(Some(ParseError::ExpectedToken {
-                    line: while_ln,
-                    pos: while_pos,
-                }))
-                .and_then(|tok| match tok.tok_typ {
-                    TokenType::Identifier(s) => {
-                        Ok((s, tok.line_number, tok.line_position))
+            loop {
+                // match the identifier
+                let (id, id_ln, id_pos) = tokens
+                    .pop_front()
+                    .ok_or(Some(ParseError::ExpectedToken {
+                        line: while_ln,
+                        pos: while_pos,
+                    }))
+                    .and_then(|tok| match tok.tok_typ {
+                        TokenType::Identifier(s) => {
+                            Ok((s, tok.line_number, tok.line_position))
+                        }
+                        _ => Err(Some(ParseError::UnexpectedToken(tok))),
+                    })?;
+                idents.insert(id);
+                // see if there's a comma following the identifier.
+                // There should be a next token or it's an `ExpectedToken`.
+                // If yes, remove it so that the next iteration doesn't return
+                // error because of the comma. (UnexpectedToken)
+                // If it's a RParen instead, done with the loop.
+                // Otherwise, it's an `UnexpectedToken`.
+                match tokens.front().map(Token::bind_ref) {
+                    Some((&TokenType::Comma, comma_ln, comma_pos)) => {
+                        tokens.pop_front();
+                        (while_ln, while_pos) = (comma_ln, comma_pos);
                     }
-                    _ => Err(Some(ParseError::UnexpectedToken(tok))),
-                })?;
-            idents.insert(id);
-            // see if there's a comma following the identifier.
-            // If yes, remove it so that the next iteration doesn't return
-            // error because of the comma. (UnexpectedToken)
-            // Otherwise, it can be a right paren (which ends the parameter list)
-            // or a random token which will error out in the next iteration.
-            match tokens.front().map(Token::bind_ref) {
-                Some((&TokenType::Comma, comma_ln, comma_pos)) => {
-                    tokens.pop_front();
-                    (while_ln, while_pos) = (comma_ln, comma_pos);
-                }
-                _ => {
-                    (while_ln, while_pos) = (id_ln, id_pos);
+                    Some((&TokenType::RParen, ..)) => {
+                        (while_ln, while_pos) = (id_ln, id_pos);
+                        break;
+                    }
+                    Some(_) => {
+                        return Err(Some(ParseError::UnexpectedToken(
+                            tokens.pop_front().unwrap(),
+                        )));
+                    }
+                    None => {
+                        return Err(Some(ParseError::ExpectedToken {
+                            line: id_ln,
+                            pos: id_pos,
+                        }));
+                    }
                 }
             }
         }
