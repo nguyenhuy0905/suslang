@@ -1,4 +1,5 @@
-use crate::block::BlockExpr;
+use crate::block::{BlockExpr, ProcExpr};
+use std::collections::HashSet;
 
 use super::*;
 
@@ -75,5 +76,57 @@ fn block_expr() {
             block,
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 3 }))
         );
+    }
+}
+
+#[test]
+fn proc_expr() {
+    // simplest
+    {
+        let mut deque = new_test_deque![
+            TokenType::Proc,
+            TokenType::LParen,
+            TokenType::RParen,
+            TokenType::LCParen,
+            TokenType::RCParen
+        ];
+        let (proc, .., pos) = ProcExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(proc, new_proc_expr!((), new_block_expr!()));
+        assert_eq!(pos, 5);
+    }
+    // single param
+    {
+        let mut deque = new_test_deque![
+            TokenType::Proc,
+            TokenType::LParen,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::RParen,
+            TokenType::LCParen,
+            TokenType::RCParen
+        ];
+        let (proc, .., pos) = ProcExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(proc, new_proc_expr!(("urmom"), new_block_expr!()));
+        assert_eq!(pos, 6);
+    }
+    // multiple (2) params
+    {
+        let mut deque = new_test_deque![
+            TokenType::Proc,
+            TokenType::LParen,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Comma,
+            TokenType::Identifier("yomama".to_string()),
+            TokenType::Comma,
+            TokenType::Identifier("joe".to_string()),
+            TokenType::RParen,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let (proc, .., pos) = ProcExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            proc,
+            new_proc_expr!(("urmom", "yomama", "joe"), new_block_expr!())
+        );
+        assert_eq!(pos, 10);
     }
 }

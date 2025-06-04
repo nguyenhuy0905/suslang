@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use tokenize::{Token, TokenType};
 
@@ -6,6 +6,10 @@ use crate::{ParseError, Stmt};
 
 use super::{ExprAst, ExprBoxWrap, ExprParse};
 
+/// Block expression
+///
+/// # Rule
+/// \<block-expr\> ::= "{" \<stmt\> "}"
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockExpr {
     pub statements: Vec<Stmt>,
@@ -100,5 +104,112 @@ impl ExprParse for BlockExpr {
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         Self::new_from(tokens, line, pos)
             .map(|(res, ln, pos)| (ExprBoxWrap::new(res), ln, pos))
+    }
+}
+
+/// Declare a procedure
+///
+/// # Rule
+/// \<proc-expr\> ::= "proc" "(" (ID ("," ID)*)? ")" \<block-expr\>
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProcExpr {
+    pub idents: HashSet<String>,
+    pub block: BlockExpr,
+}
+
+#[macro_export]
+macro_rules! new_proc_expr {
+    ((), $blk:expr) => {
+        ProcExpr {
+            idents: HashSet::new(),
+            block: $blk,
+        }
+    };
+    (($first_id:expr $(, $id:expr)*), $blk:expr) => {
+        ProcExpr {
+            idents: HashSet::from([String::from($first_id) $(, String::from($id))*]),
+            block: $blk,
+        }
+    };
+}
+
+impl ExprAst for ProcExpr {}
+
+impl ExprParse for ProcExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
+        // check for keyword "proc"
+        let (proc_ln, proc_pos) = tokens
+            .pop_front()
+            .ok_or(Some(ParseError::ExpectedToken { line, pos }))
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Proc => Ok((tok.line_number, tok.line_position)),
+                _ => Err(Some(ParseError::UnexpectedToken(tok))),
+            })?;
+
+        // which should be followed by left paren
+        let (brace_ln, brace_pos) = tokens
+            .pop_front()
+            .ok_or(Some(ParseError::ExpectedToken {
+                line: proc_ln,
+                pos: proc_pos,
+            }))
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::LParen => Ok((tok.line_number, tok.line_position)),
+                _ => Err(Some(ParseError::UnexpectedToken(tok))),
+            })?;
+
+        let (mut while_ln, mut while_pos) = (brace_ln, brace_pos);
+        let mut idents: HashSet<String> = HashSet::new();
+        // get the parameter list
+        while !matches!(
+            tokens.front().map(Token::token_type),
+            Some(&TokenType::RParen),
+        ) {
+            // match the identifier
+            let (id, id_ln, id_pos) = tokens
+                .pop_front()
+                .ok_or(Some(ParseError::ExpectedToken {
+                    line: while_ln,
+                    pos: while_pos,
+                }))
+                .and_then(|tok| match tok.tok_typ {
+                    TokenType::Identifier(s) => {
+                        Ok((s, tok.line_number, tok.line_position))
+                    }
+                    _ => Err(Some(ParseError::UnexpectedToken(tok))),
+                })?;
+            idents.insert(id);
+            // see if there's a comma following the identifier.
+            // If yes, remove it so that the next iteration doesn't return
+            // error.
+            // Otherwise, it can be a right paren (which ends the parameter list)
+            // or a random token which will error out in the next iteration.
+            match tokens.front().map(Token::bind_ref) {
+                Some((&TokenType::Comma, comma_ln, comma_pos)) => {
+                    tokens.pop_front();
+                    (while_ln, while_pos) = (comma_ln, comma_pos);
+                }
+                _ => {
+                    (while_ln, while_pos) = (id_ln, id_pos);
+                }
+            }
+        }
+        // remove the closing paren then parse the block expr.
+        let (typ, typ_ln, typ_pos) = tokens
+            .pop_front()
+            .ok_or(Some(ParseError::ExpectedToken {
+                line: while_ln,
+                pos: while_pos,
+            }))
+            .map(Token::bind)?;
+        debug_assert!(matches!(typ, TokenType::RParen));
+
+        let (block, ret_ln, ret_pos) =
+            BlockExpr::new_from(tokens, typ_ln, typ_pos)?;
+        Ok((ExprBoxWrap::new(Self { idents, block }), ret_ln, ret_pos))
     }
 }
