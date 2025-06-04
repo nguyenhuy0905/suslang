@@ -40,8 +40,7 @@ fn expr_semicolon_stmt() {
 fn return_stmt() {
     // ur simple return stmt, without value
     {
-        let mut deque =
-            new_test_deque![TokenType::Return, TokenType::Semicolon];
+        let mut deque = new_test_deque![TokenType::Return];
         let (ret_stmt, line, pos) =
             ReturnStmt::parse(&mut deque, 1, 1).unwrap();
         assert_eq!(
@@ -49,7 +48,7 @@ fn return_stmt() {
             &ReturnStmt { expr: None } as &dyn ExprStmtImpl
         );
         assert_eq!(line, 1);
-        assert_eq!(pos, 2);
+        assert_eq!(pos, 1);
     }
     // ur simple return stmt, with value
     {
@@ -58,7 +57,6 @@ fn return_stmt() {
             TokenType::Integer(1.to_string()),
             TokenType::EqualEqual,
             TokenType::Integer(1.to_string()),
-            TokenType::Semicolon,
         ];
         let (ret_stmt, line, pos) =
             ReturnStmt::parse(&mut deque, 1, 1).unwrap();
@@ -73,16 +71,7 @@ fn return_stmt() {
             } as &dyn ExprStmtImpl
         );
         assert_eq!(line, 1);
-        assert_eq!(pos, 5);
-    }
-    // no semicolon
-    {
-        let mut deque = new_test_deque![TokenType::Return,];
-        let ret_stmt = ReturnStmt::parse(&mut deque, 1, 1);
-        assert_eq!(
-            ret_stmt,
-            Err(ParseError::ExpectedToken { line: 1, pos: 1 })
-        );
+        assert_eq!(pos, 4);
     }
 }
 

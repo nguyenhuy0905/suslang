@@ -2,25 +2,139 @@ use super::*;
 
 #[test]
 fn primary_types() {
-    let (line, pos) = (1, 1);
-    let mut deque = new_test_deque![
-        TokenType::Integer("3".to_string()),
-        TokenType::Double("4.20".to_string()),
-        TokenType::String("hello".to_string()),
-        TokenType::Ya,
-        TokenType::Na,
-    ];
+    // actual primary expressions
+    {
+        let (line, pos) = (1, 1);
+        let mut deque = new_test_deque![
+            TokenType::Integer("3".to_string()),
+            TokenType::Double("4.20".to_string()),
+            TokenType::String("hello".to_string()),
+            TokenType::Ya,
+            TokenType::Na,
+            TokenType::Identifier("sup".to_string()),
+        ];
 
-    let (prim1, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
-    assert_ast_eq!(prim1, PrimaryExpr::Integer(3));
-    let (prim2, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
-    assert_ast_eq!(prim2, PrimaryExpr::Float(4.2));
-    let (prim3, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
-    assert_ast_eq!(prim3, PrimaryExpr::String("hello".to_string()));
-    let (prim4, line, pos) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
-    assert_ast_eq!(prim4, PrimaryExpr::Boolean(true));
-    let (prim5, ..) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
-    assert_ast_eq!(prim5, PrimaryExpr::Boolean(false));
+        let (prim1, line, pos) =
+            PrimaryExpr::parse(&mut deque, line, pos).unwrap();
+        assert_ast_eq!(prim1, PrimaryExpr::Integer(3));
+        let (prim2, line, pos) =
+            PrimaryExpr::parse(&mut deque, line, pos).unwrap();
+        assert_ast_eq!(prim2, PrimaryExpr::Float(4.2));
+        let (prim3, line, pos) =
+            PrimaryExpr::parse(&mut deque, line, pos).unwrap();
+        assert_ast_eq!(prim3, PrimaryExpr::String("hello".to_string()));
+        let (prim4, line, pos) =
+            PrimaryExpr::parse(&mut deque, line, pos).unwrap();
+        assert_ast_eq!(prim4, PrimaryExpr::Boolean(true));
+        let (prim5, line, pos) =
+            PrimaryExpr::parse(&mut deque, line, pos).unwrap();
+        assert_ast_eq!(prim5, PrimaryExpr::Boolean(false));
+        let (prim6, ..) = PrimaryExpr::parse(&mut deque, line, pos).unwrap();
+        assert_ast_eq!(prim6, PrimaryExpr::Identifier("sup".to_string()));
+    }
+    // proc-call has same precedence
+    // proc-call simplest
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("sus".to_string()),
+            TokenType::LParen,
+            TokenType::RParen,
+        ];
+        let (prim, .., pos) = PrimaryExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(prim, new_proc_call_expr!("sus", ()));
+        assert_eq!(pos, 3);
+    }
+    // proc-call with 1 param
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("mofo".to_string()),
+            TokenType::LParen,
+            TokenType::Identifier("mofo".to_string()),
+            TokenType::LParen,
+            TokenType::Identifier("ehe".to_string()),
+            TokenType::RParen,
+            TokenType::RParen,
+        ];
+        let (prim, .., pos) = PrimaryExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            prim,
+            new_proc_call_expr!(
+                "mofo".to_string(),
+                (new_proc_call_expr!(
+                    "mofo".to_string(),
+                    (PrimaryExpr::Identifier("ehe".to_string()))
+                ))
+            )
+        );
+        assert_eq!(pos, 7);
+    }
+    // proc-call with multiple params
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("mofo".to_string()),
+            TokenType::LParen,
+            TokenType::Identifier("sus".to_string()),
+            TokenType::Comma,
+            TokenType::Identifier("amogus".to_string()),
+            TokenType::RParen
+        ];
+        let (prim, .., pos) = PrimaryExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            prim,
+            new_proc_call_expr!(
+                "mofo".to_string(),
+                (
+                    PrimaryExpr::Identifier("sus".to_string()),
+                    PrimaryExpr::Identifier("amogus".to_string()),
+                )
+            )
+        );
+        assert_eq!(pos, 6);
+    }
+    // proc-call without closing paren and params
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("mofo".to_string()),
+            TokenType::LParen,
+        ];
+        let prim = PrimaryExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            prim,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 2 }))
+        );
+    }
+    // proc-call without closing paren
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("mofo".to_string()),
+            TokenType::LParen,
+            TokenType::Identifier("sus".to_string())
+        ];
+        let prim = PrimaryExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            prim,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 3 }))
+        );
+    }
+    // params not separated with comma
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("mofo".to_string()),
+            TokenType::LParen,
+            TokenType::Identifier("sus".to_string()),
+            TokenType::Identifier("amogus".to_string()),
+            TokenType::RParen
+        ];
+        let prim = PrimaryExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            prim,
+            Err(Some(ParseError::UnexpectedToken(Token::new(
+                TokenType::Identifier("amogus".to_string()),
+                1,
+                4
+            ))))
+        );
+    }
 }
 
 #[test]

@@ -53,11 +53,25 @@ impl ExprParse for PrimaryExpr {
                 TokenType::String(s) => {
                     Ok((ExprBoxWrap::new(PrimaryExpr::String(s)), line, pos))
                 }
-                TokenType::Identifier(s) => Ok((
-                    ExprBoxWrap::new(PrimaryExpr::Identifier(s)),
-                    line,
-                    pos,
-                )),
+                TokenType::Identifier(s) => {
+                    // if the next token is a left-paren, it should be a
+                    // proc-call.
+                    if tokens.front().map(Token::token_type)
+                        == Some(&TokenType::LParen)
+                    {
+                        ProcCallExpr::parse_with_name(s, tokens, line, pos).map(
+                            |(retval, ret_ln, ret_pos)| {
+                                (ExprBoxWrap::new(retval), ret_ln, ret_pos)
+                            },
+                        )
+                    } else {
+                        Ok((
+                            ExprBoxWrap::new(PrimaryExpr::Identifier(s)),
+                            line,
+                            pos,
+                        ))
+                    }
+                }
                 TokenType::Ya => Ok((
                     ExprBoxWrap::new(PrimaryExpr::Boolean(true)),
                     line,
@@ -92,6 +106,124 @@ impl ExprParse for PrimaryExpr {
         }
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ProcCallExpr {
+    pub ident: String,
+    pub params: Vec<ExprBoxWrap>,
+}
+
+#[macro_export]
+macro_rules! new_proc_call_expr {
+    ($name:expr, ($($first_param:expr $(, $follow_param:expr)* $(,)?)?)) => {
+        ProcCallExpr {
+            ident: String::from($name),
+            params: vec![$(ExprBoxWrap::new($first_param) $(,ExprBoxWrap::new($follow_param))*)?],
+        }
+    };
+}
+
+impl ProcCallExpr {
+    /// Parse into a `ProcCallExpr`, given the name.
+    ///
+    /// The design is like so because when parsing an identifier, it's only a
+    /// procedure call if that identifier is immediately followed by a left-paren,
+    /// then a list of expressions that is the parameters, and finally a closing
+    /// paren.
+    ///
+    /// # Errors
+    /// - If at any point, there's no token left in `tokens` but there should be
+    ///   one, return `Some(`[`ParseError::ExpectedToken`]`)`.
+    /// - If the first token isn't a [`TokenType::LParen`], return
+    ///   `Some(`[`ParseError::UnexpectedToken`]`)`.
+    /// - If the token following that left-paren isn't a
+    ///   [`TokenType::Identifier`] or [`TokenType::RParen`], return
+    ///   `Some(`[`ParseError::UnexpectedToken`]`)`.
+    /// - A [`TokenType::RParen`] is expected as the very last token of this
+    ///   expression.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn parse_with_name(
+        name: String,
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), Option<ParseError>> {
+        let (lp_line, lp_pos) = tokens
+            .pop_front()
+            .ok_or(Some(ParseError::ExpectedToken { line, pos }))
+            .map(|tok| (tok.line_number, tok.line_position))?;
+        let (mut ret_ln, mut ret_pos) = (lp_line, lp_pos);
+        let mut params: Vec<ExprBoxWrap> = Vec::new();
+        if !matches!(
+            tokens.front().map(Token::token_type),
+            Some(&TokenType::RParen)
+        ) {
+            loop {
+                let (expr, expr_ln, expr_pos) = Expr::parse(
+                    tokens, ret_ln, ret_pos,
+                )
+                .map_err(|e| match e {
+                    Some(err) => err,
+                    None => ParseError::ExpectedToken {
+                        line: ret_ln,
+                        pos: ret_pos,
+                    },
+                })?;
+                params.push(expr);
+                // check for comma
+                // see if there's a comma following the identifier.
+                // There should be a next token or it's an `ExpectedToken`.
+                // If yes, remove it so that the next iteration doesn't return
+                // error because of the comma. (UnexpectedToken)
+                // If it's a RParen instead, done with the loop.
+                // Otherwise, it's an `UnexpectedToken`.
+                match tokens.front().map(Token::bind_ref) {
+                    Some((&TokenType::Comma, comma_ln, comma_pos)) => {
+                        tokens.pop_front();
+                        (ret_ln, ret_pos) = (comma_ln, comma_pos);
+                    }
+                    Some((&TokenType::RParen, rp_ln, rp_pos)) => {
+                        (ret_ln, ret_pos) = (rp_ln, rp_pos);
+                        break;
+                    }
+                    Some(_) => {
+                        return Err(Some(ParseError::UnexpectedToken(
+                            tokens.pop_front().unwrap(),
+                        )));
+                    }
+                    None => {
+                        return Err(Some(ParseError::ExpectedToken {
+                            line: expr_ln,
+                            pos: expr_pos,
+                        }));
+                    }
+                }
+            }
+        }
+        // remove the right-paren
+        let (rp_line, rp_pos) = tokens
+            .pop_front()
+            .ok_or(Some(ParseError::ExpectedToken {
+                line: ret_ln,
+                pos: ret_pos,
+            }))
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::RParen => Ok((tok.line_number, tok.line_position)),
+                _ => Err(Some(ParseError::UnexpectedToken(tok))),
+            })?;
+        (ret_ln, ret_pos) = (rp_line, rp_pos);
+        Ok((
+            Self {
+                ident: name,
+                params,
+            },
+            ret_ln,
+            ret_pos,
+        ))
+    }
+}
+
+impl ExprAst for ProcCallExpr {}
 
 /// Unary expressions
 ///

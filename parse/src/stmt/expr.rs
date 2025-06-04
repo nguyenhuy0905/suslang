@@ -185,19 +185,6 @@ impl ExprStmtParse for ReturnStmt {
                 TokenType::Return => Ok((tok.line_number, tok.line_position)),
                 _ => Err(ParseError::UnexpectedToken(tok)),
             })?;
-
-        if tokens.front().map(Token::token_type) == Some(&TokenType::Semicolon)
-        {
-            let (ret_ln, ret_pos) = tokens
-                .pop_front()
-                .map(|tok| (tok.line_number, tok.line_position))
-                .unwrap();
-            return Ok((
-                ExprStmtBoxWrap::new(Self { expr: None }),
-                ret_ln,
-                ret_pos,
-            ));
-        }
         let (expr, expr_ln, expr_pos) =
             match Expr::parse(tokens, ret_tok_ln, ret_tok_pos) {
                 Ok((expr, ln, pos)) => Ok((Some(expr), ln, pos)),
