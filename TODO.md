@@ -4,7 +4,9 @@
   - Add error test cases for LetStmt. DONE
   - Add error test cases for BlockExpr. DONE (already)
   - Implement a proc-call expr with equal precedence to the current highest
-    (that is, PrimaryExpr).
+    (that is, PrimaryExpr). DONE
+  - Add more error test cases for ProcCallExpr (specifically, trailing-comma
+    case).
   - Implement if-elif-else expr.
   - Implement while expr.
   - Implement a block-escape statement. With probably a new keyword.
