@@ -96,7 +96,9 @@ pub trait ExprParse: ExprAstImpl {
 /// Dummy expression struct
 ///
 /// # Rule (for now)
-/// \<expr\> ::= \<logic-or-expr\>
+/// \<expr\> ::=  \<proc-expr\>
+///             | \<block-expr\>
+///             | \<logic-or-expr\>
 ///
 /// # See also
 /// [`LogicOrExpr`]
