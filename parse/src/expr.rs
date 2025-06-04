@@ -6,7 +6,7 @@ pub mod cond;
 #[cfg(test)]
 mod test;
 pub use arith::*;
-use block::BlockExpr;
+use block::{BlockExpr, ProcExpr};
 pub use cond::*;
 use tokenize::TokenType;
 
@@ -113,6 +113,7 @@ impl ExprParse for Expr {
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         match tokens.front().map(Token::token_type) {
             Some(&TokenType::LCParen) => BlockExpr::parse(tokens, line, pos),
+            Some(&TokenType::Proc) => ProcExpr::parse(tokens, line, pos),
             _ => LogicOrExpr::parse(tokens, line, pos),
         }
     }
