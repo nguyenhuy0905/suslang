@@ -105,7 +105,10 @@ impl ExprStmtParse for ExprStmt {
     }
 }
 
-/// An expression followed by a semicolon
+/// An expression basically.
+///
+/// Very boring, but this wrapper is needed to enable some statement-specific
+/// features.
 ///
 /// # Rule
 /// \<expr-stmt\> ::= \<expr\>
@@ -143,10 +146,10 @@ impl ExprStmtParse for ExprValStmt {
     }
 }
 
-/// Return, then optionally a statement, then a semicolon
+/// Return, then optionally a statement
 ///
 /// # Rule
-/// \<expr-stmt\> ::= "return" \<expr\>? ";"
+/// \<expr-stmt\> ::= "return" \<expr\>?
 ///
 /// # See also
 /// [`Expr`]
@@ -202,20 +205,6 @@ impl ExprStmtParse for ReturnStmt {
                 Err(Some(e)) => Err(e),
             }?;
 
-        let (ret_ln, ret_pos) = tokens
-            .pop_front()
-            .ok_or(ParseError::ExpectedToken {
-                line: expr_ln,
-                pos: expr_pos,
-            })
-            .and_then(|tok| {
-                if matches!(tok.tok_typ, TokenType::Semicolon) {
-                    Ok((tok.line_number, tok.line_position))
-                } else {
-                    Err(ParseError::UnexpectedToken(tok))
-                }
-            })?;
-
-        Ok((ExprStmtBoxWrap::new(Self { expr }), ret_ln, ret_pos))
+        Ok((ExprStmtBoxWrap::new(Self { expr }), expr_ln, expr_pos))
     }
 }
