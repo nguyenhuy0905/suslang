@@ -1,6 +1,6 @@
 ## Todo
 
-- Last updated June 4th 2025.
+- Last updated June 11th 2025.
   - [x] Add error test cases for LetStmt.
   - [x] Add error test cases for BlockExpr.
   - [x] Implement a proc-call expr with equal precedence to the current highest
@@ -8,6 +8,12 @@
   - [x] Add more error test cases for ProcCallExpr (specifically, trailing-comma
     case).
   - [ ] Implement if-elif-else expr.
+    - [x] Define structs and grammar rules.
+    - [ ] Define `new_from` for all types of branches
+      - [x] `IfBranch`
+      - [ ] `ElifBranch`
+      - [ ] `ElseBranch`
+    - [ ] Test it out!
   - [ ] Implement while expr.
   - [ ] Implement a block-escape statement. With probably a new keyword.
   - [ ] Start rolling the dummy semantics analysis system.
