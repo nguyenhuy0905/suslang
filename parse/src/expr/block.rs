@@ -54,7 +54,7 @@ impl BlockExpr {
         tokens: &mut VecDeque<Token>,
         line: usize,
         pos: usize,
-    ) -> Result<(Self, usize, usize), Option<ParseError>> {
+    ) -> Result<(Self, usize, usize), ParseError> {
         let (lc_line, lc_pos) = tokens
             .pop_front()
             .ok_or(ParseError::ExpectedToken { line, pos })
@@ -104,6 +104,7 @@ impl ExprParse for BlockExpr {
     ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
         Self::new_from(tokens, line, pos)
             .map(|(res, ln, pos)| (ExprBoxWrap::new(res), ln, pos))
+            .map_err(Some)
     }
 }
 
