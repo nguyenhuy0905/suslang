@@ -169,4 +169,25 @@ fn proc_expr() {
             Err(Some(ParseError::ExpectedToken { line: 1, pos: 6 }))
         );
     }
+    // trailing comma in param list
+    {
+        let mut deque = new_test_deque![
+            TokenType::Proc,
+            TokenType::LParen,
+            TokenType::Identifier("urmom".to_string()),
+            TokenType::Comma,
+            TokenType::RParen,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let proc = ProcExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            proc,
+            Err(Some(ParseError::UnexpectedToken(Token::new(
+                TokenType::RParen,
+                1,
+                5
+            ))))
+        );
+    }
 }
