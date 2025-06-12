@@ -5,7 +5,7 @@
   - [x] Add error test cases for BlockExpr.
   - [x] Implement a proc-call expr with equal precedence to the current highest
     (that is, PrimaryExpr).
-  - [ ] Add more error test cases for ProcCallExpr (specifically, trailing-comma
+  - [x] Add more error test cases for ProcCallExpr (specifically, trailing-comma
     case).
   - [ ] Implement if-elif-else expr.
   - [ ] Implement while expr.
