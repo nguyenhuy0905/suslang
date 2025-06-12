@@ -2,7 +2,7 @@ use std::collections::{HashSet, VecDeque};
 
 use tokenize::{Token, TokenType};
 
-use crate::{ParseError, Stmt};
+use crate::{Expr, ParseError, Stmt};
 
 use super::{ExprAst, ExprBoxWrap, ExprParse};
 
@@ -227,5 +227,185 @@ impl ExprParse for ProcExpr {
         let (block, ret_ln, ret_pos) =
             BlockExpr::new_from(tokens, typ_ln, typ_pos)?;
         Ok((ExprBoxWrap::new(Self { idents, block }), ret_ln, ret_pos))
+    }
+}
+
+/// If-elif-else expression
+///
+/// # Rule
+///
+/// \<if-expr\> ::= \<if-branch\> \<elif-branch\>* \<else-branch\>?
+///
+/// # Note
+///
+/// # See also
+/// [`IfBranch`]
+/// [`ElifBranch`]
+/// [`ElseBranch`]
+/// [`Expr`](super::Expr)
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfExpr {
+    pub if_branch: IfBranch,
+    pub else_branch: Option<ElseBranch>,
+    pub elif_branches: Vec<ElifBranch>,
+}
+
+impl ExprAst for IfExpr {}
+
+/// If-branch of [`IfExpr`]
+///
+/// # Rule
+/// \<if-branch\> ::= "if" \<expr\> \<block-expr\>
+///
+/// # See also
+/// [`IfExpr`]
+/// [`BlockExpr`]
+/// [`ElifBranch`]
+/// [`ElseBranch`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfBranch {
+    pub cond: ExprBoxWrap,
+    pub block: BlockExpr,
+}
+
+impl IfBranch {
+    // TODO: remove dead code and unused allows here.
+    /// Parses an [`IfBranch`] from the token list passed in.
+    ///
+    /// # Parameters:
+    /// - `tokens` List of tokens.
+    /// - `line` `pos` Position of token just popped front before passing
+    ///   `tokens` into this function. If no token has been popped yet, just
+    ///   pass the position of the first token in. If there's no token, why are
+    ///   you even calling this.
+    ///
+    /// # Errors
+    /// - If there's no token where a token is expected, return
+    ///   [`ParseError::ExpectedToken`].
+    /// - If the first token is not [`TokenType::If`], return
+    ///   [`ParseError::UnexpectedToken`].
+    /// - If parsing of [`Expr`] fails, percolate the failure. If the returned
+    ///   failure is `None`, return a [`ParseError::UnendedStmt`] instead.
+    /// - Similarly, if parsing of [`BlockExpr`] fails, percolate the failure.
+    #[allow(dead_code)]
+    #[allow(unused)]
+    pub(super) fn new_from(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        let (if_ln, if_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::If => Ok((tok.line_number, tok.line_position)),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        let (cond, cond_ln, cond_pos) = Expr::parse(tokens, if_ln, if_pos)
+            .map_err(|e| match e {
+                None => ParseError::UnendedStmt {
+                    line: if_ln,
+                    pos: if_pos,
+                },
+                Some(err) => err,
+            })?;
+        let (block, block_ln, block_pos) =
+            BlockExpr::new_from(tokens, cond_ln, cond_pos)?;
+        Ok((Self { cond, block }, block_ln, block_pos))
+    }
+}
+
+/// Elif-branch of [`IfExpr`]
+///
+/// # Rule
+/// \<elif-branch\> ::= "elif" \<expr\> \<block-expr\>
+/// - Basically identical to if, but the keyword is "else".
+///
+/// # See also
+/// [`IfExpr`]
+/// [`BlockExpr`]
+/// [`IfBranch`]
+/// [`ElseBranch`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ElifBranch {
+    pub cond: ExprBoxWrap,
+    pub expr: BlockExpr,
+}
+
+impl ElifBranch {
+    // TODO: remove dead code and unused allows here.
+    /// Parses an [`ElifBranch`] from the token list passed in.
+    ///
+    /// # Parameters:
+    /// - `tokens` List of tokens.
+    /// - `line` `pos` Position of token just popped front before passing
+    ///   `tokens` into this function. If no token has been popped yet, just
+    ///   pass the position of the first token in. If there's no token, why are
+    ///   you even calling this.
+    ///
+    /// # Errors
+    /// - If there's no token where a token is expected, return
+    ///   [`ParseError::ExpectedToken`].
+    /// - If the first token is not [`TokenType::Elif`], return
+    ///   [`ParseError::UnexpectedToken`].
+    /// - If parsing of [`Expr`] fails, percolate the failure. If the returned
+    ///   failure is `None`, return a [`ParseError::UnendedStmt`] instead.
+    /// - Similarly, if parsing of [`BlockExpr`] fails, percolate the failure.
+    #[allow(dead_code)]
+    #[allow(unused)]
+    pub(super) fn new_from(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        todo!()
+    }
+}
+
+/// Else-branch of [`IfExpr`]
+///
+/// # Rule
+/// \<else-branch\> ::= "else" \<block-expr\>
+///
+/// # Note
+/// - Since an [`IfExpr`] is an [`Expr`](ExprAst), it can be the expression
+///   for this. In the form of "else if ...".
+/// - You can chain a bunch of "else if"s behind.
+///
+/// # See also
+/// [`IfExpr`]
+/// [`IfBranch`]
+/// [`BlockExpr`]
+/// [`ElifBranch`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ElseBranch {
+    pub expr: BlockExpr,
+}
+
+impl ElseBranch {
+    // TODO: remove dead code and unused allows here.
+    /// Parses an [`ElseBranch`] from the token list passed in.
+    ///
+    /// # Parameters:
+    /// - `tokens` List of tokens.
+    /// - `line` `pos` Position of token just popped front before passing
+    ///   `tokens` into this function. If no token has been popped yet, just
+    ///   pass the position of the first token in. If there's no token, why are
+    ///   you even calling this.
+    ///
+    /// # Errors
+    /// - If there's no token where a token is expected, return
+    ///   [`ParseError::ExpectedToken`].
+    /// - If the first token is not [`TokenType::Else`], return
+    ///   [`ParseError::UnexpectedToken`].
+    /// - If parsing of [`BlockExpr`] fails, percolate the failure.
+    #[allow(dead_code)]
+    #[allow(unused)]
+    pub(super) fn new_from(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        todo!()
     }
 }
