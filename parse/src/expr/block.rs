@@ -252,6 +252,56 @@ pub struct IfExpr {
 
 impl ExprAst for IfExpr {}
 
+impl ExprParse for IfExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
+        // the first item must be an `IfBranch`
+        let (if_branch, if_ln, if_pos) = IfBranch::new_from(tokens, line, pos)?;
+        let mut elif_branches: Vec<ElifBranch> = Vec::new();
+        let (mut elif_ln, mut elif_pos) = (if_ln, if_pos);
+        // which can be followed by any number of `ElifBranch`es
+        while tokens
+            .front()
+            .is_some_and(|tok| tok.token_type() == &TokenType::Elif)
+        {
+            let (next_elif, next_elif_ln, next_elif_pos) =
+                ElifBranch::new_from(tokens, elif_ln, elif_pos)?;
+            elif_branches.push(next_elif);
+            (elif_ln, elif_pos) = (next_elif_ln, next_elif_pos);
+        }
+        // and can end with or without `ElseBranch`
+        if tokens
+            .front()
+            .is_some_and(|tok| tok.token_type() == &TokenType::Else)
+        {
+            let (else_branch, ret_ln, ret_pos) =
+                ElseBranch::new_from(tokens, elif_ln, elif_pos)?;
+            Ok((
+                ExprBoxWrap::new(Self {
+                    if_branch,
+                    else_branch: Some(else_branch),
+                    elif_branches,
+                }),
+                ret_ln,
+                ret_pos,
+            ))
+        } else {
+            Ok((
+                ExprBoxWrap::new(Self {
+                    if_branch,
+                    else_branch: None,
+                    elif_branches,
+                }),
+                elif_ln,
+                elif_pos,
+            ))
+        }
+    }
+}
+
 /// If-branch of [`IfExpr`]
 ///
 /// # Rule
