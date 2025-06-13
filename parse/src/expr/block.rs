@@ -329,7 +329,7 @@ impl IfBranch {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElifBranch {
     pub cond: ExprBoxWrap,
-    pub expr: BlockExpr,
+    pub block: BlockExpr,
 }
 
 impl ElifBranch {
@@ -358,7 +358,24 @@ impl ElifBranch {
         line: usize,
         pos: usize,
     ) -> Result<(Self, usize, usize), ParseError> {
-        todo!()
+        let (elif_ln, elif_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Elif => Ok((tok.line_number, tok.line_position)),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        let (cond, cond_ln, cond_pos) = Expr::parse(tokens, elif_ln, elif_pos)
+            .map_err(|e| match e {
+                None => ParseError::UnendedStmt {
+                    line: elif_ln,
+                    pos: elif_pos,
+                },
+                Some(err) => err,
+            })?;
+        let (block, block_ln, block_pos) =
+            BlockExpr::new_from(tokens, cond_ln, cond_pos)?;
+        Ok((Self { cond, block }, block_ln, block_pos))
     }
 }
 
@@ -379,7 +396,7 @@ impl ElifBranch {
 /// [`ElifBranch`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElseBranch {
-    pub expr: BlockExpr,
+    pub block: BlockExpr,
 }
 
 impl ElseBranch {
@@ -406,6 +423,15 @@ impl ElseBranch {
         line: usize,
         pos: usize,
     ) -> Result<(Self, usize, usize), ParseError> {
-        todo!()
+        let (else_ln, else_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Else => Ok((tok.line_number, tok.line_position)),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        let (block, block_ln, block_pos) =
+            BlockExpr::new_from(tokens, else_ln, else_pos)?;
+        Ok((Self { block }, block_ln, block_pos))
     }
 }
