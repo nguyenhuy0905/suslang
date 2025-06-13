@@ -9,11 +9,13 @@
     case).
   - [ ] Implement if-elif-else expr.
     - [x] Define structs and grammar rules.
-    - [ ] Define `new_from` for all types of branches
+    - [x] Define `new_from` for all types of branches,
       - [x] `IfBranch`
-      - [ ] `ElifBranch`
-      - [ ] `ElseBranch`
+      - [x] `ElifBranch`
+      - [x] `ElseBranch`
     - [ ] Test it out!
+      - [ ] Make a nice macro like I have always done.
+      - [ ] Then write tests.
   - [ ] Implement while expr.
   - [ ] Implement a block-escape statement. With probably a new keyword.
   - [ ] Start rolling the dummy semantics analysis system.
