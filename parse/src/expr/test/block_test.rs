@@ -191,3 +191,278 @@ fn proc_expr() {
         );
     }
 }
+
+#[test]
+fn if_expr() {
+    // simplest
+    {
+        // if 1 == 1 {}
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let (if_expr, .., pos) = IfExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            if_expr,
+            new_if_expr!(new_if_branch!(
+                new_comparison_expr!(
+                    PrimaryExpr::Integer(1),
+                    ComparisonOp::Equal,
+                    PrimaryExpr::Integer(1),
+                ),
+                BlockExpr {
+                    statements: Vec::new(),
+                }
+            ))
+        );
+        assert_eq!(pos, 6);
+    }
+    // if-else
+    {
+        // if 1 == 1 {} else {}
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Else,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let (if_expr, .., pos) = IfExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            if_expr,
+            new_if_expr!(
+                new_if_branch!(
+                    new_comparison_expr!(
+                        PrimaryExpr::Integer(1),
+                        ComparisonOp::Equal,
+                        PrimaryExpr::Integer(1),
+                    ),
+                    new_block_expr!()
+                ),
+                new_else_branch!(new_block_expr!())
+            )
+        );
+        assert_eq!(pos, 9);
+    }
+    // if-elif
+    {
+        // if 1 == 1 {} elif 2 == 3 {}
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Elif,
+            TokenType::Integer(2.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(3.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let (if_expr, .., pos) = IfExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            if_expr,
+            new_if_expr!(
+                new_if_branch!(
+                    new_comparison_expr!(
+                        PrimaryExpr::Integer(1),
+                        ComparisonOp::Equal,
+                        PrimaryExpr::Integer(1),
+                    ),
+                    new_block_expr!()
+                ),
+                [new_elif_branch!(
+                    new_comparison_expr!(
+                        PrimaryExpr::Integer(2),
+                        ComparisonOp::Equal,
+                        PrimaryExpr::Integer(3)
+                    ),
+                    new_block_expr!()
+                ),]
+            )
+        );
+        assert_eq!(pos, 12);
+    }
+    // if-elif-else
+    {
+        // if 1 == 1 {} elif 2 == 3 {} else {}
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Elif,
+            TokenType::Integer(2.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(3.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Else,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let (if_expr, .., pos) = IfExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            if_expr,
+            new_if_expr!(
+                new_if_branch!(
+                    new_comparison_expr!(
+                        PrimaryExpr::Integer(1),
+                        ComparisonOp::Equal,
+                        PrimaryExpr::Integer(1),
+                    ),
+                    new_block_expr!()
+                ),
+                new_else_branch!(new_block_expr!()),
+                [new_elif_branch!(
+                    new_comparison_expr!(
+                        PrimaryExpr::Integer(2),
+                        ComparisonOp::Equal,
+                        PrimaryExpr::Integer(3)
+                    ),
+                    new_block_expr!()
+                ),]
+            )
+        );
+        assert_eq!(pos, 15);
+    }
+    // if-multiple elifs-else
+    {
+        // if 1 == 1 {}
+        // elif 2 == 3 {}
+        // elif "hello" == "bonjour" {}
+        // elif 1 + 1 == 2 - 1 {}
+        // else {}
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Elif,
+            TokenType::Integer(2.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(3.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Elif,
+            TokenType::String("hello".to_string()),
+            TokenType::EqualEqual,
+            TokenType::String("bonjour".to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Elif,
+            TokenType::Integer(1.to_string()),
+            TokenType::Plus,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(2.to_string()),
+            TokenType::Dash,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Else,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let deque_len = deque.len();
+        let (if_expr, .., pos) = IfExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            if_expr,
+            new_if_expr!(
+                new_if_branch!(
+                    new_comparison_expr!(
+                        PrimaryExpr::Integer(1),
+                        ComparisonOp::Equal,
+                        PrimaryExpr::Integer(1),
+                    ),
+                    new_block_expr!()
+                ),
+                new_else_branch!(new_block_expr!()),
+                [
+                    new_elif_branch!(
+                        new_comparison_expr!(
+                            PrimaryExpr::Integer(2),
+                            ComparisonOp::Equal,
+                            PrimaryExpr::Integer(3)
+                        ),
+                        new_block_expr!()
+                    ),
+                    new_elif_branch!(
+                        new_comparison_expr!(
+                            PrimaryExpr::String("hello".to_string()),
+                            ComparisonOp::Equal,
+                            PrimaryExpr::String("bonjour".to_string()),
+                        ),
+                        new_block_expr!()
+                    ),
+                    new_elif_branch!(
+                        new_comparison_expr!(
+                            new_term_expr!(
+                                PrimaryExpr::Integer(1),
+                                TermOp::Plus,
+                                PrimaryExpr::Integer(1)
+                            ),
+                            ComparisonOp::Equal,
+                            new_term_expr!(
+                                PrimaryExpr::Integer(2),
+                                TermOp::Minus,
+                                PrimaryExpr::Integer(1)
+                            )
+                        ),
+                        new_block_expr!()
+                    ),
+                ]
+            )
+        );
+        assert_eq!(pos, deque_len);
+    }
+    // if with some content inside the block
+    {
+        // if 1 == 1 { print("yourmom"); }
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::Identifier("print".to_string()),
+            TokenType::LParen,
+            TokenType::String("yourmom".to_string()),
+            TokenType::RParen,
+            TokenType::Semicolon,
+            TokenType::RCParen,
+        ];
+        let (if_expr, .., pos) = IfExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            if_expr,
+            new_if_expr!(new_if_branch!(
+                new_comparison_expr!(
+                    PrimaryExpr::Integer(1),
+                    ComparisonOp::Equal,
+                    PrimaryExpr::Integer(1)
+                ),
+                new_block_expr!(new_stmt!(Expr(new_expr_semicolon_stmt!(
+                    new_proc_call_expr!(
+                        "print".to_string(),
+                        (PrimaryExpr::String("yourmom".to_string()))
+                    )
+                ))))
+            ))
+        );
+        assert_eq!(pos, 11);
+    }
+}
