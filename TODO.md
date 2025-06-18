@@ -14,8 +14,12 @@
       - [x] `ElifBranch`
       - [x] `ElseBranch`
     - [ ] Test it out!
-      - [ ] Make a nice macro like I have always done.
+      - [x] Make nice macros like I have always done.
+        - This time, it's not as nice, but that's because this construct is
+          quite complex
       - [ ] Then write tests.
+        - [x] Write simplest-case checks.
+        - [ ] Write error cases
   - [ ] Implement while expr.
   - [ ] Implement a block-escape statement. With probably a new keyword.
   - [ ] Start rolling the dummy semantics analysis system.
