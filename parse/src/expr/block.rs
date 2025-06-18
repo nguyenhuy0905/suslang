@@ -250,6 +250,25 @@ pub struct IfExpr {
     pub elif_branches: Vec<ElifBranch>,
 }
 
+#[macro_export]
+macro_rules! new_if_expr {
+    ($if_branch:expr $(, [$($elif_branch:expr,)+])?) => {
+        IfExpr {
+            if_branch: $if_branch,
+            else_branch: None,
+            elif_branches: vec![$($($elif_branch, )+)?],
+        }
+    };
+    // need to be placed like so, otherwise it screams ambiguity
+    ($if_branch:expr, $else_branch:expr $(, [$($elif_branch:expr,)+])?) => {
+        IfExpr {
+            if_branch: $if_branch,
+            else_branch: Some($else_branch),
+            elif_branches: vec![$($($elif_branch, )+)?],
+        }
+    };
+}
+
 impl ExprAst for IfExpr {}
 
 impl ExprParse for IfExpr {
@@ -318,6 +337,16 @@ pub struct IfBranch {
     pub block: BlockExpr,
 }
 
+#[macro_export]
+macro_rules! new_if_branch {
+    ($cond:expr, $block:expr) => {
+        IfBranch {
+            cond: ExprBoxWrap::new($cond),
+            block: $block,
+        }
+    };
+}
+
 impl IfBranch {
     // TODO: remove dead code and unused allows here.
     /// Parses an [`IfBranch`] from the token list passed in.
@@ -380,6 +409,16 @@ impl IfBranch {
 pub struct ElifBranch {
     pub cond: ExprBoxWrap,
     pub block: BlockExpr,
+}
+
+#[macro_export]
+macro_rules! new_elif_branch {
+    ($cond:expr, $block:expr) => {
+        ElifBranch {
+            cond: ExprBoxWrap::new($cond),
+            block: $block,
+        }
+    };
 }
 
 impl ElifBranch {
@@ -447,6 +486,13 @@ impl ElifBranch {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElseBranch {
     pub block: BlockExpr,
+}
+
+#[macro_export]
+macro_rules! new_else_branch {
+    ($block:expr) => {
+        ElseBranch { block: $block }
+    };
 }
 
 impl ElseBranch {
