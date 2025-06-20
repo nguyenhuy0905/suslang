@@ -348,7 +348,6 @@ macro_rules! new_if_branch {
 }
 
 impl IfBranch {
-    // TODO: remove dead code and unused allows here.
     /// Parses an [`IfBranch`] from the token list passed in.
     ///
     /// # Parameters:
@@ -366,8 +365,6 @@ impl IfBranch {
     /// - If parsing of [`Expr`] fails, percolate the failure. If the returned
     ///   failure is `None`, return a [`ParseError::UnendedStmt`] instead.
     /// - Similarly, if parsing of [`BlockExpr`] fails, percolate the failure.
-    #[allow(dead_code)]
-    #[allow(unused)]
     pub(super) fn new_from(
         tokens: &mut VecDeque<Token>,
         line: usize,
@@ -422,7 +419,6 @@ macro_rules! new_elif_branch {
 }
 
 impl ElifBranch {
-    // TODO: remove dead code and unused allows here.
     /// Parses an [`ElifBranch`] from the token list passed in.
     ///
     /// # Parameters:
@@ -440,8 +436,6 @@ impl ElifBranch {
     /// - If parsing of [`Expr`] fails, percolate the failure. If the returned
     ///   failure is `None`, return a [`ParseError::UnendedStmt`] instead.
     /// - Similarly, if parsing of [`BlockExpr`] fails, percolate the failure.
-    #[allow(dead_code)]
-    #[allow(unused)]
     pub(super) fn new_from(
         tokens: &mut VecDeque<Token>,
         line: usize,
@@ -496,7 +490,6 @@ macro_rules! new_else_branch {
 }
 
 impl ElseBranch {
-    // TODO: remove dead code and unused allows here.
     /// Parses an [`ElseBranch`] from the token list passed in.
     ///
     /// # Parameters:
@@ -512,8 +505,6 @@ impl ElseBranch {
     /// - If the first token is not [`TokenType::Else`], return
     ///   [`ParseError::UnexpectedToken`].
     /// - If parsing of [`BlockExpr`] fails, percolate the failure.
-    #[allow(dead_code)]
-    #[allow(unused)]
     pub(super) fn new_from(
         tokens: &mut VecDeque<Token>,
         line: usize,
