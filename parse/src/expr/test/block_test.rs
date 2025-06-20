@@ -465,4 +465,90 @@ fn if_expr() {
         );
         assert_eq!(pos, 11);
     }
+    // if without block
+    {
+        // if 1 == 1
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer("1".to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer("1".to_string()),
+        ];
+        let if_expr = IfExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            if_expr,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 4 }))
+        );
+    }
+    // if with only one expression
+    {
+        // if {}
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::LCParen,
+            TokenType::RCParen
+        ];
+        let if_expr = IfExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            if_expr,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 3 }))
+        );
+    }
+    // if-else without block at if
+    {
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::Else,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let if_expr = IfExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            if_expr,
+            Err(Some(ParseError::UnexpectedToken(Token::new(
+                TokenType::Else,
+                1,
+                5
+            ))))
+        );
+    }
+    // if-else without block at else
+    {
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Else,
+        ];
+        let if_expr = IfExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            if_expr,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 7 }))
+        );
+    }
+    // if-elif lacking 1 expr at elif
+    {
+        let mut deque = new_test_deque![
+            TokenType::If,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::Elif,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let if_expr = IfExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            if_expr,
+            Err(Some(ParseError::ExpectedToken { line: 1, pos: 9 }))
+        );
+    }
 }
