@@ -269,14 +269,30 @@ macro_rules! new_if_expr {
     };
 }
 
-impl ExprAst for IfExpr {}
-
-impl ExprParse for IfExpr {
-    fn parse(
+impl IfExpr {
+    /// Create a new if-expr. Useful compared to the [`ExprParse`] interface when
+    /// there can only be one expression type, and that must be an [`IfExpr`].
+    ///
+    /// # Errors
+    /// - Unlike the interface [`ExprParse`], there is no [`None`] or [`Some`]
+    ///   error. If there's an error in this construct, it's an actual failure,
+    ///   not the "running out of token" behavior that justifies the optional
+    ///   error.
+    /// - First, if an [`IfBranch`] cannot be parsed, percolate up its error.
+    /// - While the next consumable token is [`TokenType::Elif`], and an
+    ///   [`ElifBranch`] cannot be parsed, percolate up its error.
+    /// - If the next consumable token is [`TokenType::Else`] instead,
+    ///   and an [`ElseBranch`] cannot be parsed, percolate up its error.
+    ///
+    /// # See also
+    /// [`IfBranch`]
+    /// [`ElifBranch`]
+    /// [`ElseBranch`]
+    pub fn new_from(
         tokens: &mut VecDeque<Token>,
         line: usize,
         pos: usize,
-    ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
+    ) -> Result<(Self, usize, usize), ParseError> {
         // the first item must be an `IfBranch`
         let (if_branch, if_ln, if_pos) = IfBranch::new_from(tokens, line, pos)?;
         let mut elif_branches: Vec<ElifBranch> = Vec::new();
@@ -299,25 +315,39 @@ impl ExprParse for IfExpr {
             let (else_branch, ret_ln, ret_pos) =
                 ElseBranch::new_from(tokens, elif_ln, elif_pos)?;
             Ok((
-                ExprBoxWrap::new(Self {
+                Self {
                     if_branch,
                     else_branch: Some(else_branch),
                     elif_branches,
-                }),
+                },
                 ret_ln,
                 ret_pos,
             ))
         } else {
             Ok((
-                ExprBoxWrap::new(Self {
+                Self {
                     if_branch,
                     else_branch: None,
                     elif_branches,
-                }),
+                },
                 elif_ln,
                 elif_pos,
             ))
         }
+    }
+}
+
+impl ExprAst for IfExpr {}
+
+impl ExprParse for IfExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
+        Self::new_from(tokens, line, pos)
+            .map(|(tok, ln, pos)| (ExprBoxWrap::new(tok), ln, pos))
+            .map_err(Some)
     }
 }
 
