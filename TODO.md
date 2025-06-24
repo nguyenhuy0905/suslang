@@ -20,7 +20,12 @@
       - [x] Then write tests.
         - [x] Write simplest-case checks.
         - [x] Write error cases
-  - [ ] Implement while expr.
+  - [x] Implement while expr.
+    - [x] Add a new keyword, "while".
+    - [x] Implement the thing.
+    - [x] Test it out:
+      - [x] Non-error case.
+      - [x] Error case.
   - [ ] Implement a block-escape statement. With probably a new keyword.
   - [ ] Start rolling the dummy semantics analysis system.
     - [ ] Assign blocks to scopes.
