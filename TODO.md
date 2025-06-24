@@ -26,9 +26,24 @@
     - [x] Test it out:
       - [x] Non-error case.
       - [x] Error case.
-  - [ ] Implement a block-escape statement. With probably a new keyword.
+  - [ ] Implement a block-escape statement.
+    - [ ] Add a new keyword, "block_return".
+    - [ ] Add BlockReturnStmt. Technically similar to ReturnStmt, but the keyword
+          is "block_return"
+    - [ ] Test it out
+      - [ ] Just copy-paste ReturnStmt's tests but change the keyword, dawg.
   - [ ] Start rolling the dummy semantics analysis system.
     - [ ] Assign blocks to scopes.
-    - [ ] Note: no need for type check, even if I have type annotation. That stuff
+      - Given my current implementation, what I'm thinking of is:
+        - [ ] Create a new type `ScopedBlock`. Which is still an `ExprAst`, but
+              this time is NOT an `ExprParse`. Well, because one shouldn't be able
+              to parse it.
+        - [ ] And, convert all `BlockExpr` to `ScopedBlock`.
+          - [ ] If it's wrapped behind an `ExprBoxWrap`, tryna downcast it.
+            - Man, I shoulda used enums instead.
+        - Of course, this is a noble cause for "refactoring," but I'm not gonna
+          refactor again until I finish everything I set out to do.
+          - At least now I learn that this OOP-styled thingy kinda stinks.
+    - Note: no need for type check, even if I have type annotation. That stuff
       happens run-time.
-  - [ ] What's next: finish all the items above first.
+  - What's next: finish all the items above first.
