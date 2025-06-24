@@ -195,3 +195,55 @@ impl ExprStmtParse for ReturnStmt {
         Ok((ExprStmtBoxWrap::new(Self { expr }), expr_ln, expr_pos))
     }
 }
+
+/// Return out of current block, optionally with an expression.
+///
+/// # Rule
+/// \<block-ret-stmt\> ::= "block_return" \<expr\>?
+///
+/// # See also
+/// [`Expr`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockReturnStmt {
+    pub expr: Option<ExprBoxWrap>,
+}
+
+#[macro_export]
+macro_rules! new_block_return_stmt {
+    () => {
+        BlockReturnStmt { expr: None }
+    };
+    ($expr:expr) => {
+        BlockReturnStmt {
+            expr: Some(ExprBoxWrap::new($expr)),
+        }
+    };
+}
+
+impl ExprStmtAst for BlockReturnStmt {}
+
+impl ExprStmtParse for BlockReturnStmt {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError> {
+        let (ret_tok_ln, ret_tok_pos) = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::BlockReturn => {
+                    Ok((tok.line_number, tok.line_position))
+                }
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        let (expr, expr_ln, expr_pos) =
+            match Expr::parse(tokens, ret_tok_ln, ret_tok_pos) {
+                Ok((expr, ln, pos)) => Ok((Some(expr), ln, pos)),
+                Err(None) => Ok((None, ret_tok_ln, ret_tok_pos)),
+                Err(Some(e)) => Err(e),
+            }?;
+
+        Ok((ExprStmtBoxWrap::new(Self { expr }), expr_ln, expr_pos))
+    }
+}

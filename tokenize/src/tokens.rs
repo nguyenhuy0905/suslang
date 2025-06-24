@@ -126,6 +126,8 @@ pub enum TokenType {
     Proc,
     /// Keyword "return"
     Return,
+    /// Keyword "block_return"
+    BlockReturn,
 }
 
 #[must_use]
@@ -148,6 +150,7 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
                 ("ref", TokenType::Ref),
                 ("proc", TokenType::Proc),
                 ("return", TokenType::Return),
+                ("block_return", TokenType::BlockReturn),
             ])
         });
 
