@@ -552,3 +552,77 @@ fn if_expr() {
         );
     }
 }
+
+#[test]
+fn while_expr() {
+    // simplest case
+    {
+        let mut deque = new_test_deque![
+            TokenType::While,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let deque_len = deque.len();
+        let (while_expr, .., pos) = WhileExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            while_expr,
+            new_while_expr!(
+                new_comparison_expr!(
+                    PrimaryExpr::Integer(1),
+                    ComparisonOp::Equal,
+                    PrimaryExpr::Integer(1)
+                ),
+                new_block_expr!()
+            )
+        );
+        assert_eq!(pos, deque_len);
+    }
+    // lacking one of the two expressions
+    {
+        let mut deque = new_test_deque![
+            TokenType::While,
+            TokenType::LCParen,
+            TokenType::RCParen
+        ];
+        let deque_len = deque.len();
+        let while_expr = WhileExpr::parse(&mut deque, 1, 1);
+        assert_eq!(
+            while_expr,
+            Err(Some(ParseError::ExpectedToken {
+                line: 1,
+                pos: deque_len
+            }))
+        );
+    }
+    // make sure I'm not eating too many expressions
+    {
+        let mut deque = new_test_deque![
+            TokenType::While,
+            TokenType::Integer(1.to_string()),
+            TokenType::EqualEqual,
+            TokenType::Integer(1.to_string()),
+            TokenType::LCParen,
+            TokenType::RCParen,
+            TokenType::LCParen,
+            TokenType::RCParen,
+        ];
+        let deque_len = deque.len();
+        let (while_expr, .., pos) = WhileExpr::parse(&mut deque, 1, 1).unwrap();
+        assert_ast_eq!(
+            while_expr,
+            new_while_expr!(
+                new_comparison_expr!(
+                    PrimaryExpr::Integer(1),
+                    ComparisonOp::Equal,
+                    PrimaryExpr::Integer(1)
+                ),
+                new_block_expr!()
+            )
+        );
+        // leaving the last 2 tokens
+        assert_eq!(pos, deque_len - 2);
+    }
+}

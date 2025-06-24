@@ -552,3 +552,84 @@ impl ElseBranch {
         Ok((Self { block }, block_ln, block_pos))
     }
 }
+
+/// While expression
+///
+/// # Rules
+/// \<while-expr\> ::= "while" \<expr\> \<block-expr\>
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhileExpr {
+    pub cond: ExprBoxWrap,
+    pub block: BlockExpr,
+}
+
+#[macro_export]
+macro_rules! new_while_expr {
+    ($cond:expr, $block:expr) => {
+        WhileExpr {
+            cond: ExprBoxWrap::new($cond),
+            block: $block,
+        }
+    };
+}
+
+impl WhileExpr {
+    pub(super) fn new_from(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        tokens
+            // check if the first token is "while"
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::While => Ok((tok.line_number, tok.line_position)),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })
+            // check if the next token(s) can be parsed into an `Expr`
+            .and_then(|(while_ln, while_pos)| {
+                Expr::parse(tokens, while_ln, while_pos).map_err(|e| match e {
+                    None => ParseError::UnendedStmt {
+                        line: while_ln,
+                        pos: while_pos,
+                    },
+                    Some(err) => err,
+                })
+            })
+            // check if the next token is a left-curly brace
+            .and_then(|(expr, expr_ln, expr_pos)| {
+                tokens
+                    .front()
+                    .ok_or(ParseError::ExpectedToken {
+                        line: expr_ln,
+                        pos: expr_pos,
+                    })
+                    // if yes, "unborrow" tokens
+                    .map(|_| ())
+                    // then parse the block expression
+                    .and_then(|()| {
+                        BlockExpr::new_from(tokens, expr_ln, expr_pos)
+                    })
+                    .map(|(block, block_ln, block_pos)| {
+                        (Self { cond: expr, block }, block_ln, block_pos)
+                    })
+            })
+    }
+}
+
+impl ExprAst for WhileExpr {}
+
+impl ExprParse for WhileExpr {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprBoxWrap, usize, usize), Option<ParseError>> {
+        Self::new_from(tokens, line, pos)
+            .map(|(expr, expr_ln, expr_pos)| {
+                (ExprBoxWrap::new(expr), expr_ln, expr_pos)
+            })
+            .map_err(Some)
+    }
+}
