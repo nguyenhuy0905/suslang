@@ -26,12 +26,12 @@
     - [x] Test it out:
       - [x] Non-error case.
       - [x] Error case.
-  - [ ] Implement a block-escape statement.
-    - [ ] Add a new keyword, "block_return".
-    - [ ] Add BlockReturnStmt. Technically similar to ReturnStmt, but the keyword
+  - [x] Implement a block-escape statement.
+    - [x] Add a new keyword, "block_return".
+    - [x] Add BlockReturnStmt. Technically similar to ReturnStmt, but the keyword
           is "block_return"
-    - [ ] Test it out
-      - [ ] Just copy-paste ReturnStmt's tests but change the keyword, dawg.
+    - [x] Test it out
+      - [x] Just copy-paste ReturnStmt's tests but change the keyword, dawg.
   - [ ] Start rolling the dummy semantics analysis system.
     - [ ] Assign blocks to scopes.
       - Given my current implementation, what I'm thinking of is:
