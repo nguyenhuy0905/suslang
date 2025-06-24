@@ -108,6 +108,8 @@ pub enum TokenType {
     Else,
     /// Keyword "let"
     Let,
+    /// Keyword "while"
+    While,
     /// Keyword "def"
     Def,
     /// Keyword "mut"
@@ -137,6 +139,7 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
                 ("elif", TokenType::Elif),
                 ("else", TokenType::Else),
                 ("let", TokenType::Let),
+                ("while", TokenType::While),
                 ("def", TokenType::Def),
                 ("mut", TokenType::Mut),
                 ("import", TokenType::Import),
