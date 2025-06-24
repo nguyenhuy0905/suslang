@@ -91,31 +91,48 @@ impl Stmt {
         pos: usize,
     ) -> Result<(Self, usize, usize), ParseError> {
         // TODO: update Stmt::parse every time I'm done with a new type of statement.
-        //     match tokens
-        //         .front()
-        //         .ok_or(ParseError::ExpectedToken { line, pos })
-        //         .map(Token::token_type)?
-        //     {
-        //         _ => {
-        //             let (expr_stmt, ret_ln, ret_pos) =
-        //                 ExprStmt::parse(tokens, line, pos)?;
-        //             Ok((Self::Expr(expr_stmt), line, pos))
-        //         }
-        //     }
-        let (expr_stmt, ret_ln, ret_pos) = ExprStmt::parse(tokens, line, pos)?;
-        let (semicolon_ln, semicolon_pos) = tokens
+        let ret = match tokens
+            .front()
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .map(Token::token_type)?
+        {
+            TokenType::Let => LetStmt::parse(tokens, line, pos).map(
+                |(let_stmt, let_ln, let_pos)| {
+                    (Self::Decl(let_stmt), let_ln, let_pos)
+                },
+            )?,
+            _ => ExprStmt::parse(tokens, line, pos).map(
+                |(expr_stmt, expr_stmt_ln, expr_stmt_pos)| {
+                    (Self::Expr(expr_stmt), expr_stmt_ln, expr_stmt_pos)
+                },
+            )?,
+        };
+        tokens
             .pop_front()
             .ok_or(ParseError::ExpectedToken {
-                line: ret_ln,
-                pos: ret_pos,
+                line: ret.1,
+                pos: ret.2,
             })
-            .and_then(|tok| {
-                if matches!(tok.tok_typ, TokenType::Semicolon) {
-                    Ok((tok.line_number, tok.line_position))
-                } else {
-                    Err(ParseError::UnexpectedToken(tok))
-                }
-            })?;
-        Ok((Self::Expr(expr_stmt), semicolon_ln, semicolon_pos))
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Semicolon => Ok(tok),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })
+            .map(|tok| (ret.0, tok.line_number, tok.line_position))
+
+        // let (expr_stmt, ret_ln, ret_pos) = ExprStmt::parse(tokens, line, pos)?;
+        // let (semicolon_ln, semicolon_pos) = tokens
+        //     .pop_front()
+        //     .ok_or(ParseError::ExpectedToken {
+        //         line: ret_ln,
+        //         pos: ret_pos,
+        //     })
+        //     .and_then(|tok| {
+        //         if matches!(tok.tok_typ, TokenType::Semicolon) {
+        //             Ok((tok.line_number, tok.line_position))
+        //         } else {
+        //             Err(ParseError::UnexpectedToken(tok))
+        //         }
+        //     })?;
+        // Ok((Self::Expr(expr_stmt), semicolon_ln, semicolon_pos))
     }
 }
