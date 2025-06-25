@@ -37,6 +37,31 @@ fn expr_semicolon_stmt() {
 }
 
 #[test]
+fn assign_stmt() {
+    // simplest
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("hello".to_string()),
+            TokenType::Equal,
+            TokenType::String("goodbye".to_string())
+        ];
+        let deque_len = deque.len();
+        let (assign_stmt, .., pos) =
+            AssignStmt::parse(&mut deque, 1, 1).unwrap();
+        assert_eq!(
+            assign_stmt.as_ref(),
+            &AssignStmt {
+                id: String::from("hello"),
+                val: ExprBoxWrap::new(PrimaryExpr::String(
+                    "goodbye".to_string()
+                ))
+            } as &dyn ExprStmtImpl
+        );
+        assert_eq!(pos, deque_len);
+    }
+}
+
+#[test]
 fn return_stmt() {
     // ur simple return stmt, without value
     {

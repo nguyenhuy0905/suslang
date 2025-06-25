@@ -9,7 +9,9 @@ use crate::{Expr, ExprBoxWrap, ExprParse, ParseError};
 /// Must also implement traits [`Debug`], [`Clone`], [`PartialEq`] for blanket
 /// [`DeclStmtImpl`]
 /// implementation.
-pub trait DeclStmtAst: Any + Debug {}
+pub trait DeclStmtAst: Any + Debug {
+    fn identifier(&self) -> &str;
+}
 
 /// Blanket implementation for [`DeclStmtAst`]
 pub trait DeclStmtImpl: DeclStmtAst {
@@ -204,13 +206,17 @@ impl LetStmt {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum LetStmtMut {
     Immutable,
     Mutable,
 }
 
-impl DeclStmtAst for LetStmt {}
+impl DeclStmtAst for LetStmt {
+    fn identifier(&self) -> &str {
+        &self.name
+    }
+}
 
 impl DeclStmtParse for LetStmt {
     fn parse(

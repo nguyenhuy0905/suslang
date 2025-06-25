@@ -99,8 +99,45 @@ impl ExprStmtParse for ExprStmt {
         match tokens.front().map(Token::token_type) {
             None => Err(ParseError::ExpectedToken { line, pos }),
             Some(TokenType::Return) => ReturnStmt::parse(tokens, line, pos),
+            Some(TokenType::BlockReturn) => {
+                BlockReturnStmt::parse(tokens, line, pos)
+            }
+            Some(TokenType::Identifier(_)) => IdStmt::parse(tokens, line, pos),
             // TODO: add more types of statements as we go.
             Some(_) => ExprValStmt::parse(tokens, line, pos),
+        }
+    }
+}
+
+/// Any statement that starts with an identifier
+///
+/// # Rule
+/// \<id-stmt\> ::= IDENTIFIER ("=" \<assign-stmt-rhs\> | \<expr-val-after-id\>)
+/// \<assign-stmt-rhs\> ::= \<expr\>
+///
+/// I dunno how I should write this in terms of BNF, but,
+/// \<expr-val-after-id\> isn't really a rule, it's that I dunno how to say we
+/// just delegate the parsing work down to `ExprValStmt`
+///
+/// # See also
+/// [`ExprValStmt`]
+/// [`AssignStmt`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct IdStmt {}
+
+impl ExprStmtAst for IdStmt {}
+
+impl ExprStmtParse for IdStmt {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError> {
+        // checking whether the first token type is an identifier can be
+        // delegated.
+        match tokens.get(1).map(Token::token_type) {
+            Some(TokenType::Equal) => AssignStmt::parse(tokens, line, pos),
+            _ => ExprValStmt::parse(tokens, line, pos),
         }
     }
 }
@@ -115,6 +152,7 @@ impl ExprStmtParse for ExprStmt {
 ///
 /// # See also
 /// [`Expr`]
+/// [`IdStmt`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExprValStmt {
     pub expr: ExprBoxWrap,
@@ -143,6 +181,111 @@ impl ExprStmtParse for ExprValStmt {
                 None => ParseError::ExpectedToken { line, pos },
             })?;
         Ok((ExprStmtBoxWrap::new(Self { expr }), expr_ln, expr_pos))
+    }
+}
+
+/// Assignment statement
+///
+/// # Rule
+/// \<assign-stmt\> ::= IDENTIFIER "=" \<expr\>
+///
+/// # See also
+/// [`IdStmt`]
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssignStmt {
+    pub id: String,
+    pub val: ExprBoxWrap,
+}
+
+#[macro_export]
+macro_rules! new_assign_stmt {
+    ($id:expr, $val:expr) => {
+        AssignStmt {
+            id: $id,
+            val: ExprBoxWrap::new($val),
+        }
+    };
+}
+
+impl ExprStmtAst for AssignStmt {}
+
+impl AssignStmt {
+    /// Constructs an [`AssignStmt`] from the token list passed in
+    ///
+    /// # Errors
+    /// - If at any point, `tokens` is empty, return [`ParseError::ExpectedToken`].
+    /// - If the first element from `tokens` is not [`TokenType::Identifier`],
+    ///   return [`ParseError::UnexpectedToken`]
+    /// - If the second element from `tokens` is not [`TokenType::Equal`],
+    ///   return [`ParseError::UnexpectedToken`]
+    /// - If the next elements from `tokens` cannot be parsed into an
+    ///   [`Expr`]:
+    ///   - If the returned error from trying to parse is `None`, return
+    ///     [`ParseError::UnendedStmt`].
+    ///   - Otherwise, percolate up the error, removing the `Option` wrapper.
+    fn new_from(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(Self, usize, usize), ParseError> {
+        tokens
+            .pop_front()
+            // check for the identifier
+            .ok_or(ParseError::ExpectedToken { line, pos })
+            .and_then(|tok| match tok.tok_typ {
+                TokenType::Identifier(s) => {
+                    Ok((s, tok.line_number, tok.line_position))
+                }
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })
+            // check for the equal sign
+            .and_then(|(name, name_ln, name_pos)| {
+                tokens
+                    .pop_front()
+                    .ok_or(ParseError::ExpectedToken {
+                        line: name_ln,
+                        pos: name_pos,
+                    })
+                    .and_then(|tok| match tok.tok_typ {
+                        TokenType::Equal => {
+                            Ok((name, tok.line_number, tok.line_position))
+                        }
+                        _ => Err(ParseError::UnexpectedToken(tok)),
+                    })
+            })
+            // try parse the next token(s) into an `Expr`
+            .and_then(|(name, eq_ln, eq_pos)| {
+                Expr::parse(tokens, eq_ln, eq_pos)
+                    .map_err(|e| match e {
+                        None => ParseError::UnendedStmt {
+                            line: eq_ln,
+                            pos: eq_pos,
+                        },
+                        Some(err) => err,
+                    })
+                    .map(|(expr, expr_ln, expr_pos)| {
+                        (
+                            Self {
+                                id: name,
+                                val: expr,
+                            },
+                            expr_ln,
+                            expr_pos,
+                        )
+                    })
+            })
+    }
+}
+
+impl ExprStmtParse for AssignStmt {
+    fn parse(
+        tokens: &mut VecDeque<Token>,
+        line: usize,
+        pos: usize,
+    ) -> Result<(ExprStmtBoxWrap, usize, usize), ParseError> {
+        Self::new_from(tokens, line, pos).map(|(ret, ret_ln, ret_pos)| {
+            (ExprStmtBoxWrap::new(ret), ret_ln, ret_pos)
+        })
     }
 }
 
