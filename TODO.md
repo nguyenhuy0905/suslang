@@ -32,6 +32,13 @@
           is "block_return"
     - [x] Test it out
       - [x] Just copy-paste ReturnStmt's tests but change the keyword, dawg.
+  - [ ] Quick fix: assignment statement
+    - [x] This has some overlap with `ExprValStmt`, so, make a new rule that
+          simply delegates.
+    - [x] Then implement `AssignStmt`.
+    - [ ] Then write some tests.
+      - [x] Add some normie cases.
+      - [ ] Add some error cases.
   - [ ] Start rolling the dummy semantics analysis system.
     - [ ] Assign blocks to scopes.
       - Given my current implementation, what I'm thinking of is:
