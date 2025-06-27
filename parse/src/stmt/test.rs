@@ -59,6 +59,18 @@ fn assign_stmt() {
         );
         assert_eq!(pos, deque_len);
     }
+    // no RHS
+    {
+        let mut deque = new_test_deque![
+            TokenType::Identifier("hello".to_string()),
+            TokenType::Equal,
+        ];
+        let assign_stmt = AssignStmt::parse(&mut deque, 1, 1);
+        assert_eq!(
+            assign_stmt,
+            Err(ParseError::UnendedStmt { line: 1, pos: 2 })
+        );
+    }
 }
 
 #[test]
