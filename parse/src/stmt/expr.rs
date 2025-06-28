@@ -201,7 +201,7 @@ pub struct AssignStmt {
 macro_rules! new_assign_stmt {
     ($id:expr, $val:expr) => {
         AssignStmt {
-            id: $id,
+            id: String::from($id),
             val: ExprBoxWrap::new($val),
         }
     };

@@ -1,4 +1,4 @@
-use std::{any::Any, collections::VecDeque, fmt::Debug};
+use std::{any::Any, collections::VecDeque, fmt::Debug, rc::Rc};
 
 use tokenize::{Token, TokenType};
 
@@ -98,7 +98,9 @@ pub trait DeclStmtParse: DeclStmtImpl {
 /// [`Expr`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct LetStmt {
-    pub name: String,
+    // when we get to variable scoping, the scope struct needs a reference to
+    // the string.
+    pub name: Rc<String>,
     pub init_val: ExprBoxWrap,
     pub mutability: LetStmtMut,
 }
@@ -107,7 +109,7 @@ pub struct LetStmt {
 macro_rules! new_let_stmt {
     ($id:expr, $expr:expr, $mut:expr) => {
         LetStmt {
-            name: String::from($id),
+            name: Rc::new(String::from($id)),
             init_val: ExprBoxWrap::new($expr),
             mutability: $mut,
         }
@@ -196,7 +198,7 @@ impl LetStmt {
             })?;
         Ok((
             Self {
-                name,
+                name: Rc::new(name),
                 init_val,
                 mutability,
             },

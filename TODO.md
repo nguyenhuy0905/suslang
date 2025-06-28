@@ -42,12 +42,19 @@
   - [ ] Start rolling the dummy semantics analysis system.
     - [ ] Assign blocks to scopes.
       - Given my current implementation, what I'm thinking of is:
-        - [ ] Create a new type `ScopedBlock`. Which is still an `ExprAst`, but
+        - [x] Hotfix: due to lifetime rules, change `LetStmt`'s `name` field to
+              an `Rc`.
+        - [x] Create a new type `ScopedBlock`. Which is still an `ExprAst`, but
               this time is NOT an `ExprParse`. Well, because one shouldn't be able
               to parse it.
+          - [x] Implement the thing.
+          - [x] Write some normie tests.
+          - If a `BlockExpr` is valid, a `ScopedBlock` is also valid; hence,
+            there's no need for error cases.
         - [ ] And, convert all `BlockExpr` to `ScopedBlock`.
           - [ ] If it's wrapped behind an `ExprBoxWrap`, tryna downcast it.
             - Man, I shoulda used enums instead.
+            - I could also try to live with the visitor pattern.
         - Of course, this is a noble cause for "refactoring," but I'm not gonna
           refactor again until I finish everything I set out to do.
           - At least now I learn that this OOP-styled thingy kinda stinks.
