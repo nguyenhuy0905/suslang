@@ -3,10 +3,6 @@
 version = 4
 
 [[package]]
-name = "cli"
-version = "0.0.1"
-
-[[package]]
 name = "parse"
 version = "0.0.1"
 dependencies = [
