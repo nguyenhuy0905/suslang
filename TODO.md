@@ -9,24 +9,32 @@
   - Or, a visitor, whose best implementation is, well, an enum.
 - Anyways, enough rant, onto the actual to-do.
 
-- [ ] Enum `Expr`:
-  - [ ] `Primary`, which is another enum:
-    - [ ] `Identifier`
-    - [ ] `String`
-    - [ ] `Integer`
-    - [ ] `Float`
-    - [ ] `Boolean`
-    - [ ] `ProcCall`
-    - If meeting a `()`, simply delegate back to `Expr`'s parse function.
-  - [ ] `Unary`
-  - [ ] `Factor`
-  - [ ] `Term`
-  - [ ] `BitAnd`
-  - [ ] `BitXor`
-  - [ ] `BitOr`
-  - [ ] `Comparison`
-  - [ ] `LogicAnd`
-  - [ ] `LogicOr`
+- [x] Enum `Expr`:
+  - [x] Fix: 2 types of expressions, with and without blocks
+  - [x] `NoBlockExpr`:
+    - [x] `Primary`, which is another enum:
+      - [x] `Identifier`
+      - [x] `String`
+      - [x] `Integer`
+      - [x] `Float`
+      - [x] `Boolean`
+      - [x] ~`ProcCall`~
+      - If meeting a `()`, simply delegate back to `Expr`'s parse function.
+    - [x] `ProcCall`
+    - ~`Unary`~
+    - ~`Factor`~
+    - ~`Term`~
+    - ~`BitAnd`~
+    - ~`BitXor`~
+    - ~`BitOr`~
+    - ~`Comparison`~
+    - ~`LogicAnd`~
+    - ~`LogicOr`~
+    - `Binary`, encoding all the rules above.
+  - [x] `WithBlockExpr`:
+    - [x] `Block`
+    - [x] `If`
+    - [x] `While`
 
 - [ ] Enum `Stmt`:
   - [ ] `Expr` statement
@@ -35,27 +43,11 @@
   - [ ] `Let` statement
     - Do I add a `Def`/`Const` statement for all immutable types (say, function
       decl)?
-    - Or, `Let` with `Mut`?
-      - If not `Mut`, allow some more declaration types?
-        - Need a new enum for that probably.
-      - If `Mut`, just same-old expression.
-
-- [ ] Extend `Expr`:
-  - [ ] `Block`
-    - Should I start assigning block scope here?
-    - At this stage, there should be enough info already. I can look for any
-      `Let` statements (or `Def`/`Const` if I also add them).
-  - [ ] `Proc`
-    - If I do go the route of `Def` stmt, `Proc` should be in a different enum
-      type than `Expr`.
-    - In its place here can be, say, `Lambda`.
-  - [ ] `If`
-    - [ ] `IfBranch`
-    - [ ] `ElseBranch`
-    - [ ] `ElifBranch`
-  - [ ] `While`
-
-- Should `Assignment` be an `Expr` or `Stmt`?
+    - [x] Or, `Let` with `Mut`?
+      - [x] If not `Mut`, allow some more declaration types?
+        - [x] Need a new enum for that probably (`LetDefn`):
+          - [x] Procedure
+          - [ ] Struct (need new keyword)
 
 - Do I add type info?
   - Do I add type info *during* tokenization instead?
