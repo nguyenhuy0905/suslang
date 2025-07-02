@@ -1,6 +1,10 @@
 pub use std::collections::HashSet;
 pub use std::rc::Rc;
 
+mod parser;
+#[allow(unused)]
+pub use parser::*;
+
 /// Expression
 ///
 /// \<expr\> ::= \<no-block-expr\> ";" | \<with-block-expr\> ";"?
