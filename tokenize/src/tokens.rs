@@ -10,31 +10,31 @@ use std::sync::LazyLock;
 /// hold each line until the end of time).
 #[derive(Debug, PartialEq, Clone)]
 #[repr(u8)]
-pub enum TokenType {
+pub enum TokenKind {
     /// Just an identifier. ASCII.
     /// # Rule
     /// \<identifier\> ::= \[a-zA-Z_\]\[a-zA-Z0-9_\]*
-    Identifier(String) = 0,
+    Identifier,
     /// Holds an i64
     /// # Rule
     /// \<integer\> ::= \[0-9\]+
     /// Integer and Double hold a string.
-    Integer(String),
+    Integer,
     /// Holds a f64
     /// # Rule
     /// \<double\> ::= \[0-9\]* "." \[0-9\]+
     /// Integer and Double hold a string.
-    Double(String),
+    Float,
     /// Literal string, Unicode.
     /// # Rule
     /// \<string\> ::= """ \<char\>* """
-    String(String),
+    String,
     /// single character, one or more Unicode code points.
     /// Rule:
     /// \<char\> ::= \<unicode-code-points\>
     /// \<unicode-code-point\> ::= \
     /// \[0b10000000-0b11111111\]{0, 3}\[0b00000000-0b01111111\]
-    Char(char),
+    Char,
     // single-character symbols, <symbol>
     /// Literal symbol "+"
     Plus,
@@ -59,9 +59,9 @@ pub enum TokenType {
     /// Literal symbol ")"
     RParen,
     /// Literal symbol "{"
-    LCParen,
+    LBrace,
     /// Literal symbol "}"
-    RCParen,
+    RBrace,
     /// Literal symbol "."
     Dot,
     /// Literal symbol ":"
@@ -75,9 +75,9 @@ pub enum TokenType {
     /// Literal symbol "!"
     Bang,
     /// Literal symbol "<"
-    LPBrace,
+    Less,
     /// Literal symbol ">"
-    RPBrace,
+    Greater,
     // multiple-character symbols, <symbol>
     /// Literal symbol "!="
     BangEqual,
@@ -93,8 +93,6 @@ pub enum TokenType {
     BeamBeam,
     /// Literal symbol "//"
     SlashSlash,
-    /// Literal symbol "::"
-    ColonColon,
     // keywords
     /// Keyword "ya"
     Ya,
@@ -114,14 +112,6 @@ pub enum TokenType {
     Def,
     /// Keyword "mut"
     Mut,
-    /// Keyword "import"
-    Import,
-    /// Keyword "module"
-    Module,
-    /// Keyword "overlord"
-    Overlord,
-    /// Keyword "ref"
-    Ref,
     /// Keyword "proc"
     Proc,
     /// Keyword "return"
@@ -131,32 +121,34 @@ pub enum TokenType {
 }
 
 #[must_use]
-pub fn keyword_lookup(key: &str) -> Option<TokenType> {
-    static LOOKUP_TBL: LazyLock<HashMap<&'static str, TokenType>> =
+pub fn keyword_lookup(key: &str) -> Option<TokenKind> {
+    static LOOKUP_TBL: LazyLock<HashMap<&'static str, TokenKind>> =
         LazyLock::new(|| {
-            HashMap::<&'static str, TokenType>::from([
-                ("ya", TokenType::Ya),
-                ("na", TokenType::Na),
-                ("if", TokenType::If),
-                ("elif", TokenType::Elif),
-                ("else", TokenType::Else),
-                ("let", TokenType::Let),
-                ("while", TokenType::While),
-                ("def", TokenType::Def),
-                ("mut", TokenType::Mut),
-                ("import", TokenType::Import),
-                ("module", TokenType::Module),
-                ("overlord", TokenType::Overlord),
-                ("ref", TokenType::Ref),
-                ("proc", TokenType::Proc),
-                ("return", TokenType::Return),
-                ("block_return", TokenType::BlockReturn),
+            HashMap::<&'static str, TokenKind>::from([
+                ("ya", TokenKind::Ya),
+                ("na", TokenKind::Na),
+                ("if", TokenKind::If),
+                ("elif", TokenKind::Elif),
+                ("else", TokenKind::Else),
+                ("let", TokenKind::Let),
+                ("while", TokenKind::While),
+                ("def", TokenKind::Def),
+                ("mut", TokenKind::Mut),
+                ("proc", TokenKind::Proc),
+                ("return", TokenKind::Return),
+                ("block_return", TokenKind::BlockReturn),
             ])
         });
 
     // none of the enum in here contains anything inside, so Imma just clone
     // them.
     LOOKUP_TBL.get(key).cloned()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CharPosition {
+    pub line: usize,
+    pub column: usize,
 }
 
 /// A token. Duh.
@@ -168,57 +160,18 @@ pub fn keyword_lookup(key: &str) -> Option<TokenType> {
 /// * `line_position`: The position in that line.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-    pub tok_typ: TokenType,
-    pub line_number: usize,
-    pub line_position: usize,
+    pub kind: TokenKind,
+    pub pos: CharPosition,
 }
 
 impl Token {
     /// Constructs a new Token
+    #[inline]
     #[must_use]
-    pub fn new(
-        token_type: TokenType,
-        line_number: usize,
-        line_position: usize,
-    ) -> Self {
+    pub fn new(kind: TokenKind, line: usize, column: usize) -> Self {
         Self {
-            tok_typ: token_type,
-            line_number,
-            line_position,
+            kind,
+            pos: CharPosition { line, column },
         }
-    }
-
-    /// Gets the contained token type.
-    #[must_use]
-    pub fn token_type(&self) -> &TokenType {
-        &self.tok_typ
-    }
-
-    #[must_use]
-    pub fn move_token_type(self) -> TokenType {
-        self.tok_typ
-    }
-
-    /// Gets the line number of the current token.
-    #[must_use]
-    pub fn line_number(&self) -> usize {
-        self.line_number
-    }
-
-    /// Gets the line position of the current token.
-    #[must_use]
-    pub fn line_position(&self) -> usize {
-        self.line_position
-    }
-
-    // TODO: use a struct to better name these 2 usizes
-    #[must_use]
-    pub fn bind(self) -> (TokenType, usize, usize) {
-        (self.tok_typ, self.line_number, self.line_position)
-    }
-
-    #[must_use]
-    pub fn bind_ref(&self) -> (&TokenType, usize, usize) {
-        (&self.tok_typ, self.line_number, self.line_position)
     }
 }

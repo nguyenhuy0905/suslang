@@ -1,7 +1,7 @@
 use std::{error::Error, fmt::Display};
 
 use super::*;
-use tokenize::Token;
+use tokenize::{Token, TokenKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParserErrType {
