@@ -10,10 +10,10 @@ use std::error::Error;
 use std::fmt::Display;
 use std::mem;
 
+use unicode_segmentation as us;
+
 use tokens::CharPosition;
 pub use tokens::{Token, TokenKind};
-
-use unicode_segmentation::UnicodeSegmentation;
 
 /// Tokenizes `input`. Returns a vector of [`Token`]s on success.
 ///
@@ -42,10 +42,11 @@ pub fn tokenize(input: &str) -> Result<VecDeque<Token>, TokenizeError> {
 #[derive(Debug, Clone)]
 pub enum TokenizeErrorType {
     InvalidChar(char),
+    ExpectChar,
 }
 
 impl Display for TokenizeErrorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
@@ -56,27 +57,29 @@ impl Error for TokenizeErrorType {}
 #[derive(Debug)]
 pub struct TokenizeError {
     err_type: TokenizeErrorType,
-    line: usize,
-    pos: usize,
+    pos: CharPosition,
 }
 
 impl TokenizeError {
+    #[inline]
     #[must_use]
-    fn new(err_type: TokenizeErrorType, line: usize, pos: usize) -> Self {
+    fn new(err_type: TokenizeErrorType, line: usize, column: usize) -> Self {
         Self {
             err_type,
-            line,
-            pos,
+            pos: CharPosition { line, column },
         }
     }
+
+    #[inline]
     #[must_use]
     pub fn line(&self) -> usize {
-        self.line
+        self.pos.line
     }
 
+    #[inline]
     #[must_use]
-    pub fn pos(&self) -> usize {
-        self.pos
+    pub fn column(&self) -> usize {
+        self.pos.column
     }
 }
 
@@ -85,7 +88,7 @@ impl Display for TokenizeError {
         write!(
             f,
             "{}\n\tAt position {}:{}",
-            self.err_type, self.line, self.pos
+            self.err_type, self.pos.line, self.pos.column
         )
     }
 }
@@ -94,12 +97,25 @@ impl Error for TokenizeError {}
 
 /// Basically a state machine.
 struct Tokenizer<'a> {
+    /// Dictates which transition function to use.
+    ///
+    /// This is a tad bit more reliable than comparing function pointers
+    /// themselves: if there are two identical functions, the compiler is
+    /// allowed to just generate one implementation block; and both
+    /// function pointers now refer to the same block.
+    ///
+    /// This *can* be an issue, because we could very well have a
+    /// non-final state with identical implementation as a final state.
     state: TokenizeState,
-    /// String to slice from
+    /// String to slice from.
     refstr: &'a str,
-    /// [window_begin..window_end]
+    /// One nice thing compared to indexing refstr directly is, column
+    /// indexing is actually correct.
+    /// Of course we will need it to be peekable.
+    graphemes: std::iter::Peekable<us::GraphemeIndices<'a>>,
+    /// `self.refstr[window_begin..window_end]` represents the current slice.
     window_begin: usize,
-    /// [window_begin..window_end]
+    /// `self.refstr[window_begin..window_end]` represents the current slice.
     window_end: usize,
     /// position of `window_begin`
     begin_pos: CharPosition,
@@ -127,25 +143,142 @@ enum TokenizeState {
     Greater,
 }
 
+macro_rules! match_all_symbols {
+    () => {
+        '\"' | '\'' | '/' | '&' | '|' | '=' | '<' | '>' | '!'
+    };
+}
+
 impl<'a> Tokenizer<'a> {
     pub fn new(refstr: &'a str) -> Self {
         Self {
             state: TokenizeState::Init,
             refstr,
+            graphemes: us::UnicodeSegmentation::grapheme_indices(refstr, true)
+                .peekable(),
             window_begin: 0,
             window_end: 0,
-            begin_pos: CharPosition { line: 0, column: 0 },
-            end_pos: CharPosition { line: 0, column: 0 },
+            begin_pos: CharPosition { line: 1, column: 1 },
+            end_pos: CharPosition { line: 1, column: 1 },
             tokens: Vec::new(),
         }
     }
 
+    /// ## Transitions:
+    ///
+    /// - [a-zA-Z_] => advance to `TokenizeState::Ident`
+    /// - [0-9] => advance to `TokenizeState::Number`
+    /// - '\n' | '\t' | ' ' => advance to itself
+    /// - any symbol => advance to the corresponding symbol state
+    ///
+    /// ## Safety
+    /// - This method assumes the current window is empty.
     fn init_transit(&mut self) -> Result<(), TokenizeError> {
-        todo!()
+        debug_assert!(!self.is_done());
+        // we assume at this state, the window is empty, for now
+        debug_assert!(self.window_begin == self.window_end);
+        self.peek_next_char()
+            .ok_or(TokenizeError {
+                err_type: TokenizeErrorType::ExpectChar,
+                pos: self.end_pos,
+            })
+            .and_then(|gr| match gr {
+                'a'..='z' | 'A'..='Z' | '_' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Ident;
+                    Ok(())
+                }
+                '0'..='9' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Number;
+                    Ok(())
+                }
+                '\"' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::String;
+                    Ok(())
+                }
+                '\'' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Char;
+                    Ok(())
+                }
+                '/' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Slash;
+                    Ok(())
+                }
+                '&' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Amper;
+                    Ok(())
+                }
+                '|' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Beam;
+                    Ok(())
+                }
+                '=' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Equal;
+                    Ok(())
+                }
+                '<' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Less;
+                    Ok(())
+                }
+                '>' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Greater;
+                    Ok(())
+                }
+                '!' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Bang;
+                    Ok(())
+                }
+                // TODO: do we support the madlads that use '\f'
+                '\n' | '\t' | ' ' => {
+                    self.consume_next_char();
+                    Ok(())
+                }
+                _ => Err(TokenizeError {
+                    err_type: TokenizeErrorType::InvalidChar(gr),
+                    pos: self.end_pos,
+                }),
+            })
     }
 
     fn ident_transit(&mut self) -> Result<(), TokenizeError> {
-        todo!()
+        debug_assert!(self.window_begin < self.window_end);
+        self.peek_next_char()
+            .ok_or(TokenizeError {
+                err_type: TokenizeErrorType::ExpectChar,
+                pos: self.end_pos,
+            })
+            .and_then(|gr| match gr {
+                'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {
+                    self.consume_next_char();
+                    Ok(())
+                }
+                '\n' | '\t' | ' ' | match_all_symbols!() => {
+                    // finalize the current token
+                    let kind = tokens::keyword_lookup(self.get_window_slice());
+                    self.tokens.push(Token {
+                        kind,
+                        pos: self.begin_pos,
+                    });
+                    // return to the beginning
+                    self.empty_window();
+                    self.state = TokenizeState::Init;
+                    Ok(())
+                }
+                _ => Err(TokenizeError {
+                    err_type: TokenizeErrorType::InvalidChar(gr),
+                    pos: self.end_pos,
+                }),
+            })
     }
 
     fn number_transit(&mut self) -> Result<(), TokenizeError> {
@@ -196,7 +329,75 @@ impl<'a> Tokenizer<'a> {
     #[inline]
     #[must_use]
     fn is_done(&self) -> bool {
-        self.window_end > self.refstr.len()
+        self.window_end >= self.refstr.len()
+    }
+
+    #[inline]
+    #[must_use]
+    fn get_window_slice(&self) -> &str {
+        &self.refstr[self.window_begin..self.window_end]
+    }
+
+    /// Basically, `self.window_begin = self.window_end`.
+    #[inline]
+    fn empty_window(&mut self) {
+        self.begin_pos = self.end_pos;
+        self.window_begin = self.window_end;
+    }
+
+    /// Moves the window's begin by one grapheme.
+    /// If the *current* character pointed to by `self.window_begin` is the
+    /// newline, increment line count and reset column position of
+    /// `self.begin_pos`.
+    #[inline]
+    fn slide_begin_right(&mut self) {
+        self.graphemes.peek().copied().inspect(|&(idx, gr)| {
+            self.window_begin = idx;
+            if gr == "\n" {
+                self.begin_pos.line += 1;
+                self.begin_pos.column = 1;
+                return;
+            }
+            self.begin_pos.column += 1;
+        });
+    }
+
+    /// Moves the window's end by one grapheme.
+    /// If the *current* character pointed to by `self.window_end` is the
+    /// newline, increment line count and reset column position of
+    /// `self.end_pos`.
+    #[inline]
+    fn slide_end_right(&mut self) {
+        self.graphemes.peek().copied().inspect(|&(idx, gr)| {
+            self.window_end = idx;
+            if gr == "\n" {
+                self.end_pos.line += 1;
+                self.end_pos.column = 0;
+                return;
+            }
+            self.end_pos.column += 1;
+        });
+    }
+
+    /// Returns the next character, after sliding the window's end rightwards.
+    #[inline]
+    fn consume_next_char(&mut self) -> Option<char> {
+        self.slide_end_right();
+        self.graphemes
+            .next()
+            // if this doesn't work, unicode_segmentation is broken.
+            // At which point, we're gonna have to clone and fix the source
+            // code.
+            .map(|(_, gr)| gr.parse::<char>().unwrap())
+    }
+
+    /// NOTE: the `peek` method takes a `mut` reference. However, what we can
+    /// observe won't change with multiple calls of this method.
+    #[inline]
+    fn peek_next_char(&mut self) -> Option<char> {
+        self.graphemes
+            .peek()
+            .map(|&(_, gr)| gr.parse::<char>().unwrap())
     }
 }
 

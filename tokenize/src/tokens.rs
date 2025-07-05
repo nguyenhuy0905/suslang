@@ -14,27 +14,27 @@ pub enum TokenKind {
     /// Just an identifier. ASCII.
     /// # Rule
     /// \<identifier\> ::= \[a-zA-Z_\]\[a-zA-Z0-9_\]*
-    Identifier,
+    Identifier(Box<str>),
     /// Holds an i64
     /// # Rule
     /// \<integer\> ::= \[0-9\]+
     /// Integer and Double hold a string.
-    Integer,
+    Integer(u64),
     /// Holds a f64
     /// # Rule
     /// \<double\> ::= \[0-9\]* "." \[0-9\]+
     /// Integer and Double hold a string.
-    Float,
+    Float(f64),
     /// Literal string, Unicode.
     /// # Rule
     /// \<string\> ::= """ \<char\>* """
-    String,
+    String(Box<str>),
     /// single character, one or more Unicode code points.
     /// Rule:
     /// \<char\> ::= \<unicode-code-points\>
     /// \<unicode-code-point\> ::= \
     /// \[0b10000000-0b11111111\]{0, 3}\[0b00000000-0b01111111\]
-    Char,
+    Char(char),
     // single-character symbols, <symbol>
     /// Literal symbol "+"
     Plus,
@@ -120,8 +120,13 @@ pub enum TokenKind {
     BlockReturn,
 }
 
+/// If the `key` matches a keyword, return the `TokenKind` corresponding to
+/// that keyword.
+/// Otherwise, return a `TokenKind::Identifier`.
+///
+/// Yes, that means this function may allocate some memory.
 #[must_use]
-pub fn keyword_lookup(key: &str) -> Option<TokenKind> {
+pub fn keyword_lookup(key: &str) -> TokenKind {
     static LOOKUP_TBL: LazyLock<HashMap<&'static str, TokenKind>> =
         LazyLock::new(|| {
             HashMap::<&'static str, TokenKind>::from([
@@ -142,9 +147,15 @@ pub fn keyword_lookup(key: &str) -> Option<TokenKind> {
 
     // none of the enum in here contains anything inside, so Imma just clone
     // them.
-    LOOKUP_TBL.get(key).cloned()
+    LOOKUP_TBL
+        .get(key)
+        .cloned()
+        .unwrap_or(TokenKind::Identifier(Box::from(key)))
 }
 
+/// NOTE: tab is considered one column.
+///
+/// TODO: do we allow configurable tab width?
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CharPosition {
     pub line: usize,
