@@ -109,19 +109,7 @@ enum TokenizeState {
 
 macro_rules! match_all_symbols {
     () => {
-        '\"' | '\''
-            | '/'
-            | '&'
-            | '|'
-            | '='
-            | '<'
-            | '>'
-            | '!'
-            | '.'
-            | '+'
-            | '-'
-            | '*'
-            | ';'
+        match_all_symbols!(no_dot) | '.'
     };
     // hacky i know
     (no_dot) => {
@@ -137,16 +125,27 @@ macro_rules! match_all_symbols {
             | '-'
             | '*'
             | ';'
+            | ','
+            | '('
+            | ')'
+            | '{'
+            | '}'
     };
 }
 
 impl<'a> Tokenizer<'a> {
+    /// Transforms the `refstr` into a list of [`Token`]s.
+    ///
+    /// # Errors
+    /// - If tokenization ends in a non-final state (e.g. string state,
+    ///   expecting a closing double-quote), an error is returned.
+    /// - If a non-ASCII character appears without being inside a string or
+    ///   char quote, that's also an error.
     pub fn tokenize(refstr: &'a str) -> Result<Vec<Token>, TokenizeError> {
         let mut tok = Tokenizer::new(refstr);
         while !tok.is_done() {
             tok.transit()?;
         }
-        // TODO: write code to deal with any leftover tokens.
 
         match tok.state {
             TokenizeState::Init => Ok(()),
@@ -272,10 +271,17 @@ impl<'a> Tokenizer<'a> {
     /// - [a-zA-Z_] => advance to `TokenizeState::Ident`
     /// - [0-9] => advance to `TokenizeState::Number`
     /// - '\n' | '\t' | ' ' => advance to itself
-    /// - any symbol => advance to the corresponding symbol state
+    /// - '.' | '+' | '-' | '*' | ';' | ',' | '(' | ')' | '{' | '}' => add the
+    ///   corresponding token, does not change state.
+    /// - '\"' => advance to string state.
+    /// - '\'' => advance to char state.
+    /// - '&' | '|' | '=' | '<' | '>' | '!' => advance to their corresponding
+    ///   states.
     ///
     /// ## Safety
     /// - This method assumes the current window is empty.
+    /// - So, before returning to init state, make sure to `self.empty_window`.
+    ///   If that isn't possible, consider adding another state.
     fn init_transit(&mut self) -> Result<(), TokenizeError> {
         debug_assert!(!self.is_done());
         // we assume at this state, the window is empty, for now
@@ -357,7 +363,6 @@ impl<'a> Tokenizer<'a> {
                     Ok(())
                 }
                 '.' => {
-                    // a dot is a dot
                     add_single_symbol(self, TokenKind::Dot);
                     Ok(())
                 }
@@ -365,9 +370,36 @@ impl<'a> Tokenizer<'a> {
                     add_single_symbol(self, TokenKind::Plus);
                     Ok(())
                 }
+                '-' => {
+                    add_single_symbol(self, TokenKind::Dash);
+                    Ok(())
+                }
+                '*' => {
+                    add_single_symbol(self, TokenKind::Star);
+                    Ok(())
+                }
+                ',' => {
+                    add_single_symbol(self, TokenKind::Comma);
+                    Ok(())
+                }
                 ';' => {
-                    // a semicolon is a semicolon
                     add_single_symbol(self, TokenKind::Semicolon);
+                    Ok(())
+                }
+                '(' => {
+                    add_single_symbol(self, TokenKind::LParen);
+                    Ok(())
+                }
+                ')' => {
+                    add_single_symbol(self, TokenKind::RParen);
+                    Ok(())
+                }
+                '{' => {
+                    add_single_symbol(self, TokenKind::LBrace);
+                    Ok(())
+                }
+                '}' => {
+                    add_single_symbol(self, TokenKind::RBrace);
                     Ok(())
                 }
                 _ => Err(TokenizeError {
