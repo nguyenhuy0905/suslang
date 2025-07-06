@@ -118,19 +118,6 @@ fn empty_string() {
     );
 }
 
-// WARN: this case no longer works with our "refactor".
-// #[test]
-// fn multiline_string() {
-//     let ret = Tokenizer::tokenize("\"hell\no\"");
-//     assert_eq!(
-//         ret,
-//         Ok(vec![Token {
-//             kind: TokenKind::String(Box::from("hello")),
-//             pos: CharPosition { line: 1, column: 2 }
-//         }])
-//     );
-// }
-
 #[test]
 fn single_quote_inside_string() {
     let ret = Tokenizer::tokenize("\"'hello'\"");
