@@ -82,9 +82,9 @@ pub enum TokenKind {
     /// Literal symbol "!="
     BangEqual,
     /// Literal symbol "<="
-    LPBraceEqual,
+    LessEqual,
     /// Literal symbol ">="
-    RPBraceEqual,
+    GreaterEqual,
     /// Literal symbol "=="
     EqualEqual,
     /// Literal symbol "&&"

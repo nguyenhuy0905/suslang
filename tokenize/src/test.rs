@@ -1,438 +1,437 @@
-// use super::*;
+use crate::{
+    Token, TokenKind, TokenizeError, TokenizeErrorType, Tokenizer,
+    tokens::CharPosition,
+};
 
-// #[test]
-// fn ignore_space() {
-//     let ret = tokenize("     \r\t");
-//     assert!(ret.is_ok());
-//     assert!(ret.unwrap().is_empty());
-// }
+#[test]
+fn ignore_space() {
+    let ret = Tokenizer::tokenize("   \t").unwrap();
+    assert!(ret.is_empty());
+}
 
-// #[test]
-// fn non_ascii_begin_token() {
-//     let ret = tokenize("\u{f4a2} russ \u{f4a2}");
-//     assert!(ret.is_err());
-//     assert!(matches!(
-//         ret.err().unwrap().err_type,
-//         TokenizeErrorType::InvalidToken(_)
-//     ));
-// }
+#[test]
+fn non_ascii_begin_token() {
+    let ret = Tokenizer::tokenize("\u{f4a2} russ \u{f4a2}");
+    assert_eq!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidChar('\u{f4a2}'),
+            pos: CharPosition { line: 1, column: 1 }
+        })
+    );
+}
 
-// #[test]
-// fn simple_char() {
-//     let ret = tokenize("' '").unwrap();
-//     assert_eq!(ret.len(), 1);
-//     assert_eq!(ret.front().unwrap().tok_typ, TokenKind::Char(' '));
-// }
+#[test]
+fn simple_char() {
+    let ret = Tokenizer::tokenize("\' \'").unwrap();
+    assert_eq!(
+        ret,
+        [Token {
+            kind: TokenKind::Char(' '),
+            pos: CharPosition { line: 1, column: 2 }
+        }]
+    );
+}
 
-// #[test]
-// fn empty_char() {
-//     let ret = tokenize("''");
-//     assert!(ret.is_err());
-//     assert!(matches!(
-//         ret,
-//         Err(TokenizeError {
-//             err_type: TokenizeErrorType::InvalidToken(_),
-//             ..
-//         })
-//     ));
-// }
+#[test]
+fn empty_char() {
+    let ret = Tokenizer::tokenize("\'\'");
+    assert_eq!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidChar('\''),
+            pos: CharPosition { line: 1, column: 2 }
+        })
+    );
+}
 
-// #[test]
-// fn too_many_chars() {
-//     let ret = tokenize("'coc'");
-//     assert!(ret.is_err());
-//     assert!(matches!(
-//         ret,
-//         Err(TokenizeError {
-//             err_type: TokenizeErrorType::InvalidToken(_),
-//             ..
-//         })
-//     ));
-// }
+#[test]
+fn too_many_chars() {
+    let ret = Tokenizer::tokenize("'coc'");
+    assert_eq!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidChar('o'),
+            pos: CharPosition { line: 1, column: 3 }
+        })
+    );
+}
 
-// #[test]
-// fn unicode_char() {
-//     let ret = tokenize("'\u{eb54}'").unwrap();
-//     assert_eq!(ret.len(), 1);
-//     assert!(matches!(
-//         ret.front(),
-//         Some(Token {
-//             tok_typ: TokenKind::Char('\u{eb54}'),
-//             ..
-//         })
-//     ));
-// }
+#[test]
+fn unicode_char() {
+    let ret = Tokenizer::tokenize("'\u{eb54}'");
+    assert_eq!(ret.clone().map(|ret| ret.len()), Ok(1));
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::Char('\u{eb54}'),
+            pos: CharPosition { line: 1, column: 2 }
+        }])
+    );
+}
 
-// #[test]
-// fn simple_string() {
-//     let ret = tokenize("\"hello\"");
-//     assert!(ret.is_ok());
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     assert!(matches!(
-//         ur.front().unwrap().token_type(),
-//         TokenKind::String(_)
-//     ));
-//     if let TokenKind::String(s) = ur.front().unwrap().token_type() {
-//         assert_eq!(s, "hello");
-//         assert_ne!(s, "hell");
-//     }
-// }
+#[test]
+fn simple_string() {
+    let ret = Tokenizer::tokenize("\"hello\"");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::String(Box::from("hello")),
+            pos: CharPosition { line: 1, column: 2 }
+        }])
+    );
+}
 
-// #[test]
-// fn unicode_string() {
-//     let ret = tokenize("\"hello\u{f4a2}!\"");
-//     assert!(ret.is_ok());
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     assert!(matches!(
-//         ur.front().unwrap().token_type(),
-//         TokenKind::String(_)
-//     ));
-//     if let TokenKind::String(s) = ur.front().unwrap().token_type() {
-//         assert_eq!(s, "hello\u{f4a2}!");
-//         assert_ne!(s, "hell");
-//     }
-// }
+#[test]
+fn unicode_string() {
+    let ret = Tokenizer::tokenize("\"hello\u{f4a2}!\"");
+    assert_eq!(
+        ret.as_ref().map(|ret| ret.first()),
+        Ok(Some(&Token {
+            kind: TokenKind::String(Box::from("hello\u{f4a2}!")),
+            pos: CharPosition { line: 1, column: 2 }
+        }))
+    );
+}
 
-// #[test]
-// fn string_error() {
-//     let ret = tokenize("\"");
-//     assert!(ret.is_err());
-//     assert!(matches!(
-//         ret,
-//         Err(TokenizeError {
-//             err_type: TokenizeErrorType::UnfinishedToken,
-//             line: 1,
-//             pos: 0,
-//             ..
-//         })
-//     ));
-// }
+#[test]
+fn unfinished_string() {
+    let ret = Tokenizer::tokenize("\"hello");
+    assert_eq!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::ExpectChar,
+            pos: CharPosition { line: 1, column: 2 }
+        })
+    );
+}
 
-// #[test]
-// fn unfinished_string() {
-//     let ret = tokenize("\"hello");
-//     assert!(ret.is_err());
-//     assert!(matches!(
-//         ret,
-//         Err(TokenizeError {
-//             err_type: TokenizeErrorType::UnfinishedToken,
-//             line: 1,
-//             pos: 2, // the position of the 'h'
-//             ..
-//         })
-//     ));
-// }
+#[test]
+fn empty_string() {
+    let ret = Tokenizer::tokenize("\"\"");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::String(Box::from("")),
+            pos: CharPosition { line: 1, column: 2 }
+        }])
+    );
+}
 
-// #[test]
-// fn empty_string() {
-//     let ret = tokenize("\"\"");
-//     assert!(ret.is_ok());
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     assert!(matches!(
-//         ur.front().unwrap().token_type(),
-//         TokenKind::String(_)
-//     ));
-//     if let TokenKind::String(s) = ur.front().unwrap().token_type() {
-//         assert!(s.is_empty());
-//     }
-// }
-
+// WARN: this case no longer works with our "refactor".
 // #[test]
 // fn multiline_string() {
-//     let ret = tokenize("\"hell\no\"").unwrap();
-//     assert_eq!(ret.len(), 1);
+//     let ret = Tokenizer::tokenize("\"hell\no\"");
 //     assert_eq!(
-//         ret.front().unwrap().tok_typ,
-//         TokenKind::String("hello".into())
-//     );
-// }
-
-// #[test]
-// fn single_quote_inside_string() {
-//     let ret = tokenize("\"'hello'\"").unwrap();
-//     assert_eq!(ret.len(), 1);
-//     assert_eq!(
-//         ret.front().unwrap().tok_typ,
-//         TokenKind::String("'hello'".into())
-//     );
-// }
-
-// #[test]
-// fn simple_identifier() {
-//     let ret = tokenize("hello");
-//     assert!(ret.is_ok());
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     assert!(matches!(
-//         ur.front().unwrap().token_type(),
-//         TokenKind::Identifier(_)
-//     ));
-//     if let TokenKind::Identifier(s) = ur.front().unwrap().token_type() {
-//         assert!(!s.is_empty());
-//         assert_eq!(s, "hello");
-//     }
-// }
-
-// #[test]
-// fn non_ascii_identifier() {
-//     let ret = tokenize("hello\u{eee2}");
-//     assert!(ret.is_err());
-//     assert!(matches!(
-//         ret.err().unwrap().err_type,
-//         TokenizeErrorType::InvalidToken(_)
-//     ));
-// }
-
-// #[test]
-// fn keyword() {
-//     let ret = tokenize("let");
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     assert!(matches!(ur.front().unwrap().token_type(), TokenKind::Let));
-// }
-
-// #[test]
-// fn keyword_and_identifier() {
-//     let ret = tokenize("let hello");
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     assert!(matches!(ur.front().unwrap().token_type(), TokenKind::Let));
-//     assert!(ur.get(1).is_some());
-//     if let TokenKind::Identifier(s) = ur.get(1).unwrap().token_type() {
-//         assert!(!s.is_empty());
-//         assert_eq!(s, "hello");
-//     }
-// }
-
-// #[test]
-// fn number() {
-//     let ret = tokenize("69420");
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     let Some(Token {
-//         tok_typ: TokenKind::Integer(int_str),
-//         ..
-//     }) = ur.front()
-//     else {
-//         panic!("tokenize::test::number: ur wrong");
-//     };
-//     assert_eq!(int_str, "69420");
-// }
-
-// #[test]
-// fn simple_double() {
-//     let ret = tokenize("420.69");
-//     let ur = ret.unwrap();
-//     assert!(!ur.is_empty());
-//     let Some(Token {
-//         tok_typ: TokenKind::Double(dbl),
-//         ..
-//     }) = ur.front()
-//     else {
-//         panic!("tokenize::test::simple_double: ur wrong");
-//     };
-//     assert_eq!(dbl, "420.69");
-// }
-
-// #[test]
-// fn too_many_dot_double() {
-//     let ret = tokenize("420.69.111");
-//     assert!(ret.is_err());
-//     assert!(matches!(
 //         ret,
-//         Err(TokenizeError {
-//             err_type: TokenizeErrorType::InvalidToken(_),
-//             ..
-//         })
-//     ));
-// }
-
-// #[test]
-// fn double_multiline_err() {
-//     let ret = tokenize("420.\n69");
-//     assert!(ret.is_err());
-//     assert!(matches!(
-//         ret,
-//         Err(TokenizeError {
-//             err_type: TokenizeErrorType::InvalidToken(_),
-//             ..
-//         })
-//     ));
-// }
-
-// #[test]
-// fn multiline_number() {
-//     let ret = tokenize("69420\n66666\n424242").unwrap();
-//     assert_eq!(ret.len(), 3);
-//     let cmp_arr = [
-//         TokenKind::Integer("69420".into()),
-//         TokenKind::Integer("66666".into()),
-//         TokenKind::Integer("424242".into()),
-//     ];
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
+//         Ok(vec![Token {
+//             kind: TokenKind::String(Box::from("hello")),
+//             pos: CharPosition { line: 1, column: 2 }
+//         }])
 //     );
 // }
 
-// #[test]
-// fn one_symbol() {
-//     let ret = tokenize("+").unwrap();
-//     assert!(!ret.is_empty());
-//     assert!(matches!(ret.front().unwrap().tok_typ, TokenKind::Plus));
-// }
+#[test]
+fn single_quote_inside_string() {
+    let ret = Tokenizer::tokenize("\"'hello'\"");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::String(Box::from("'hello'")),
+            pos: CharPosition { line: 1, column: 2 }
+        }])
+    );
+}
 
-// #[test]
-// fn symbols_on_multi_line() {
-//     let ret = tokenize("=\n=").unwrap();
-//     assert_eq!(ret.len(), 2);
-//     assert!(matches!(
-//         ret.get(1).unwrap(),
-//         Token {
-//             tok_typ: TokenKind::Equal,
-//             line_number: 2,
-//             ..
-//         }
-//     ));
-// }
+#[test]
+fn simple_identifier() {
+    let ret = Tokenizer::tokenize("hello");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::Identifier(Box::from("hello")),
+            pos: CharPosition { line: 1, column: 1 }
+        }])
+    );
+}
 
-// #[test]
-// fn comparisons() {
-//     let ret = tokenize("<= >= !=").unwrap();
-//     assert_eq!(ret.len(), 3);
-//     let cmp_arr = [
-//         TokenKind::LPBraceEqual,
-//         TokenKind::RPBraceEqual,
-//         TokenKind::BangEqual,
-//     ];
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn non_ascii_identifier() {
+    let ret = Tokenizer::tokenize("hello\u{eee2}");
+    assert_eq!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidChar('\u{eee2}'),
+            pos: CharPosition { line: 1, column: 6 }
+        })
+    );
+}
 
-// #[test]
-// fn conditional() {
-//     let ret = tokenize("|| &&").unwrap();
-//     let cmp_arr = [TokenKind::BeamBeam, TokenKind::AmpersandAmpersand];
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn keyword() {
+    let ret = Tokenizer::tokenize("let");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::Let,
+            pos: CharPosition { line: 1, column: 1 }
+        }])
+    );
+}
 
-// #[test]
-// fn bitwise_line_separated() {
-//     let ret = tokenize("|\n|").unwrap();
-//     let cmp_arr = [TokenKind::Beam, TokenKind::Beam];
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn keyword_and_identifier() {
+    let ret = Tokenizer::tokenize("let hello");
+    assert_eq!(
+        ret,
+        Ok(vec![
+            Token {
+                kind: TokenKind::Let,
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::Identifier(Box::from("hello")),
+                pos: CharPosition { line: 1, column: 5 }
+            }
+        ])
+    );
+}
 
-// #[test]
-// fn bitwise_whitespace_separated() {
-//     let ret = tokenize("| |").unwrap();
-//     let cmp_arr = [TokenKind::Beam, TokenKind::Beam];
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn number() {
+    let ret = Tokenizer::tokenize("69420");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::Integer(69420),
+            pos: CharPosition { line: 1, column: 1 }
+        }])
+    );
+}
 
-// #[test]
-// fn bitwise() {
-//     let ret = tokenize("&3&|").unwrap();
-//     let cmp_arr = [
-//         TokenKind::Ampersand,
-//         TokenKind::Integer("3".to_string()),
-//         TokenKind::Ampersand,
-//         TokenKind::Beam,
-//     ];
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn simple_double() {
+    let ret = Tokenizer::tokenize("420.69");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::Float(420.69),
+            pos: CharPosition { line: 1, column: 1 }
+        }])
+    );
+}
 
-// #[test]
-// fn multi_word_symbol() {
-//     let ret = tokenize("===").unwrap();
-//     assert_eq!(ret.len(), 2);
-//     let ret = ret.into_iter().map(|tt| tt.tok_typ).collect::<Vec<_>>();
-//     let cmp_vec = [TokenKind::EqualEqual, TokenKind::Equal];
-//     assert_eq!(ret, cmp_vec);
-// }
+#[test]
+fn too_many_dot_double() {
+    let ret = Tokenizer::tokenize("420.69.111");
+    assert_eq!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidChar('.'),
+            pos: CharPosition { line: 1, column: 7 }
+        })
+    );
+}
 
-// #[test]
-// fn looks_like_namespace_reso() {
-//     let ret = tokenize("hello::byebye").unwrap();
-//     assert_eq!(ret.len(), 3);
-//     let cmp_arr = [
-//         TokenKind::Identifier("hello".into()),
-//         TokenKind::ColonColon,
-//         TokenKind::Identifier("byebye".into()),
-//     ];
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn double_multiline_err() {
+    let ret = Tokenizer::tokenize("420.\n69");
+    assert_eq!(
+        ret,
+        Err(TokenizeError {
+            err_type: TokenizeErrorType::InvalidChar('\n'),
+            pos: CharPosition { line: 1, column: 5 }
+        })
+    );
+}
 
-// #[test]
-// fn comment() {
-//     let ret = tokenize("// hello this is a comment").unwrap();
-//     assert!(ret.is_empty());
-// }
+#[test]
+fn multiline_number() {
+    let ret = Tokenizer::tokenize("69420\n66666\n424242");
+    assert_eq!(
+        ret,
+        Ok(vec![
+            Token {
+                kind: TokenKind::Integer(69420),
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::Integer(66666),
+                pos: CharPosition { line: 2, column: 1 }
+            },
+            Token {
+                kind: TokenKind::Integer(424242),
+                pos: CharPosition { line: 3, column: 1 }
+            },
+        ])
+    );
+}
 
-// #[test]
-// fn comment_and_line() {
-//     let ret = tokenize("// hello this is a comment\n\"hello\"").unwrap();
-//     assert_eq!(ret.len(), 1);
-//     assert_eq!(
-//         ret.front().unwrap().tok_typ,
-//         TokenKind::String("hello".into())
-//     );
-// }
+#[test]
+fn one_symbol() {
+    // TODO: i haven't implemented parsing symbols yet.
+    let ret = Tokenizer::tokenize("+");
+    assert_eq!(
+        ret,
+        Ok(vec![Token {
+            kind: TokenKind::Plus,
+            pos: CharPosition { line: 1, column: 1 }
+        }])
+    );
+}
 
-// #[test]
-// fn multiple_exprs() {
-//     let ret = tokenize("\"hello\";\"goodbye\"").unwrap();
-//     assert_eq!(ret.len(), 3);
-//     let cmp_arr = [
-//         TokenKind::String("hello".into()),
-//         TokenKind::Semicolon,
-//         TokenKind::String("goodbye".into()),
-//     ];
-//     assert_eq!(
-//         ret.into_iter().map(|tt| tt.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn symbols_on_multi_line() {
+    let ret = Tokenizer::tokenize("=\n=").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::Equal,
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::Equal,
+                pos: CharPosition { line: 2, column: 1 }
+            }
+        ]
+    );
+}
 
-// #[test]
-// fn funny_looking_code() {
-//     let ret = tokenize("proc hello() {\nlet goodbye_1 = 1;\n}").unwrap();
-//     let cmp_arr = [
-//         TokenKind::Proc,
-//         TokenKind::Identifier("hello".into()),
-//         TokenKind::LParen,
-//         TokenKind::RParen,
-//         TokenKind::LCParen,
-//         TokenKind::Let,
-//         TokenKind::Identifier("goodbye_1".into()),
-//         TokenKind::Equal,
-//         TokenKind::Integer("1".into()),
-//         TokenKind::Semicolon,
-//         TokenKind::RCParen,
-//     ];
-//     assert_eq!(ret.len(), cmp_arr.len());
-//     assert_eq!(
-//         ret.into_iter().map(|t| t.tok_typ).collect::<Vec<_>>(),
-//         cmp_arr
-//     );
-// }
+#[test]
+fn comparisons() {
+    let ret = Tokenizer::tokenize("<= >= !=").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::LessEqual,
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::GreaterEqual,
+                pos: CharPosition { line: 1, column: 4 }
+            },
+            Token {
+                kind: TokenKind::BangEqual,
+                pos: CharPosition { line: 1, column: 7 }
+            }
+        ]
+    );
+}
+
+#[test]
+fn conditional() {
+    let ret = Tokenizer::tokenize("|| &&").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::BeamBeam,
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::AmpersandAmpersand,
+                pos: CharPosition { line: 1, column: 4 }
+            }
+        ]
+    );
+}
+
+#[test]
+fn bitwise_line_separated() {
+    let ret = Tokenizer::tokenize("|\n|").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::Beam,
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::Beam,
+                pos: CharPosition { line: 2, column: 1 }
+            }
+        ]
+    );
+}
+
+#[test]
+fn bitwise_whitespace_separated() {
+    let ret = Tokenizer::tokenize("| |").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::Beam,
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::Beam,
+                pos: CharPosition { line: 1, column: 3 }
+            }
+        ]
+    );
+}
+
+#[test]
+fn multi_word_symbol() {
+    let ret = Tokenizer::tokenize("===").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::EqualEqual,
+                pos: CharPosition { line: 1, column: 1 }
+            },
+            Token {
+                kind: TokenKind::Equal,
+                pos: CharPosition { line: 1, column: 3 }
+            }
+        ]
+    );
+}
+
+#[test]
+fn comment() {
+    let ret = Tokenizer::tokenize("// hello this is a comment").unwrap();
+    assert!(ret.is_empty());
+}
+
+#[test]
+fn comment_and_line() {
+    let ret =
+        Tokenizer::tokenize("// hello this is a comment\n\"hello\"").unwrap();
+    assert_eq!(
+        ret,
+        [Token {
+            kind: TokenKind::String(Box::from("hello")),
+            pos: CharPosition { line: 2, column: 2 }
+        }]
+    );
+}
+
+#[test]
+fn multiple_exprs() {
+    let ret = Tokenizer::tokenize("\"hello\";\"goodbye\"").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::String("hello".into()),
+                pos: CharPosition { line: 1, column: 2 }
+            },
+            Token {
+                kind: TokenKind::Semicolon,
+                pos: CharPosition { line: 1, column: 8 }
+            },
+            Token {
+                kind: TokenKind::String("goodbye".into()),
+                pos: CharPosition {
+                    line: 1,
+                    column: 10
+                }
+            },
+        ]
+    );
+}
