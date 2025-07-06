@@ -143,6 +143,10 @@ enum TokenizeState {
 
 macro_rules! match_all_symbols {
     () => {
+        '\"' | '\'' | '/' | '&' | '|' | '=' | '<' | '>' | '!' | '.'
+    };
+    // hacky i know
+    (no_dot) => {
         '\"' | '\'' | '/' | '&' | '|' | '=' | '<' | '>' | '!'
     };
 }
@@ -241,6 +245,17 @@ impl<'a> Tokenizer<'a> {
                     self.consume_next_char();
                     Ok(())
                 }
+                '.' => {
+                    // a dot is a dot
+                    self.consume_next_char();
+                    self.empty_window();
+
+                    self.tokens.push(Token {
+                        kind: TokenKind::Dot,
+                        pos: self.begin_pos,
+                    });
+                    Ok(())
+                }
                 _ => Err(TokenizeError {
                     err_type: TokenizeErrorType::InvalidChar(gr),
                     pos: self.end_pos,
@@ -279,19 +294,143 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn number_transit(&mut self) -> Result<(), TokenizeError> {
-        todo!()
+        debug_assert!(self.window_begin < self.window_end);
+        self.peek_next_char()
+            .ok_or(TokenizeError {
+                err_type: TokenizeErrorType::ExpectChar,
+                pos: self.end_pos,
+            })
+            .and_then(|gr| match gr {
+                '0'..'9' => {
+                    self.consume_next_char();
+                    Ok(())
+                }
+                '.' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Float;
+                    Ok(())
+                }
+                // NOTE: no_dot is not an identifier, but a goofy way to
+                // introduce a match arm.
+                match_all_symbols!(no_dot) => {
+                    self.tokens.push(Token {
+                        kind: TokenKind::Integer(
+                            self.get_window_slice().parse::<u64>().unwrap(),
+                        ),
+                        pos: self.begin_pos,
+                    });
+                    self.empty_window();
+                    self.state = TokenizeState::Init;
+                    Ok(())
+                }
+                _ => Err(TokenizeError {
+                    err_type: TokenizeErrorType::ExpectChar,
+                    pos: self.end_pos,
+                }),
+            })
     }
 
     fn float_transit(&mut self) -> Result<(), TokenizeError> {
-        todo!()
+        debug_assert!(self.window_begin < self.window_end);
+        // almost similar to `number_transit`
+        self.peek_next_char()
+            .ok_or(TokenizeError {
+                err_type: TokenizeErrorType::ExpectChar,
+                pos: self.end_pos,
+            })
+            .and_then(|gr| match gr {
+                '0'..'9' => {
+                    self.consume_next_char();
+                    Ok(())
+                }
+                match_all_symbols!() => {
+                    self.tokens.push(Token {
+                        kind: TokenKind::Integer(
+                            self.get_window_slice().parse::<u64>().unwrap(),
+                        ),
+                        pos: self.begin_pos,
+                    });
+                    self.empty_window();
+                    self.state = TokenizeState::Init;
+                    Ok(())
+                }
+                _ => Err(TokenizeError {
+                    err_type: TokenizeErrorType::ExpectChar,
+                    pos: self.end_pos,
+                }),
+            })
     }
 
     fn string_transit(&mut self) -> Result<(), TokenizeError> {
-        todo!()
+        // now this can start empty
+        self.peek_next_char()
+            .ok_or(TokenizeError {
+                err_type: TokenizeErrorType::ExpectChar,
+                pos: self.begin_pos,
+            })
+            .and_then(|gr| match gr {
+                '\"' => {
+                    self.tokens.push(Token {
+                        kind: TokenKind::String(Box::from(
+                            self.get_window_slice(),
+                        )),
+                        pos: self.begin_pos,
+                    });
+                    self.consume_next_char();
+                    self.empty_window();
+                    Ok(())
+                }
+                '\\' => {
+                    todo!(
+                        "Tokenizer::string_transit: Create a new state that \
+                         parses the string escape sequence"
+                    )
+                }
+                _ => {
+                    self.consume_next_char();
+                    Ok(())
+                }
+            })
     }
 
     fn char_transit(&mut self) -> Result<(), TokenizeError> {
-        todo!()
+        debug_assert!(self.window_begin == self.window_end);
+        self.consume_next_char()
+            .ok_or(TokenizeError {
+                err_type: TokenizeErrorType::ExpectChar,
+                pos: self.end_pos,
+            })
+            .and_then(|gr| {
+                if gr.is_alphanumeric() {
+                    self.tokens.push(Token {
+                        kind: TokenKind::Char(gr),
+                        pos: self.begin_pos,
+                    });
+                    Ok(())
+                } else {
+                    Err(TokenizeError {
+                        err_type: TokenizeErrorType::InvalidChar(gr),
+                        pos: self.begin_pos,
+                    })
+                }
+            })
+            .and_then(|()| {
+                self.consume_next_char().ok_or(TokenizeError {
+                    err_type: TokenizeErrorType::ExpectChar,
+                    pos: self.end_pos,
+                })
+            })
+            .and_then(|gr| {
+                if gr == '\'' {
+                    self.empty_window();
+                    Ok(())
+                } else {
+                    Err(TokenizeError {
+                        err_type: TokenizeErrorType::InvalidChar(gr),
+                        pos: self.begin_pos,
+                    })
+                }
+            })
     }
 
     fn slash_transit(&mut self) -> Result<(), TokenizeError> {
@@ -336,6 +475,8 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Basically, `self.window_begin = self.window_end`.
+    ///
+    /// Of course, if window is already empty, this does nothing.
     ///
     /// If this is called while `peek`ing a grapheme (let's call it `p`):
     /// [<beg>..<end = `p`>] -> [<beg = end (peek)>]
