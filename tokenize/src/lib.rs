@@ -109,9 +109,7 @@ struct Tokenizer<'a> {
     state: TokenizeState,
     /// String to slice from.
     refstr: &'a str,
-    /// One nice thing compared to indexing refstr directly is, column
-    /// indexing is actually correct.
-    /// Of course we will need it to be peekable.
+    /// `next` or `peek` should always start at `self.refstr[self.window_end]`.
     graphemes: std::iter::Peekable<us::GraphemeIndices<'a>>,
     /// `self.refstr[window_begin..window_end]` represents the current slice.
     window_begin: usize,
@@ -269,7 +267,6 @@ impl<'a> Tokenizer<'a> {
                         kind,
                         pos: self.begin_pos,
                     });
-                    // return to the beginning
                     self.empty_window();
                     self.state = TokenizeState::Init;
                     Ok(())
@@ -339,6 +336,14 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Basically, `self.window_begin = self.window_end`.
+    ///
+    /// If this is called while `peek`ing a grapheme (let's call it `p`):
+    /// [<beg>..<end = `p`>] -> [<beg = end (peek)>]
+    /// So, next time we `peek`, it's still the same grapheme.
+    ///
+    /// If this is called while consuming a grapheme (let's call it `c`):
+    /// [<beg>..<`c`><end (peek)>] -> [<beg = end `peek`>]
+    /// So, next time we `peek`, it's the next grapheme.
     #[inline]
     fn empty_window(&mut self) {
         self.begin_pos = self.end_pos;
@@ -358,7 +363,7 @@ impl<'a> Tokenizer<'a> {
                 self.begin_pos.column = 1;
                 return;
             }
-            self.begin_pos.column += 1;
+            self.begin_pos.column += gr.len();
         });
     }
 
@@ -372,10 +377,10 @@ impl<'a> Tokenizer<'a> {
             self.window_end = idx;
             if gr == "\n" {
                 self.end_pos.line += 1;
-                self.end_pos.column = 0;
+                self.end_pos.column = 1;
                 return;
             }
-            self.end_pos.column += 1;
+            self.end_pos.column += gr.len();
         });
     }
 
