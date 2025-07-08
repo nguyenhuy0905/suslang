@@ -414,24 +414,53 @@ impl<'a> Tokenizer<'a> {
 
                 #[allow(clippy::unnested_or_patterns)]
                 '\n' | '\t' | ' ' | match_all_symbols!(no_dot) => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Integer,
-                        pos: self.begin_pos,
-                        // a bit complicated, but:
-                        // - if last character is not a number, bork it.
-                        // - HACK: for now; we don't allow suffixes.
-                        repr: if gr.is_numeric() {
-                            Ok(Some(Box::from(self.get_window_slice())))
-                        } else {
-                            Err(TokenizeError {
-                                err_type: TokenizeErrorType::InvalidChar(gr),
-                                pos: self.end_pos,
-                            })
-                        }?,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
-                    Ok(())
+                    let match_c =
+                        self.get_window_slice().chars().rev().next().unwrap();
+                    match match_c {
+                        '0'..='9' => {
+                            // an actual float
+                            self.tokens.push(Token {
+                                kind: TokenKind::Float,
+                                pos: self.begin_pos,
+                                repr: Some(Box::from(self.get_window_slice())),
+                            });
+                            self.empty_window();
+                            self.state = TokenizeState::Init;
+                            Ok(())
+                        }
+                        '.' => {
+                            // an integer followed by a dot
+                            self.tokens.push(Token {
+                                kind: TokenKind::Integer,
+                                pos: self.begin_pos,
+                                repr: Some(Box::from(
+                                    &self.get_window_slice()
+                                        [..self.window_end - 1],
+                                )),
+                            });
+                            self.tokens.push(Token {
+                                kind: TokenKind::Dot,
+                                pos: CharPosition {
+                                    // a number is on the same line, so, we can
+                                    // use this to get the last character's
+                                    // position.
+                                    line: self.end_pos.line,
+                                    column: self.end_pos.column - 1,
+                                },
+                                repr: None,
+                            });
+                            self.empty_window();
+                            self.state = TokenizeState::Init;
+                            Ok(())
+                        }
+                        _ => Err(TokenizeError {
+                            err_type: TokenizeErrorType::InvalidChar(match_c),
+                            pos: CharPosition {
+                                line: self.end_pos.line,
+                                column: self.end_pos.column - 1,
+                            },
+                        }),
+                    }
                 }
                 _ => Err(TokenizeError {
                     err_type: TokenizeErrorType::InvalidChar(gr),
@@ -641,12 +670,11 @@ impl<'a> Tokenizer<'a> {
         });
     }
 
-    /// Moves the window's end by one grapheme.
-    /// If the *current* character pointed to by `self.window_end` is the
-    /// newline, increment line count and reset column position of
-    /// `self.end_pos`.
+    /// Returns the next character and its position, after sliding the window's
+    /// end rightwards.
     #[inline]
-    fn slide_end_right(&mut self) {
+    fn consume_next_char(&mut self) -> Option<(char, CharPosition)> {
+        let ret_pos = self.end_pos;
         self.graphemes.peek().copied().inspect(|&(idx, gr)| {
             self.window_end = idx;
             if gr == "\n" {
@@ -656,14 +684,6 @@ impl<'a> Tokenizer<'a> {
             }
             self.end_pos.column += 1;
         });
-    }
-
-    /// Returns the next character and its position, after sliding the window's
-    /// end rightwards.
-    #[inline]
-    fn consume_next_char(&mut self) -> Option<(char, CharPosition)> {
-        let ret_pos = self.end_pos;
-        self.slide_end_right();
         self.graphemes
             .next()
             .inspect(|(_, gr)| self.window_end += gr.len())

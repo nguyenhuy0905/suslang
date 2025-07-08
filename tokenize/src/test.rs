@@ -233,14 +233,28 @@ fn too_many_dot_double() {
 }
 
 #[test]
-fn double_multiline_err() {
-    let ret = Tokenizer::tokenize("420.\n69");
+fn double_multiline() {
+    // it's not a double actually
+    let ret = Tokenizer::tokenize("420.\n69").unwrap();
     assert_eq!(
         ret,
-        Err(TokenizeError {
-            err_type: TokenizeErrorType::InvalidChar('\n'),
-            pos: CharPosition { line: 1, column: 5 }
-        })
+        [
+            Token {
+                kind: TokenKind::Integer,
+                pos: CharPosition { line: 1, column: 1 },
+                repr: Some(Box::from("420")),
+            },
+            Token {
+                kind: TokenKind::Dot,
+                pos: CharPosition { line: 1, column: 4 },
+                repr: None,
+            },
+            Token {
+                kind: TokenKind::Integer,
+                pos: CharPosition { line: 2, column: 1 },
+                repr: Some(Box::from("69")),
+            }
+        ]
     );
 }
 
