@@ -400,6 +400,35 @@ impl<'a> Tokenizer<'a> {
 
     fn float_transit(&mut self) -> Result<(), TokenizeError> {
         debug_assert!(self.window_begin < self.window_end);
+        let push_curr_float = |curr_inst: &mut Self| {
+            curr_inst.tokens.push(Token {
+                kind: TokenKind::Float,
+                pos: curr_inst.begin_pos,
+                repr: Some(Box::from(curr_inst.get_window_slice())),
+            });
+        };
+        let push_prev_int_and_dot = |curr_inst: &mut Self| {
+            // an integer followed by a dot
+            curr_inst.tokens.push(Token {
+                kind: TokenKind::Integer,
+                pos: curr_inst.begin_pos,
+                repr: Some(Box::from(
+                    &curr_inst.get_window_slice()[..curr_inst.window_end - 1],
+                )),
+            });
+            curr_inst.tokens.push(Token {
+                kind: TokenKind::Dot,
+                pos: CharPosition {
+                    // a number is on the same line, so, we can
+                    // use this to get the last character's
+                    // position.
+                    line: curr_inst.end_pos.line,
+                    column: curr_inst.end_pos.column - 1,
+                },
+                repr: None,
+            });
+        };
+
         // almost similar to `number_transit`
         self.peek_next_char()
             .ok_or(TokenizeError {
@@ -415,40 +444,16 @@ impl<'a> Tokenizer<'a> {
                 #[allow(clippy::unnested_or_patterns)]
                 '\n' | '\t' | ' ' | match_all_symbols!(no_dot) => {
                     let match_c =
-                        self.get_window_slice().chars().rev().next().unwrap();
+                        self.get_window_slice().chars().next_back().unwrap();
                     match match_c {
                         '0'..='9' => {
-                            // an actual float
-                            self.tokens.push(Token {
-                                kind: TokenKind::Float,
-                                pos: self.begin_pos,
-                                repr: Some(Box::from(self.get_window_slice())),
-                            });
+                            push_curr_float(self);
                             self.empty_window();
                             self.state = TokenizeState::Init;
                             Ok(())
                         }
                         '.' => {
-                            // an integer followed by a dot
-                            self.tokens.push(Token {
-                                kind: TokenKind::Integer,
-                                pos: self.begin_pos,
-                                repr: Some(Box::from(
-                                    &self.get_window_slice()
-                                        [..self.window_end - 1],
-                                )),
-                            });
-                            self.tokens.push(Token {
-                                kind: TokenKind::Dot,
-                                pos: CharPosition {
-                                    // a number is on the same line, so, we can
-                                    // use this to get the last character's
-                                    // position.
-                                    line: self.end_pos.line,
-                                    column: self.end_pos.column - 1,
-                                },
-                                repr: None,
-                            });
+                            push_prev_int_and_dot(self);
                             self.empty_window();
                             self.state = TokenizeState::Init;
                             Ok(())
@@ -464,13 +469,9 @@ impl<'a> Tokenizer<'a> {
                 }
                 '.' => {
                     let match_c =
-                        self.get_window_slice().chars().rev().next().unwrap();
+                        self.get_window_slice().chars().next_back().unwrap();
                     if match_c.is_numeric() {
-                        self.tokens.push(Token {
-                            kind: TokenKind::Float,
-                            pos: self.begin_pos,
-                            repr: Some(Box::from(self.get_window_slice())),
-                        });
+                        push_curr_float(self);
                         self.empty_window();
                         self.state = TokenizeState::Init;
                         return Ok(());
@@ -482,27 +483,9 @@ impl<'a> Tokenizer<'a> {
                 }
                 _ => {
                     let match_c =
-                        self.get_window_slice().chars().rev().next().unwrap();
+                        self.get_window_slice().chars().next_back().unwrap();
                     if match_c == '.' {
-                        // an integer followed by a dot
-                        self.tokens.push(Token {
-                            kind: TokenKind::Integer,
-                            pos: self.begin_pos,
-                            repr: Some(Box::from(
-                                &self.get_window_slice()[..self.window_end - 1],
-                            )),
-                        });
-                        self.tokens.push(Token {
-                            kind: TokenKind::Dot,
-                            pos: CharPosition {
-                                // a number is on the same line, so, we can
-                                // use this to get the last character's
-                                // position.
-                                line: self.end_pos.line,
-                                column: self.end_pos.column - 1,
-                            },
-                            repr: None,
-                        });
+                        push_prev_int_and_dot(self);
                         self.empty_window();
                         self.state = TokenizeState::Init;
                         return Ok(());
