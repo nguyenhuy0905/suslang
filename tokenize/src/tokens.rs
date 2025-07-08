@@ -156,7 +156,7 @@ pub fn keyword_lookup(key: &str) -> TokenKind {
 /// NOTE: tab is considered one column.
 ///
 /// TODO: do we allow configurable tab width?
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CharPosition {
     pub line: usize,
     pub column: usize,
@@ -169,7 +169,7 @@ pub struct CharPosition {
 /// * `token_type`: The type of token.
 /// * `line_number`: The line number.
 /// * `line_position`: The position in that line.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     pub pos: CharPosition,
