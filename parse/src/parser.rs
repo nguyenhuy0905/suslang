@@ -44,27 +44,28 @@ trait ParseExpr {
     ) -> Result<(Expr, CharPosition), ParseError>;
 }
 
-/// Operator precedence table.
-static OP_PRECEDENCE: LazyLock<HashMap<TokenKind, u16>> = LazyLock::new(|| {
-    let mut ret = HashMap::new();
-    let mut precedence = 0;
-    let mut add_next_precedence = |kinds: &[TokenKind]| {
-        ret.extend(kinds.iter().copied().map(|kind| (kind, precedence)));
-        precedence += 1;
-    };
+/// Binary operator precedence table.
+static BIN_OP_PRECEDENCE: LazyLock<HashMap<TokenKind, u16>> =
+    LazyLock::new(|| {
+        let mut ret = HashMap::new();
+        let mut precedence = 0;
+        let mut add_next_precedence = |kinds: &[TokenKind]| {
+            ret.extend(kinds.iter().copied().map(|kind| (kind, precedence)));
+            precedence += 1;
+        };
 
-    add_next_precedence(&[TokenKind::And, TokenKind::Or]);
-    add_next_precedence(&[TokenKind::Eq, TokenKind::Neq]);
-    add_next_precedence(&[
-        TokenKind::Hat,
-        TokenKind::Ampersand,
-        TokenKind::Beam,
-    ]);
-    add_next_precedence(&[TokenKind::Plus, TokenKind::Dash]);
-    add_next_precedence(&[TokenKind::Star, TokenKind::Slash]);
+        add_next_precedence(&[TokenKind::And, TokenKind::Or]);
+        add_next_precedence(&[TokenKind::Eq, TokenKind::Neq]);
+        add_next_precedence(&[
+            TokenKind::Hat,
+            TokenKind::Ampersand,
+            TokenKind::Beam,
+        ]);
+        add_next_precedence(&[TokenKind::Plus, TokenKind::Dash]);
+        add_next_precedence(&[TokenKind::Star, TokenKind::Slash]);
 
-    ret
-});
+        ret
+    });
 
 impl ParseExpr for LiteralExpr {
     fn parse_tokens(
