@@ -2,12 +2,6 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 /// All the possible tokens.
-/// String-type owns its string.
-///
-/// While it's certainly possible for this enum to only hold references,
-/// letting it own the string allows more flexible ways of receiving
-/// input, such as line-by-line (which, the non-owning scheme forces one to
-/// hold each line until the end of time).
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(u8)]
 pub enum TokenKind {
@@ -46,8 +40,6 @@ pub enum TokenKind {
     Slash,
     /// Literal symbol "&"
     Ampersand,
-    /// Literal symbol "%"
-    Percent,
     /// Literal symbol "^"
     Hat,
     /// Literal symbol "|"
@@ -72,32 +64,34 @@ pub enum TokenKind {
     Comma,
     /// Literal symbol "="
     Equal,
-    /// Literal symbol "!"
-    Bang,
     /// Literal symbol "<"
     Less,
     /// Literal symbol ">"
     Greater,
     // multiple-character symbols, <symbol>
-    /// Literal symbol "!="
-    BangEqual,
     /// Literal symbol "<="
     LessEqual,
     /// Literal symbol ">="
     GreaterEqual,
-    /// Literal symbol "=="
-    EqualEqual,
-    /// Literal symbol "&&"
-    AmpersandAmpersand,
-    /// Literal symbol "||"
-    BeamBeam,
     /// Literal symbol "//"
     SlashSlash,
     // keywords
+    /// Keyword "mod"
+    Mod,
     /// Keyword "ya"
     Ya,
     /// Keyword "na"
     Na,
+    /// Keyword "and"
+    And,
+    /// Keyword "or"
+    Or,
+    /// Keyword "not"
+    Not,
+    /// Keyword "eq"
+    Eq,
+    /// Keyword "neq"
+    Neq,
     /// Keyword "if"
     If,
     /// Keyword "elif"
@@ -131,8 +125,14 @@ pub fn keyword_lookup(key: &str) -> TokenKind {
     static LOOKUP_TBL: LazyLock<HashMap<&'static str, TokenKind>> =
         LazyLock::new(|| {
             HashMap::<&'static str, TokenKind>::from([
+                ("mod", TokenKind::Mod),
                 ("ya", TokenKind::Ya),
                 ("na", TokenKind::Na),
+                ("and", TokenKind::And),
+                ("or", TokenKind::Or),
+                ("not", TokenKind::Not),
+                ("eq", TokenKind::Eq),
+                ("neq", TokenKind::Neq),
                 ("if", TokenKind::If),
                 ("elif", TokenKind::Elif),
                 ("else", TokenKind::Else),

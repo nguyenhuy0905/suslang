@@ -53,8 +53,8 @@ static OP_PRECEDENCE: LazyLock<HashMap<TokenKind, u16>> = LazyLock::new(|| {
         precedence += 1;
     };
 
-    add_next_precedence(&[TokenKind::BeamBeam, TokenKind::AmpersandAmpersand]);
-    add_next_precedence(&[TokenKind::EqualEqual, TokenKind::BangEqual]);
+    add_next_precedence(&[TokenKind::And, TokenKind::Or]);
+    add_next_precedence(&[TokenKind::Eq, TokenKind::Neq]);
     add_next_precedence(&[
         TokenKind::Hat,
         TokenKind::Ampersand,
@@ -123,7 +123,7 @@ impl ParseExpr for UnaryExpr {
                     match tok.kind {
                         TokenKind::Plus => Some(UnaryOp::Plus),
                         TokenKind::Dash => Some(UnaryOp::Minus),
-                        TokenKind::Bang => Some(UnaryOp::Negate),
+                        TokenKind::Not => Some(UnaryOp::Negate),
                         _ => None,
                     }?,
                     tok.pos,

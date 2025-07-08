@@ -98,10 +98,6 @@ enum TokenizeState {
     String,
     Char,
     Slash,
-    Amper,
-    Beam,
-    Equal,
-    Bang,
     Less,
     Greater,
     Comment,
@@ -190,38 +186,6 @@ impl<'a> Tokenizer<'a> {
                 });
                 Ok(())
             }
-            TokenizeState::Amper => {
-                tok.tokens.push(Token {
-                    kind: TokenKind::Ampersand,
-                    pos: tok.begin_pos,
-                    repr: None,
-                });
-                Ok(())
-            }
-            TokenizeState::Beam => {
-                tok.tokens.push(Token {
-                    kind: TokenKind::Beam,
-                    pos: tok.begin_pos,
-                    repr: None,
-                });
-                Ok(())
-            }
-            TokenizeState::Equal => {
-                tok.tokens.push(Token {
-                    kind: TokenKind::Equal,
-                    pos: tok.begin_pos,
-                    repr: None,
-                });
-                Ok(())
-            }
-            TokenizeState::Bang => {
-                tok.tokens.push(Token {
-                    kind: TokenKind::Bang,
-                    pos: tok.begin_pos,
-                    repr: None,
-                });
-                Ok(())
-            }
             TokenizeState::Less => {
                 tok.tokens.push(Token {
                     kind: TokenKind::Less,
@@ -266,10 +230,6 @@ impl<'a> Tokenizer<'a> {
             TokenizeState::String => self.string_transit(),
             TokenizeState::Char => self.char_transit(),
             TokenizeState::Slash => self.slash_transit(),
-            TokenizeState::Amper => self.amper_transit(),
-            TokenizeState::Beam => self.beam_transit(),
-            TokenizeState::Equal => self.equal_transit(),
-            TokenizeState::Bang => self.bang_transit(),
             TokenizeState::Less => self.less_transit(),
             TokenizeState::Greater => self.greater_transit(),
             TokenizeState::Comment => self.comment_transit(),
@@ -345,18 +305,17 @@ impl<'a> Tokenizer<'a> {
                     Ok(())
                 }
                 '/' => advance_change_state(self, TokenizeState::Slash),
-                '&' => advance_change_state(self, TokenizeState::Amper),
-                '|' => advance_change_state(self, TokenizeState::Beam),
-                '=' => advance_change_state(self, TokenizeState::Equal),
                 '<' => advance_change_state(self, TokenizeState::Less),
                 '>' => advance_change_state(self, TokenizeState::Greater),
-                '!' => advance_change_state(self, TokenizeState::Bang),
                 // TODO: do we support the madlads that use '\f'
                 '\n' | '\t' | ' ' => {
                     self.consume_next_char();
                     self.empty_window();
                     Ok(())
                 }
+                '&' => add_single_symbol(self, TokenKind::Ampersand),
+                '|' => add_single_symbol(self, TokenKind::Beam),
+                '=' => add_single_symbol(self, TokenKind::Equal),
                 '.' => add_single_symbol(self, TokenKind::Dot),
                 '+' => add_single_symbol(self, TokenKind::Plus),
                 '-' => add_single_symbol(self, TokenKind::Dash),
@@ -581,38 +540,6 @@ impl<'a> Tokenizer<'a> {
                     self.state = TokenizeState::Init;
                 }
             })
-    }
-
-    fn amper_transit(&mut self) -> Result<(), TokenizeError> {
-        self.match_branched_two_character_symbol(
-            '&',
-            TokenKind::AmpersandAmpersand,
-            TokenKind::Ampersand,
-        )
-    }
-
-    fn beam_transit(&mut self) -> Result<(), TokenizeError> {
-        self.match_branched_two_character_symbol(
-            '|',
-            TokenKind::BeamBeam,
-            TokenKind::Beam,
-        )
-    }
-
-    fn equal_transit(&mut self) -> Result<(), TokenizeError> {
-        self.match_branched_two_character_symbol(
-            '=',
-            TokenKind::EqualEqual,
-            TokenKind::Equal,
-        )
-    }
-
-    fn bang_transit(&mut self) -> Result<(), TokenizeError> {
-        self.match_branched_two_character_symbol(
-            '=',
-            TokenKind::BangEqual,
-            TokenKind::Bang,
-        )
     }
 
     fn less_transit(&mut self) -> Result<(), TokenizeError> {

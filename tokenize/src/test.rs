@@ -305,7 +305,7 @@ fn symbols_on_multi_line() {
 
 #[test]
 fn comparisons() {
-    let ret = Tokenizer::tokenize("<= >= !=").unwrap();
+    let ret = Tokenizer::tokenize("<= >=").unwrap();
     assert_eq!(
         ret,
         [
@@ -319,31 +319,47 @@ fn comparisons() {
                 pos: CharPosition { line: 1, column: 4 },
                 repr: None,
             },
-            Token {
-                kind: TokenKind::BangEqual,
-                pos: CharPosition { line: 1, column: 7 },
-                repr: None,
-            }
         ]
     );
 }
 
 #[test]
 fn conditional() {
-    let ret = Tokenizer::tokenize("|| &&").unwrap();
+    let ret = Tokenizer::tokenize("or and eq neq not").unwrap();
     assert_eq!(
         ret,
         [
             Token {
-                kind: TokenKind::BeamBeam,
+                kind: TokenKind::Or,
                 pos: CharPosition { line: 1, column: 1 },
                 repr: None,
             },
             Token {
-                kind: TokenKind::AmpersandAmpersand,
+                kind: TokenKind::And,
                 pos: CharPosition { line: 1, column: 4 },
                 repr: None,
-            }
+            },
+            Token {
+                kind: TokenKind::Eq,
+                pos: CharPosition { line: 1, column: 8 },
+                repr: None,
+            },
+            Token {
+                kind: TokenKind::Neq,
+                pos: CharPosition {
+                    line: 1,
+                    column: 11
+                },
+                repr: None,
+            },
+            Token {
+                kind: TokenKind::Not,
+                pos: CharPosition {
+                    line: 1,
+                    column: 15
+                },
+                repr: None,
+            },
         ]
     );
 }
@@ -381,26 +397,6 @@ fn bitwise_whitespace_separated() {
             },
             Token {
                 kind: TokenKind::Beam,
-                pos: CharPosition { line: 1, column: 3 },
-                repr: None,
-            }
-        ]
-    );
-}
-
-#[test]
-fn multi_word_symbol() {
-    let ret = Tokenizer::tokenize("===").unwrap();
-    assert_eq!(
-        ret,
-        [
-            Token {
-                kind: TokenKind::EqualEqual,
-                pos: CharPosition { line: 1, column: 1 },
-                repr: None,
-            },
-            Token {
-                kind: TokenKind::Equal,
                 pos: CharPosition { line: 1, column: 3 },
                 repr: None,
             }
