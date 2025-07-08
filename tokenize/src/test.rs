@@ -221,14 +221,27 @@ fn simple_double() {
 }
 
 #[test]
-fn too_many_dot_double() {
-    let ret = Tokenizer::tokenize("420.69.111");
+fn multiple_dots_double() {
+    let ret = Tokenizer::tokenize("420.69.111.222").unwrap();
     assert_eq!(
         ret,
-        Err(TokenizeError {
-            err_type: TokenizeErrorType::InvalidChar('.'),
-            pos: CharPosition { line: 1, column: 7 }
-        })
+        [
+            Token {
+                kind: TokenKind::Float,
+                pos: CharPosition { line: 1, column: 1 },
+                repr: Some(Box::from("420.69")),
+            },
+            Token {
+                kind: TokenKind::Dot,
+                pos: CharPosition { line: 1, column: 7 },
+                repr: None,
+            },
+            Token {
+                kind: TokenKind::Float,
+                pos: CharPosition { line: 1, column: 8 },
+                repr: Some(Box::from("111.222")),
+            }
+        ]
     );
 }
 
@@ -253,6 +266,44 @@ fn double_multiline() {
                 kind: TokenKind::Integer,
                 pos: CharPosition { line: 2, column: 1 },
                 repr: Some(Box::from("69")),
+            }
+        ]
+    );
+}
+
+#[test]
+fn number_and_member() {
+    let ret = Tokenizer::tokenize("69.print()").unwrap();
+    assert_eq!(
+        ret,
+        [
+            Token {
+                kind: TokenKind::Integer,
+                pos: CharPosition { line: 1, column: 1 },
+                repr: Some(Box::from("69"))
+            },
+            Token {
+                kind: TokenKind::Dot,
+                pos: CharPosition { line: 1, column: 3 },
+                repr: None,
+            },
+            Token {
+                kind: TokenKind::Identifier,
+                pos: CharPosition { line: 1, column: 4 },
+                repr: Some(Box::from("print")),
+            },
+            Token {
+                kind: TokenKind::LParen,
+                pos: CharPosition { line: 1, column: 9 },
+                repr: None,
+            },
+            Token {
+                kind: TokenKind::RParen,
+                pos: CharPosition {
+                    line: 1,
+                    column: 10
+                },
+                repr: None,
             }
         ]
     );

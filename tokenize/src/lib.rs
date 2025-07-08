@@ -462,10 +462,56 @@ impl<'a> Tokenizer<'a> {
                         }),
                     }
                 }
-                _ => Err(TokenizeError {
-                    err_type: TokenizeErrorType::InvalidChar(gr),
-                    pos: self.end_pos,
-                }),
+                '.' => {
+                    let match_c =
+                        self.get_window_slice().chars().rev().next().unwrap();
+                    if match_c.is_numeric() {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Float,
+                            pos: self.begin_pos,
+                            repr: Some(Box::from(self.get_window_slice())),
+                        });
+                        self.empty_window();
+                        self.state = TokenizeState::Init;
+                        return Ok(());
+                    }
+                    Err(TokenizeError {
+                        err_type: TokenizeErrorType::InvalidChar('.'),
+                        pos: self.end_pos,
+                    })
+                }
+                _ => {
+                    let match_c =
+                        self.get_window_slice().chars().rev().next().unwrap();
+                    if match_c == '.' {
+                        // an integer followed by a dot
+                        self.tokens.push(Token {
+                            kind: TokenKind::Integer,
+                            pos: self.begin_pos,
+                            repr: Some(Box::from(
+                                &self.get_window_slice()[..self.window_end - 1],
+                            )),
+                        });
+                        self.tokens.push(Token {
+                            kind: TokenKind::Dot,
+                            pos: CharPosition {
+                                // a number is on the same line, so, we can
+                                // use this to get the last character's
+                                // position.
+                                line: self.end_pos.line,
+                                column: self.end_pos.column - 1,
+                            },
+                            repr: None,
+                        });
+                        self.empty_window();
+                        self.state = TokenizeState::Init;
+                        return Ok(());
+                    }
+                    Err(TokenizeError {
+                        err_type: TokenizeErrorType::InvalidChar(gr),
+                        pos: self.end_pos,
+                    })
+                }
             })
     }
 
