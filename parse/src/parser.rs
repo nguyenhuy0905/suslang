@@ -24,7 +24,7 @@ impl Display for ParseError {
 
 impl Error for ParseError {}
 
-trait ParseExpr {
+pub trait ParseExpr {
     /// Given a [`VecDeque`] of [`Token`]s, convert part of the iterator into
     /// a parse node.
     ///

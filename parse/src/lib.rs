@@ -2,6 +2,8 @@ pub use std::collections::HashSet;
 pub use std::rc::Rc;
 
 mod parser;
+#[cfg(test)]
+mod test;
 #[allow(unused)]
 pub use parser::*;
 
