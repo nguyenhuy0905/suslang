@@ -21,7 +21,7 @@ pub enum TokenizeErrorType {
 
 impl Display for TokenizeErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -148,7 +148,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         match tok.state {
-            TokenizeState::Init => Ok(()),
+            TokenizeState::Init | TokenizeState::Comment => Ok(()),
             TokenizeState::Ident => {
                 let lookup = tokens::keyword_lookup(tok.get_window_slice());
                 tok.tokens.push(Token {
@@ -238,7 +238,6 @@ impl<'a> Tokenizer<'a> {
                 });
                 Ok(())
             }
-            TokenizeState::Comment => Ok(()),
         }?;
 
         Ok(tok.tokens)
@@ -298,7 +297,9 @@ impl<'a> Tokenizer<'a> {
         // we assume at this state, the window is empty, for now
         debug_assert!(self.window_begin == self.window_end);
 
-        let add_single_symbol = |curr_inst: &mut Self, kind: TokenKind| {
+        let add_single_symbol = |curr_inst: &mut Self,
+                                 kind: TokenKind|
+         -> Result<(), TokenizeError> {
             let (_, pos) = curr_inst.consume_next_char().unwrap();
             curr_inst.tokens.push(Token {
                 kind,
@@ -306,6 +307,16 @@ impl<'a> Tokenizer<'a> {
                 repr: None,
             });
             curr_inst.slide_begin_right();
+            Ok(())
+        };
+
+        // advance the window, change state
+        let advance_change_state = |curr_inst: &mut Self,
+                                    state: TokenizeState|
+         -> Result<(), TokenizeError> {
+            curr_inst.consume_next_char();
+            curr_inst.state = state;
+            Ok(())
         };
 
         self.peek_next_char()
@@ -315,16 +326,13 @@ impl<'a> Tokenizer<'a> {
             })
             .and_then(|gr| match gr {
                 'a'..='z' | 'A'..='Z' | '_' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Ident;
-                    Ok(())
+                    advance_change_state(self, TokenizeState::Ident)
                 }
-                '0'..='9' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Number;
-                    Ok(())
-                }
+
+                '0'..='9' => advance_change_state(self, TokenizeState::Number),
                 '\"' => {
+                    // this and '\'' also `slide_begin_right`, so they don't
+                    // use `advance_change_state`
                     self.consume_next_char();
                     self.slide_begin_right();
                     self.state = TokenizeState::String;
@@ -336,87 +344,29 @@ impl<'a> Tokenizer<'a> {
                     self.state = TokenizeState::Char;
                     Ok(())
                 }
-                '/' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Slash;
-                    Ok(())
-                }
-                '&' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Amper;
-                    Ok(())
-                }
-                '|' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Beam;
-                    Ok(())
-                }
-                '=' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Equal;
-                    Ok(())
-                }
-                '<' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Less;
-                    Ok(())
-                }
-                '>' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Greater;
-                    Ok(())
-                }
-                '!' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Bang;
-                    Ok(())
-                }
+                '/' => advance_change_state(self, TokenizeState::Slash),
+                '&' => advance_change_state(self, TokenizeState::Amper),
+                '|' => advance_change_state(self, TokenizeState::Beam),
+                '=' => advance_change_state(self, TokenizeState::Equal),
+                '<' => advance_change_state(self, TokenizeState::Less),
+                '>' => advance_change_state(self, TokenizeState::Greater),
+                '!' => advance_change_state(self, TokenizeState::Bang),
                 // TODO: do we support the madlads that use '\f'
                 '\n' | '\t' | ' ' => {
                     self.consume_next_char();
                     self.empty_window();
                     Ok(())
                 }
-                '.' => {
-                    add_single_symbol(self, TokenKind::Dot);
-                    Ok(())
-                }
-                '+' => {
-                    add_single_symbol(self, TokenKind::Plus);
-                    Ok(())
-                }
-                '-' => {
-                    add_single_symbol(self, TokenKind::Dash);
-                    Ok(())
-                }
-                '*' => {
-                    add_single_symbol(self, TokenKind::Star);
-                    Ok(())
-                }
-                ',' => {
-                    add_single_symbol(self, TokenKind::Comma);
-                    Ok(())
-                }
-                ';' => {
-                    add_single_symbol(self, TokenKind::Semicolon);
-                    Ok(())
-                }
-                '(' => {
-                    add_single_symbol(self, TokenKind::LParen);
-                    Ok(())
-                }
-                ')' => {
-                    add_single_symbol(self, TokenKind::RParen);
-                    Ok(())
-                }
-                '{' => {
-                    add_single_symbol(self, TokenKind::LBrace);
-                    Ok(())
-                }
-                '}' => {
-                    add_single_symbol(self, TokenKind::RBrace);
-                    Ok(())
-                }
+                '.' => add_single_symbol(self, TokenKind::Dot),
+                '+' => add_single_symbol(self, TokenKind::Plus),
+                '-' => add_single_symbol(self, TokenKind::Dash),
+                '*' => add_single_symbol(self, TokenKind::Star),
+                ',' => add_single_symbol(self, TokenKind::Comma),
+                ';' => add_single_symbol(self, TokenKind::Semicolon),
+                '(' => add_single_symbol(self, TokenKind::LParen),
+                ')' => add_single_symbol(self, TokenKind::RParen),
+                '{' => add_single_symbol(self, TokenKind::LBrace),
+                '}' => add_single_symbol(self, TokenKind::RBrace),
                 _ => Err(TokenizeError {
                     err_type: TokenizeErrorType::InvalidChar(gr),
                     pos: self.end_pos,
@@ -436,6 +386,7 @@ impl<'a> Tokenizer<'a> {
                     self.consume_next_char();
                     Ok(())
                 }
+                #[allow(clippy::unnested_or_patterns)]
                 '\n' | '\t' | ' ' | match_all_symbols!() => {
                     // finalize the current token
                     let kind = tokens::keyword_lookup(self.get_window_slice());
@@ -478,6 +429,7 @@ impl<'a> Tokenizer<'a> {
                 }
                 // NOTE: no_dot is not an identifier, but a goofy way to
                 // introduce a match arm.
+                #[allow(clippy::unnested_or_patterns)]
                 '\n' | '\t' | ' ' | match_all_symbols!(no_dot) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Integer,
@@ -509,6 +461,7 @@ impl<'a> Tokenizer<'a> {
                     Ok(())
                 }
 
+                #[allow(clippy::unnested_or_patterns)]
                 '\n' | '\t' | ' ' | match_all_symbols!(no_dot) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Integer,
@@ -543,7 +496,7 @@ impl<'a> Tokenizer<'a> {
                 err_type: TokenizeErrorType::ExpectChar,
                 pos: self.begin_pos,
             })
-            .and_then(|gr| match gr {
+            .map(|gr| match gr {
                 '\"' => {
                     self.tokens.push(Token {
                         kind: TokenKind::String,
@@ -553,7 +506,6 @@ impl<'a> Tokenizer<'a> {
                     self.consume_next_char();
                     self.state = TokenizeState::Init;
                     self.empty_window();
-                    Ok(())
                 }
                 '\\' => {
                     todo!(
@@ -563,7 +515,6 @@ impl<'a> Tokenizer<'a> {
                 }
                 _ => {
                     self.consume_next_char();
-                    Ok(())
                 }
             })
     }
@@ -576,18 +527,18 @@ impl<'a> Tokenizer<'a> {
                 pos: self.end_pos,
             })
             .and_then(|(gr, gr_pos)| {
-                if gr != '\'' {
+                if gr == '\'' {
+                    Err(TokenizeError {
+                        err_type: TokenizeErrorType::InvalidChar(gr),
+                        pos: self.begin_pos,
+                    })
+                } else {
                     self.tokens.push(Token {
                         kind: TokenKind::Char,
                         pos: gr_pos,
                         repr: Some(Box::from(gr.to_string())),
                     });
                     Ok(())
-                } else {
-                    Err(TokenizeError {
-                        err_type: TokenizeErrorType::InvalidChar(gr),
-                        pos: self.begin_pos,
-                    })
                 }
             })
             .and_then(|()| {
@@ -616,13 +567,11 @@ impl<'a> Tokenizer<'a> {
                 err_type: TokenizeErrorType::ExpectChar,
                 pos: self.end_pos,
             })
-            .and_then(|gr| match gr {
-                '/' => {
+            .map(|gr| {
+                if gr == '/' {
                     self.consume_next_char();
                     self.state = TokenizeState::Comment;
-                    Ok(())
-                }
-                _ => {
+                } else {
                     self.tokens.push(Token {
                         kind: TokenKind::Slash,
                         pos: self.begin_pos,
@@ -630,195 +579,56 @@ impl<'a> Tokenizer<'a> {
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
-                    Ok(())
                 }
             })
     }
 
     fn amper_transit(&mut self) -> Result<(), TokenizeError> {
-        self.peek_next_char()
-            .ok_or(TokenizeError {
-                err_type: TokenizeErrorType::ExpectChar,
-                pos: self.end_pos,
-            })
-            .and_then(|gr| match gr {
-                '&' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Init;
-                    self.tokens.push(Token {
-                        kind: TokenKind::AmpersandAmpersand,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    Ok(())
-                }
-                _ => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Ampersand,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
-                    Ok(())
-                }
-            })
+        self.match_branched_two_character_symbol(
+            '&',
+            TokenKind::AmpersandAmpersand,
+            TokenKind::Ampersand,
+        )
     }
 
     fn beam_transit(&mut self) -> Result<(), TokenizeError> {
-        self.peek_next_char()
-            .ok_or(TokenizeError {
-                err_type: TokenizeErrorType::ExpectChar,
-                pos: self.end_pos,
-            })
-            .and_then(|gr| match gr {
-                '|' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Init;
-                    self.tokens.push(Token {
-                        kind: TokenKind::BeamBeam,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    Ok(())
-                }
-                _ => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Beam,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
-                    Ok(())
-                }
-            })
+        self.match_branched_two_character_symbol(
+            '|',
+            TokenKind::BeamBeam,
+            TokenKind::Beam,
+        )
     }
 
     fn equal_transit(&mut self) -> Result<(), TokenizeError> {
-        self.peek_next_char()
-            .ok_or(TokenizeError {
-                err_type: TokenizeErrorType::ExpectChar,
-                pos: self.end_pos,
-            })
-            .and_then(|gr| match gr {
-                '=' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Init;
-                    self.tokens.push(Token {
-                        kind: TokenKind::EqualEqual,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    Ok(())
-                }
-                _ => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Equal,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
-                    Ok(())
-                }
-            })
+        self.match_branched_two_character_symbol(
+            '=',
+            TokenKind::EqualEqual,
+            TokenKind::Equal,
+        )
     }
 
     fn bang_transit(&mut self) -> Result<(), TokenizeError> {
-        self.peek_next_char()
-            .ok_or(TokenizeError {
-                err_type: TokenizeErrorType::ExpectChar,
-                pos: self.end_pos,
-            })
-            .and_then(|gr| match gr {
-                '=' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Init;
-                    self.tokens.push(Token {
-                        kind: TokenKind::BangEqual,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    Ok(())
-                }
-                _ => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Bang,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
-                    Ok(())
-                }
-            })
+        self.match_branched_two_character_symbol(
+            '=',
+            TokenKind::BangEqual,
+            TokenKind::Bang,
+        )
     }
 
     fn less_transit(&mut self) -> Result<(), TokenizeError> {
-        self.peek_next_char()
-            .ok_or(TokenizeError {
-                err_type: TokenizeErrorType::ExpectChar,
-                pos: self.end_pos,
-            })
-            .and_then(|gr| match gr {
-                '=' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Init;
-                    self.tokens.push(Token {
-                        kind: TokenKind::LessEqual,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    Ok(())
-                }
-                _ => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Less,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
-                    Ok(())
-                }
-            })
+        self.match_branched_two_character_symbol(
+            '=',
+            TokenKind::LessEqual,
+            TokenKind::Less,
+        )
     }
 
     fn greater_transit(&mut self) -> Result<(), TokenizeError> {
-        self.peek_next_char()
-            .ok_or(TokenizeError {
-                err_type: TokenizeErrorType::ExpectChar,
-                pos: self.end_pos,
-            })
-            .and_then(|gr| match gr {
-                '=' => {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Init;
-                    self.tokens.push(Token {
-                        kind: TokenKind::GreaterEqual,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    Ok(())
-                }
-                _ => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Greater,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
-                    Ok(())
-                }
-            })
+        self.match_branched_two_character_symbol(
+            '=',
+            TokenKind::GreaterEqual,
+            TokenKind::Greater,
+        )
     }
 
     fn comment_transit(&mut self) -> Result<(), TokenizeError> {
@@ -827,16 +637,55 @@ impl<'a> Tokenizer<'a> {
                 err_type: TokenizeErrorType::ExpectChar,
                 pos: self.end_pos,
             })
-            .and_then(|gr| match gr {
+            .map(|gr| match gr {
                 '\n' => {
                     self.consume_next_char();
                     self.empty_window();
                     self.state = TokenizeState::Init;
-                    Ok(())
                 }
                 _ => {
                     self.consume_next_char();
-                    Ok(())
+                }
+            })
+    }
+
+    /// If the next character matches `match_char`, consume that character,
+    /// push a [`Token`] with `match_symbol` and no repr string, otherwise,
+    /// push a `Token` with `non_match_symbol` and also no repr string.
+    /// After either case, change state to `Init`.
+    ///
+    /// Due to the forced switch to `Init`, this helper method is not
+    /// compatible with `slash_transit`, because it wants to transfer to
+    /// `Comment` state after matching.
+    fn match_branched_two_character_symbol(
+        &mut self,
+        match_char: char,
+        match_symbol: TokenKind,
+        non_match_symbol: TokenKind,
+    ) -> Result<(), TokenizeError> {
+        self.peek_next_char()
+            .ok_or(TokenizeError {
+                err_type: TokenizeErrorType::ExpectChar,
+                pos: self.end_pos,
+            })
+            .map(|gr| {
+                if gr == match_char {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Init;
+                    self.tokens.push(Token {
+                        kind: match_symbol,
+                        pos: self.begin_pos,
+                        repr: None,
+                    });
+                    self.empty_window();
+                } else {
+                    self.tokens.push(Token {
+                        kind: non_match_symbol,
+                        pos: self.begin_pos,
+                        repr: None,
+                    });
+                    self.empty_window();
+                    self.state = TokenizeState::Init;
                 }
             })
     }

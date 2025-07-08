@@ -5,8 +5,9 @@ use std::{
     sync::LazyLock,
 };
 
-use super::*;
 use tokenize::{Token, TokenKind, tokens::CharPosition};
+
+use crate::{Expr, LiteralExpr, NoBlockExpr, UnaryExpr, UnaryOp};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -17,7 +18,7 @@ pub enum ParseError {
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -48,8 +49,8 @@ static OP_PRECEDENCE: LazyLock<HashMap<TokenKind, u16>> = LazyLock::new(|| {
     let mut ret = HashMap::new();
     let mut precedence = 0;
     let mut add_next_precedence = |kinds: &[TokenKind]| {
-        ret.extend(kinds.into_iter().copied().map(|kind| (kind, precedence)));
-        precedence = precedence + 1;
+        ret.extend(kinds.iter().copied().map(|kind| (kind, precedence)));
+        precedence += 1;
     };
 
     add_next_precedence(&[TokenKind::BeamBeam, TokenKind::AmpersandAmpersand]);
@@ -73,41 +74,38 @@ impl ParseExpr for LiteralExpr {
         tokens
             .pop_front()
             .ok_or(ParseError::ExpectedToken(prev_pos))
-            .and_then(|tok| {
-                use TokenKind::*;
-                match tok.kind {
-                    Identifier => Ok((
-                        Expr::NoBlock(NoBlockExpr::Literal(Self::Identifier(
-                            tok.repr.unwrap(),
-                        ))),
-                        tok.pos,
-                    )),
-                    Integer => Ok((
-                        Expr::NoBlock(NoBlockExpr::Literal(Self::Integer(
-                            tok.repr.unwrap().parse().unwrap(),
-                        ))),
-                        tok.pos,
-                    )),
-                    Float => Ok((
-                        Expr::NoBlock(NoBlockExpr::Literal(Self::Float(
-                            tok.repr.unwrap().parse().unwrap(),
-                        ))),
-                        tok.pos,
-                    )),
-                    String => Ok((
-                        Expr::NoBlock(NoBlockExpr::Literal(Self::Identifier(
-                            tok.repr.unwrap(),
-                        ))),
-                        tok.pos,
-                    )),
-                    Char => Ok((
-                        Expr::NoBlock(NoBlockExpr::Literal(Self::Identifier(
-                            tok.repr.unwrap(),
-                        ))),
-                        tok.pos,
-                    )),
-                    _ => unreachable!(),
-                }
+            .and_then(|tok| match tok.kind {
+                TokenKind::Identifier => Ok((
+                    Expr::NoBlock(NoBlockExpr::Literal(Self::Identifier(
+                        tok.repr.unwrap(),
+                    ))),
+                    tok.pos,
+                )),
+                TokenKind::Integer => Ok((
+                    Expr::NoBlock(NoBlockExpr::Literal(Self::Integer(
+                        tok.repr.unwrap().parse().unwrap(),
+                    ))),
+                    tok.pos,
+                )),
+                TokenKind::Float => Ok((
+                    Expr::NoBlock(NoBlockExpr::Literal(Self::Float(
+                        tok.repr.unwrap().parse().unwrap(),
+                    ))),
+                    tok.pos,
+                )),
+                TokenKind::String => Ok((
+                    Expr::NoBlock(NoBlockExpr::Literal(Self::String(
+                        tok.repr.unwrap(),
+                    ))),
+                    tok.pos,
+                )),
+                TokenKind::Char => Ok((
+                    Expr::NoBlock(NoBlockExpr::Literal(Self::Char(
+                        tok.repr.unwrap().parse().unwrap(),
+                    ))),
+                    tok.pos,
+                )),
+                _ => unreachable!(),
             })
     }
 }
@@ -121,12 +119,11 @@ impl ParseExpr for UnaryExpr {
             // peek
             .front()
             .and_then(|tok| {
-                use TokenKind::*;
                 Some((
                     match tok.kind {
-                        Plus => Some(UnaryOp::Plus),
-                        Dash => Some(UnaryOp::Minus),
-                        Bang => Some(UnaryOp::Negate),
+                        TokenKind::Plus => Some(UnaryOp::Plus),
+                        TokenKind::Dash => Some(UnaryOp::Minus),
+                        TokenKind::Bang => Some(UnaryOp::Negate),
                         _ => None,
                     }?,
                     tok.pos,

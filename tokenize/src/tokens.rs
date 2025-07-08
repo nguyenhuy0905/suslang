@@ -116,6 +116,7 @@ pub enum TokenKind {
     Proc,
     /// Keyword "return"
     Return,
+    #[allow(clippy::doc_markdown)]
     /// Keyword "block_return"
     BlockReturn,
 }
@@ -149,7 +150,7 @@ pub fn keyword_lookup(key: &str) -> TokenKind {
     // them.
     LOOKUP_TBL
         .get(key)
-        .cloned()
+        .copied()
         .unwrap_or(TokenKind::Identifier)
 }
 

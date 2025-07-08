@@ -67,6 +67,7 @@ pub enum LiteralExpr {
     Integer(u64),
     Float(f64),
     Identifier(Box<str>),
+    Char(char),
 }
 
 #[derive(Debug, Clone, PartialEq)]
