@@ -91,7 +91,7 @@ pub struct UnaryExpr {
 pub enum UnaryOp {
     Plus,
     Minus,
-    Bang,
+    Negate,
 }
 
 #[derive(Debug, Clone, PartialEq)]
