@@ -27,8 +27,9 @@ fn simple_char() {
     assert_eq!(
         ret,
         [Token {
-            kind: TokenKind::Char(' '),
-            pos: CharPosition { line: 1, column: 2 }
+            kind: TokenKind::Char,
+            pos: CharPosition { line: 1, column: 2 },
+            repr: Some(Box::from(' '.to_string())),
         }]
     );
 }
@@ -64,8 +65,9 @@ fn unicode_char() {
     assert_eq!(
         ret,
         Ok(vec![Token {
-            kind: TokenKind::Char('\u{eb54}'),
-            pos: CharPosition { line: 1, column: 2 }
+            kind: TokenKind::Char,
+            pos: CharPosition { line: 1, column: 2 },
+            repr: Some(Box::from('\u{eb54}'.to_string())),
         }])
     );
 }
@@ -76,8 +78,9 @@ fn simple_string() {
     assert_eq!(
         ret,
         Ok(vec![Token {
-            kind: TokenKind::String(Box::from("hello")),
-            pos: CharPosition { line: 1, column: 2 }
+            kind: TokenKind::String,
+            pos: CharPosition { line: 1, column: 2 },
+            repr: Some(Box::from("hello")),
         }])
     );
 }
@@ -88,8 +91,9 @@ fn unicode_string() {
     assert_eq!(
         ret.as_ref().map(|ret| ret.first()),
         Ok(Some(&Token {
-            kind: TokenKind::String(Box::from("hello\u{f4a2}!")),
-            pos: CharPosition { line: 1, column: 2 }
+            kind: TokenKind::String,
+            pos: CharPosition { line: 1, column: 2 },
+            repr: Some(Box::from("hello\u{f4a2}!")),
         }))
     );
 }
@@ -112,8 +116,9 @@ fn empty_string() {
     assert_eq!(
         ret,
         Ok(vec![Token {
-            kind: TokenKind::String(Box::from("")),
-            pos: CharPosition { line: 1, column: 2 }
+            kind: TokenKind::String,
+            pos: CharPosition { line: 1, column: 2 },
+            repr: Some(Box::from(""))
         }])
     );
 }
@@ -124,8 +129,9 @@ fn single_quote_inside_string() {
     assert_eq!(
         ret,
         Ok(vec![Token {
-            kind: TokenKind::String(Box::from("'hello'")),
-            pos: CharPosition { line: 1, column: 2 }
+            kind: TokenKind::String,
+            pos: CharPosition { line: 1, column: 2 },
+            repr: Some(Box::from("'hello'"))
         }])
     );
 }
@@ -136,8 +142,9 @@ fn simple_identifier() {
     assert_eq!(
         ret,
         Ok(vec![Token {
-            kind: TokenKind::Identifier(Box::from("hello")),
-            pos: CharPosition { line: 1, column: 1 }
+            kind: TokenKind::Identifier,
+            pos: CharPosition { line: 1, column: 1 },
+            repr: Some(Box::from("hello")),
         }])
     );
 }
@@ -161,7 +168,8 @@ fn keyword() {
         ret,
         Ok(vec![Token {
             kind: TokenKind::Let,
-            pos: CharPosition { line: 1, column: 1 }
+            pos: CharPosition { line: 1, column: 1 },
+            repr: None,
         }])
     );
 }
@@ -174,11 +182,13 @@ fn keyword_and_identifier() {
         Ok(vec![
             Token {
                 kind: TokenKind::Let,
-                pos: CharPosition { line: 1, column: 1 }
+                pos: CharPosition { line: 1, column: 1 },
+                repr: None,
             },
             Token {
-                kind: TokenKind::Identifier(Box::from("hello")),
-                pos: CharPosition { line: 1, column: 5 }
+                kind: TokenKind::Identifier,
+                pos: CharPosition { line: 1, column: 5 },
+                repr: Some(Box::from("hello")),
             }
         ])
     );
@@ -190,8 +200,9 @@ fn number() {
     assert_eq!(
         ret,
         Ok(vec![Token {
-            kind: TokenKind::Integer(69420),
-            pos: CharPosition { line: 1, column: 1 }
+            kind: TokenKind::Integer,
+            pos: CharPosition { line: 1, column: 1 },
+            repr: Some(Box::from(69420.to_string())),
         }])
     );
 }
@@ -202,8 +213,9 @@ fn simple_double() {
     assert_eq!(
         ret,
         Ok(vec![Token {
-            kind: TokenKind::Float(420.69),
-            pos: CharPosition { line: 1, column: 1 }
+            kind: TokenKind::Float,
+            pos: CharPosition { line: 1, column: 1 },
+            repr: Some(Box::from(420.69.to_string())),
         }])
     );
 }
@@ -239,16 +251,19 @@ fn multiline_number() {
         ret,
         Ok(vec![
             Token {
-                kind: TokenKind::Integer(69420),
-                pos: CharPosition { line: 1, column: 1 }
+                kind: TokenKind::Integer,
+                pos: CharPosition { line: 1, column: 1 },
+                repr: Some(Box::from(69420.to_string())),
             },
             Token {
-                kind: TokenKind::Integer(66666),
-                pos: CharPosition { line: 2, column: 1 }
+                kind: TokenKind::Integer,
+                pos: CharPosition { line: 2, column: 1 },
+                repr: Some(Box::from(66666.to_string())),
             },
             Token {
-                kind: TokenKind::Integer(424242),
-                pos: CharPosition { line: 3, column: 1 }
+                kind: TokenKind::Integer,
+                pos: CharPosition { line: 3, column: 1 },
+                repr: Some(Box::from(424242.to_string())),
             },
         ])
     );
@@ -262,7 +277,8 @@ fn one_symbol() {
         ret,
         Ok(vec![Token {
             kind: TokenKind::Plus,
-            pos: CharPosition { line: 1, column: 1 }
+            pos: CharPosition { line: 1, column: 1 },
+            repr: None,
         }])
     );
 }
@@ -275,11 +291,13 @@ fn symbols_on_multi_line() {
         [
             Token {
                 kind: TokenKind::Equal,
-                pos: CharPosition { line: 1, column: 1 }
+                pos: CharPosition { line: 1, column: 1 },
+                repr: None,
             },
             Token {
                 kind: TokenKind::Equal,
-                pos: CharPosition { line: 2, column: 1 }
+                pos: CharPosition { line: 2, column: 1 },
+                repr: None,
             }
         ]
     );
@@ -293,15 +311,18 @@ fn comparisons() {
         [
             Token {
                 kind: TokenKind::LessEqual,
-                pos: CharPosition { line: 1, column: 1 }
+                pos: CharPosition { line: 1, column: 1 },
+                repr: None,
             },
             Token {
                 kind: TokenKind::GreaterEqual,
-                pos: CharPosition { line: 1, column: 4 }
+                pos: CharPosition { line: 1, column: 4 },
+                repr: None,
             },
             Token {
                 kind: TokenKind::BangEqual,
-                pos: CharPosition { line: 1, column: 7 }
+                pos: CharPosition { line: 1, column: 7 },
+                repr: None,
             }
         ]
     );
@@ -315,11 +336,13 @@ fn conditional() {
         [
             Token {
                 kind: TokenKind::BeamBeam,
-                pos: CharPosition { line: 1, column: 1 }
+                pos: CharPosition { line: 1, column: 1 },
+                repr: None,
             },
             Token {
                 kind: TokenKind::AmpersandAmpersand,
-                pos: CharPosition { line: 1, column: 4 }
+                pos: CharPosition { line: 1, column: 4 },
+                repr: None,
             }
         ]
     );
@@ -333,11 +356,13 @@ fn bitwise_line_separated() {
         [
             Token {
                 kind: TokenKind::Beam,
-                pos: CharPosition { line: 1, column: 1 }
+                pos: CharPosition { line: 1, column: 1 },
+                repr: None,
             },
             Token {
                 kind: TokenKind::Beam,
-                pos: CharPosition { line: 2, column: 1 }
+                pos: CharPosition { line: 2, column: 1 },
+                repr: None,
             }
         ]
     );
@@ -351,11 +376,13 @@ fn bitwise_whitespace_separated() {
         [
             Token {
                 kind: TokenKind::Beam,
-                pos: CharPosition { line: 1, column: 1 }
+                pos: CharPosition { line: 1, column: 1 },
+                repr: None,
             },
             Token {
                 kind: TokenKind::Beam,
-                pos: CharPosition { line: 1, column: 3 }
+                pos: CharPosition { line: 1, column: 3 },
+                repr: None,
             }
         ]
     );
@@ -369,11 +396,13 @@ fn multi_word_symbol() {
         [
             Token {
                 kind: TokenKind::EqualEqual,
-                pos: CharPosition { line: 1, column: 1 }
+                pos: CharPosition { line: 1, column: 1 },
+                repr: None,
             },
             Token {
                 kind: TokenKind::Equal,
-                pos: CharPosition { line: 1, column: 3 }
+                pos: CharPosition { line: 1, column: 3 },
+                repr: None,
             }
         ]
     );
@@ -392,8 +421,9 @@ fn comment_and_line() {
     assert_eq!(
         ret,
         [Token {
-            kind: TokenKind::String(Box::from("hello")),
-            pos: CharPosition { line: 2, column: 2 }
+            kind: TokenKind::String,
+            pos: CharPosition { line: 2, column: 2 },
+            repr: Some(Box::from(Box::from("hello"))),
         }]
     );
 }
@@ -405,19 +435,22 @@ fn multiple_exprs() {
         ret,
         [
             Token {
-                kind: TokenKind::String("hello".into()),
-                pos: CharPosition { line: 1, column: 2 }
+                kind: TokenKind::String,
+                pos: CharPosition { line: 1, column: 2 },
+                repr: Some(Box::from("hello")),
             },
             Token {
                 kind: TokenKind::Semicolon,
-                pos: CharPosition { line: 1, column: 8 }
+                pos: CharPosition { line: 1, column: 8 },
+                repr: None,
             },
             Token {
-                kind: TokenKind::String("goodbye".into()),
+                kind: TokenKind::String,
                 pos: CharPosition {
                     line: 1,
                     column: 10
-                }
+                },
+                repr: Some(Box::from("goodbye")),
             },
         ]
     );

@@ -8,33 +8,33 @@ use std::sync::LazyLock;
 /// letting it own the string allows more flexible ways of receiving
 /// input, such as line-by-line (which, the non-owning scheme forces one to
 /// hold each line until the end of time).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(u8)]
 pub enum TokenKind {
     /// Just an identifier. ASCII.
     /// # Rule
     /// \<identifier\> ::= \[a-zA-Z_\]\[a-zA-Z0-9_\]*
-    Identifier(Box<str>),
+    Identifier,
     /// Holds an i64
     /// # Rule
     /// \<integer\> ::= \[0-9\]+
     /// Integer and Double hold a string.
-    Integer(u64),
+    Integer,
     /// Holds a f64
     /// # Rule
     /// \<double\> ::= \[0-9\]* "." \[0-9\]+
     /// Integer and Double hold a string.
-    Float(f64),
+    Float,
     /// Literal string, Unicode.
     /// # Rule
     /// \<string\> ::= """ \<char\>* """
-    String(Box<str>),
+    String,
     /// single character, one or more Unicode code points.
     /// Rule:
     /// \<char\> ::= \<unicode-code-points\>
     /// \<unicode-code-point\> ::= \
     /// \[0b10000000-0b11111111\]{0, 3}\[0b00000000-0b01111111\]
-    Char(char),
+    Char,
     // single-character symbols, <symbol>
     /// Literal symbol "+"
     Plus,
@@ -150,7 +150,7 @@ pub fn keyword_lookup(key: &str) -> TokenKind {
     LOOKUP_TBL
         .get(key)
         .cloned()
-        .unwrap_or(TokenKind::Identifier(Box::from(key)))
+        .unwrap_or(TokenKind::Identifier)
 }
 
 /// NOTE: tab is considered one column.
@@ -173,15 +173,22 @@ pub struct CharPosition {
 pub struct Token {
     pub kind: TokenKind,
     pub pos: CharPosition,
+    pub repr: Option<Box<str>>,
 }
 
 impl Token {
     /// Constructs a new Token
     #[inline]
     #[must_use]
-    pub fn new(kind: TokenKind, line: usize, column: usize) -> Self {
+    pub fn new(
+        kind: TokenKind,
+        repr: Option<Box<str>>,
+        line: usize,
+        column: usize,
+    ) -> Self {
         Self {
             kind,
+            repr,
             pos: CharPosition { line, column },
         }
     }

@@ -150,27 +150,31 @@ impl<'a> Tokenizer<'a> {
         match tok.state {
             TokenizeState::Init => Ok(()),
             TokenizeState::Ident => {
+                let lookup = tokens::keyword_lookup(tok.get_window_slice());
                 tok.tokens.push(Token {
-                    kind: tokens::keyword_lookup(tok.get_window_slice()),
+                    kind: lookup,
                     pos: tok.begin_pos,
+                    repr: if lookup == TokenKind::Identifier {
+                        Some(Box::from(tok.get_window_slice()))
+                    } else {
+                        None
+                    },
                 });
                 Ok(())
             }
             TokenizeState::Number => {
                 tok.tokens.push(Token {
-                    kind: TokenKind::Integer(
-                        tok.get_window_slice().parse().unwrap(),
-                    ),
+                    kind: TokenKind::Integer,
                     pos: tok.begin_pos,
+                    repr: Some(Box::from(tok.get_window_slice())),
                 });
                 Ok(())
             }
             TokenizeState::Float => {
                 tok.tokens.push(Token {
-                    kind: TokenKind::Float(
-                        tok.get_window_slice().parse().unwrap(),
-                    ),
+                    kind: TokenKind::Float,
                     pos: tok.begin_pos,
+                    repr: Some(Box::from(tok.get_window_slice())),
                 });
                 Ok(())
             }
@@ -182,6 +186,7 @@ impl<'a> Tokenizer<'a> {
                 tok.tokens.push(Token {
                     kind: TokenKind::Slash,
                     pos: tok.begin_pos,
+                    repr: None,
                 });
                 Ok(())
             }
@@ -189,6 +194,7 @@ impl<'a> Tokenizer<'a> {
                 tok.tokens.push(Token {
                     kind: TokenKind::Ampersand,
                     pos: tok.begin_pos,
+                    repr: None,
                 });
                 Ok(())
             }
@@ -196,6 +202,7 @@ impl<'a> Tokenizer<'a> {
                 tok.tokens.push(Token {
                     kind: TokenKind::Beam,
                     pos: tok.begin_pos,
+                    repr: None,
                 });
                 Ok(())
             }
@@ -203,6 +210,7 @@ impl<'a> Tokenizer<'a> {
                 tok.tokens.push(Token {
                     kind: TokenKind::Equal,
                     pos: tok.begin_pos,
+                    repr: None,
                 });
                 Ok(())
             }
@@ -210,6 +218,7 @@ impl<'a> Tokenizer<'a> {
                 tok.tokens.push(Token {
                     kind: TokenKind::Bang,
                     pos: tok.begin_pos,
+                    repr: None,
                 });
                 Ok(())
             }
@@ -217,6 +226,7 @@ impl<'a> Tokenizer<'a> {
                 tok.tokens.push(Token {
                     kind: TokenKind::Less,
                     pos: tok.begin_pos,
+                    repr: None,
                 });
                 Ok(())
             }
@@ -224,6 +234,7 @@ impl<'a> Tokenizer<'a> {
                 tok.tokens.push(Token {
                     kind: TokenKind::Greater,
                     pos: tok.begin_pos,
+                    repr: None,
                 });
                 Ok(())
             }
@@ -289,7 +300,11 @@ impl<'a> Tokenizer<'a> {
 
         let add_single_symbol = |curr_inst: &mut Self, kind: TokenKind| {
             let (_, pos) = curr_inst.consume_next_char().unwrap();
-            curr_inst.tokens.push(Token { kind, pos });
+            curr_inst.tokens.push(Token {
+                kind,
+                pos,
+                repr: None,
+            });
             curr_inst.slide_begin_right();
         };
 
@@ -427,6 +442,11 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind,
                         pos: self.begin_pos,
+                        repr: if kind == TokenKind::Identifier {
+                            Some(Box::from(self.get_window_slice()))
+                        } else {
+                            None
+                        },
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -460,10 +480,9 @@ impl<'a> Tokenizer<'a> {
                 // introduce a match arm.
                 '\n' | '\t' | ' ' | match_all_symbols!(no_dot) => {
                     self.tokens.push(Token {
-                        kind: TokenKind::Integer(
-                            self.get_window_slice().parse::<u64>().unwrap(),
-                        ),
+                        kind: TokenKind::Integer,
                         pos: self.begin_pos,
+                        repr: Some(Box::from(self.get_window_slice())),
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -492,20 +511,19 @@ impl<'a> Tokenizer<'a> {
 
                 '\n' | '\t' | ' ' | match_all_symbols!(no_dot) => {
                     self.tokens.push(Token {
-                        kind: TokenKind::Integer(
-                            // if parsing fails, it's due to this float ending
-                            // with a dot. Or, there's always the chance that
-                            // Rust's parse function is borked.
-                            self.get_window_slice().parse::<u64>().or(Err(
-                                TokenizeError {
-                                    err_type: TokenizeErrorType::InvalidChar(
-                                        gr,
-                                    ),
-                                    pos: self.end_pos,
-                                },
-                            ))?,
-                        ),
+                        kind: TokenKind::Integer,
                         pos: self.begin_pos,
+                        // a bit complicated, but:
+                        // - if last character is not a number, bork it.
+                        // - HACK: for now; we don't allow suffixes.
+                        repr: if gr.is_numeric() {
+                            Ok(Some(Box::from(self.get_window_slice())))
+                        } else {
+                            Err(TokenizeError {
+                                err_type: TokenizeErrorType::InvalidChar(gr),
+                                pos: self.end_pos,
+                            })
+                        }?,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -528,10 +546,9 @@ impl<'a> Tokenizer<'a> {
             .and_then(|gr| match gr {
                 '\"' => {
                     self.tokens.push(Token {
-                        kind: TokenKind::String(Box::from(
-                            self.get_window_slice(),
-                        )),
+                        kind: TokenKind::String,
                         pos: self.begin_pos,
+                        repr: Some(Box::from(self.get_window_slice())),
                     });
                     self.consume_next_char();
                     self.state = TokenizeState::Init;
@@ -561,8 +578,9 @@ impl<'a> Tokenizer<'a> {
             .and_then(|(gr, gr_pos)| {
                 if gr != '\'' {
                     self.tokens.push(Token {
-                        kind: TokenKind::Char(gr),
+                        kind: TokenKind::Char,
                         pos: gr_pos,
+                        repr: Some(Box::from(gr.to_string())),
                     });
                     Ok(())
                 } else {
@@ -608,6 +626,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::Slash,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -629,6 +648,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::AmpersandAmpersand,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     Ok(())
@@ -637,6 +657,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::Ampersand,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -658,6 +679,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::BeamBeam,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     Ok(())
@@ -666,6 +688,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::Beam,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -687,6 +710,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::EqualEqual,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     Ok(())
@@ -695,6 +719,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::Equal,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -716,6 +741,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::BangEqual,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     Ok(())
@@ -724,6 +750,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::Bang,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -745,6 +772,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::LessEqual,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     Ok(())
@@ -753,6 +781,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::Less,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
@@ -774,6 +803,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::GreaterEqual,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     Ok(())
@@ -782,6 +812,7 @@ impl<'a> Tokenizer<'a> {
                     self.tokens.push(Token {
                         kind: TokenKind::Greater,
                         pos: self.begin_pos,
+                        repr: None,
                     });
                     self.empty_window();
                     self.state = TokenizeState::Init;
