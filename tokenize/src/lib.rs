@@ -1,6 +1,3 @@
-// TODO: remove allow unused when done
-// #![allow(unused)]
-
 #[cfg(test)]
 mod test;
 pub mod tokens;
@@ -233,10 +230,10 @@ impl<'a> Tokenizer<'a> {
     /// - '\n' | '\t' | ' ' => advance to itself
     /// - '.' | '+' | '-' | '*' | ';' | ',' | '(' | ')' | '{' | '}' => add the
     ///   corresponding token, does not change state.
+    /// - '#' => enter comment state
     /// - '\"' => advance to string state.
     /// - '\'' => advance to char state.
-    /// - '&' | '|' | '=' | '<' | '>' | '!' => advance to their corresponding
-    ///   states.
+    /// - '<' | '>' => advance to their corresponding states.
     ///
     /// ## Safety
     /// - This method assumes the current window is empty.
