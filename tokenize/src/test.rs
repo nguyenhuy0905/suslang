@@ -406,14 +406,14 @@ fn bitwise_whitespace_separated() {
 
 #[test]
 fn comment() {
-    let ret = Tokenizer::tokenize("// hello this is a comment").unwrap();
+    let ret = Tokenizer::tokenize("# hello this is a comment").unwrap();
     assert!(ret.is_empty());
 }
 
 #[test]
 fn comment_and_line() {
     let ret =
-        Tokenizer::tokenize("// hello this is a comment\n\"hello\"").unwrap();
+        Tokenizer::tokenize("# hello this is a comment\n\"hello\"").unwrap();
     assert_eq!(
         ret,
         [Token {

@@ -68,13 +68,13 @@ pub enum TokenKind {
     Less,
     /// Literal symbol ">"
     Greater,
+    // hash is never pushed into the token list, but it's a symbol regardless.
+    // Hash,
     // multiple-character symbols, <symbol>
     /// Literal symbol "<="
     LessEqual,
     /// Literal symbol ">="
     GreaterEqual,
-    /// Literal symbol "//"
-    SlashSlash,
     // keywords
     /// Keyword "mod"
     Mod,

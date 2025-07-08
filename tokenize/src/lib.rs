@@ -97,7 +97,6 @@ enum TokenizeState {
     Float,
     String,
     Char,
-    Slash,
     Less,
     Greater,
     Comment,
@@ -116,7 +115,6 @@ macro_rules! match_all_symbols {
             | '='
             | '<'
             | '>'
-            | '!'
             | '+'
             | '-'
             | '*'
@@ -126,6 +124,7 @@ macro_rules! match_all_symbols {
             | ')'
             | '{'
             | '}'
+            | '#'
     };
 }
 
@@ -178,14 +177,6 @@ impl<'a> Tokenizer<'a> {
                 err_type: TokenizeErrorType::ExpectChar,
                 pos: tok.begin_pos,
             }),
-            TokenizeState::Slash => {
-                tok.tokens.push(Token {
-                    kind: TokenKind::Slash,
-                    pos: tok.begin_pos,
-                    repr: None,
-                });
-                Ok(())
-            }
             TokenizeState::Less => {
                 tok.tokens.push(Token {
                     kind: TokenKind::Less,
@@ -229,7 +220,6 @@ impl<'a> Tokenizer<'a> {
             TokenizeState::Float => self.float_transit(),
             TokenizeState::String => self.string_transit(),
             TokenizeState::Char => self.char_transit(),
-            TokenizeState::Slash => self.slash_transit(),
             TokenizeState::Less => self.less_transit(),
             TokenizeState::Greater => self.greater_transit(),
             TokenizeState::Comment => self.comment_transit(),
@@ -304,7 +294,6 @@ impl<'a> Tokenizer<'a> {
                     self.state = TokenizeState::Char;
                     Ok(())
                 }
-                '/' => advance_change_state(self, TokenizeState::Slash),
                 '<' => advance_change_state(self, TokenizeState::Less),
                 '>' => advance_change_state(self, TokenizeState::Greater),
                 // TODO: do we support the madlads that use '\f'
@@ -320,12 +309,18 @@ impl<'a> Tokenizer<'a> {
                 '+' => add_single_symbol(self, TokenKind::Plus),
                 '-' => add_single_symbol(self, TokenKind::Dash),
                 '*' => add_single_symbol(self, TokenKind::Star),
+                '/' => add_single_symbol(self, TokenKind::Slash),
                 ',' => add_single_symbol(self, TokenKind::Comma),
                 ';' => add_single_symbol(self, TokenKind::Semicolon),
                 '(' => add_single_symbol(self, TokenKind::LParen),
                 ')' => add_single_symbol(self, TokenKind::RParen),
                 '{' => add_single_symbol(self, TokenKind::LBrace),
                 '}' => add_single_symbol(self, TokenKind::RBrace),
+                '#' => {
+                    self.consume_next_char();
+                    self.state = TokenizeState::Comment;
+                    Ok(())
+                }
                 _ => Err(TokenizeError {
                     err_type: TokenizeErrorType::InvalidChar(gr),
                     pos: self.end_pos,
@@ -516,28 +511,6 @@ impl<'a> Tokenizer<'a> {
                         err_type: TokenizeErrorType::InvalidChar(gr),
                         pos: gr_pos,
                     })
-                }
-            })
-    }
-
-    fn slash_transit(&mut self) -> Result<(), TokenizeError> {
-        self.peek_next_char()
-            .ok_or(TokenizeError {
-                err_type: TokenizeErrorType::ExpectChar,
-                pos: self.end_pos,
-            })
-            .map(|gr| {
-                if gr == '/' {
-                    self.consume_next_char();
-                    self.state = TokenizeState::Comment;
-                } else {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Slash,
-                        pos: self.begin_pos,
-                        repr: None,
-                    });
-                    self.empty_window();
-                    self.state = TokenizeState::Init;
                 }
             })
     }
