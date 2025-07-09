@@ -106,7 +106,7 @@ impl ParseExpr for LiteralExpr {
                     ))),
                     tok.pos,
                 )),
-                _ => unreachable!(),
+                _ => todo!(),
             })
     }
 }
