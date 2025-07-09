@@ -130,38 +130,81 @@ impl ParseExpr for UnaryExpr {
 }
 
 /// Binary operator precedence table.
-static BIN_OP_PRECEDENCE: LazyLock<HashMap<TokenKind, u16>> =
+/// (binary operator, (left-side binding power, right-side binding power))
+static BIN_OP_PRECEDENCE: LazyLock<HashMap<TokenKind, (u16, u16)>> =
     LazyLock::new(|| {
         let mut ret = HashMap::new();
         let mut precedence = 0;
-        let mut add_next_precedence = |kinds: &[TokenKind]| {
-            ret.extend(kinds.iter().copied().map(|kind| (kind, precedence)));
-            precedence += 1;
-        };
+        let add_next_left_precedence =
+            |map: &mut HashMap<TokenKind, (u16, u16)>,
+             kinds: &[TokenKind],
+             prec: &mut u16| {
+                map.extend(
+                    kinds
+                        .iter()
+                        .copied()
+                        .map(|kind| (kind, (*prec, *prec + 1))),
+                );
+                *prec += 2;
+            };
+        let add_next_right_precedence =
+            |map: &mut HashMap<TokenKind, (u16, u16)>,
+             kinds: &[TokenKind],
+             prec: &mut u16| {
+                map.extend(
+                    kinds
+                        .iter()
+                        .copied()
+                        .map(|kind| (kind, (*prec + 1, *prec))),
+                );
+                *prec += 2;
+            };
 
         // assignment
-        add_next_precedence(&[TokenKind::Equal]);
+        add_next_right_precedence(
+            &mut ret,
+            &[TokenKind::Equal],
+            &mut precedence,
+        );
         // logic gate(?)
-        add_next_precedence(&[TokenKind::And, TokenKind::Or]);
+        add_next_left_precedence(
+            &mut ret,
+            &[TokenKind::And, TokenKind::Or],
+            &mut precedence,
+        );
         // comparison
-        add_next_precedence(&[
-            TokenKind::Eq,
-            TokenKind::Neq,
-            TokenKind::Less,
-            TokenKind::LessEqual,
-            TokenKind::Greater,
-            TokenKind::GreaterEqual,
-        ]);
+        add_next_left_precedence(
+            &mut ret,
+            &[
+                TokenKind::Eq,
+                TokenKind::Neq,
+                TokenKind::Less,
+                TokenKind::LessEqual,
+                TokenKind::Greater,
+                TokenKind::GreaterEqual,
+            ],
+            &mut precedence,
+        );
         // bitwise
-        add_next_precedence(&[
-            TokenKind::Hat,
-            TokenKind::Ampersand,
-            TokenKind::Beam,
-        ]);
+        add_next_left_precedence(
+            &mut ret,
+            &[TokenKind::Hat, TokenKind::Ampersand, TokenKind::Beam],
+            &mut precedence,
+        );
         // term
-        add_next_precedence(&[TokenKind::Plus, TokenKind::Dash]);
+        add_next_left_precedence(
+            &mut ret,
+            &[TokenKind::Plus, TokenKind::Dash],
+            &mut precedence,
+        );
         // factor
-        add_next_precedence(&[TokenKind::Star, TokenKind::Slash]);
+        add_next_left_precedence(
+            &mut ret,
+            &[TokenKind::Star, TokenKind::Slash],
+            &mut precedence,
+        );
+        // member access
+        add_next_left_precedence(&mut ret, &[TokenKind::Dot], &mut precedence);
 
         ret
     });

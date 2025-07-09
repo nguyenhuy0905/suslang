@@ -121,9 +121,9 @@ pub enum BinaryOp {
     /// |
     Or,
     /// ==
-    EqEq,
+    Eq,
     /// !=
-    NEq,
+    Neq,
     /// <
     Lt,
     /// >
@@ -133,7 +133,9 @@ pub enum BinaryOp {
     /// >=
     Ge,
     /// =
-    Eq,
+    Assign,
+    /// .
+    Member,
 }
 
 /// Expression with block(s).
