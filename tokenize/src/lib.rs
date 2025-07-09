@@ -516,12 +516,6 @@ impl<'a> Tokenizer<'a> {
                     self.state = TokenizeState::Init;
                     self.empty_window();
                 }
-                '\\' => {
-                    todo!(
-                        "Tokenizer::string_transit: Create a new state that \
-                         parses the string escape sequence"
-                    )
-                }
                 _ => {
                     self.consume_next_char();
                 }

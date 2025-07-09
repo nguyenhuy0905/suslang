@@ -176,21 +176,3 @@ pub struct Token {
     pub pos: CharPosition,
     pub repr: Option<Box<str>>,
 }
-
-impl Token {
-    /// Constructs a new Token
-    #[inline]
-    #[must_use]
-    pub fn new(
-        kind: TokenKind,
-        repr: Option<Box<str>>,
-        line: usize,
-        column: usize,
-    ) -> Self {
-        Self {
-            kind,
-            repr,
-            pos: CharPosition { line, column },
-        }
-    }
-}
