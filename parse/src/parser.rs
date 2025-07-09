@@ -44,29 +44,6 @@ pub trait ParseExpr {
     ) -> Result<(Expr, CharPosition), ParseError>;
 }
 
-/// Binary operator precedence table.
-static BIN_OP_PRECEDENCE: LazyLock<HashMap<TokenKind, u16>> =
-    LazyLock::new(|| {
-        let mut ret = HashMap::new();
-        let mut precedence = 0;
-        let mut add_next_precedence = |kinds: &[TokenKind]| {
-            ret.extend(kinds.iter().copied().map(|kind| (kind, precedence)));
-            precedence += 1;
-        };
-
-        add_next_precedence(&[TokenKind::And, TokenKind::Or]);
-        add_next_precedence(&[TokenKind::Eq, TokenKind::Neq]);
-        add_next_precedence(&[
-            TokenKind::Hat,
-            TokenKind::Ampersand,
-            TokenKind::Beam,
-        ]);
-        add_next_precedence(&[TokenKind::Plus, TokenKind::Dash]);
-        add_next_precedence(&[TokenKind::Star, TokenKind::Slash]);
-
-        ret
-    });
-
 impl ParseExpr for LiteralExpr {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
@@ -151,3 +128,40 @@ impl ParseExpr for UnaryExpr {
             .unwrap_or_else(|| LiteralExpr::parse_tokens(tokens, prev_pos))
     }
 }
+
+/// Binary operator precedence table.
+static BIN_OP_PRECEDENCE: LazyLock<HashMap<TokenKind, u16>> =
+    LazyLock::new(|| {
+        let mut ret = HashMap::new();
+        let mut precedence = 0;
+        let mut add_next_precedence = |kinds: &[TokenKind]| {
+            ret.extend(kinds.iter().copied().map(|kind| (kind, precedence)));
+            precedence += 1;
+        };
+
+        // assignment
+        add_next_precedence(&[TokenKind::Equal]);
+        // logic gate(?)
+        add_next_precedence(&[TokenKind::And, TokenKind::Or]);
+        // comparison
+        add_next_precedence(&[
+            TokenKind::Eq,
+            TokenKind::Neq,
+            TokenKind::Less,
+            TokenKind::LessEqual,
+            TokenKind::Greater,
+            TokenKind::GreaterEqual,
+        ]);
+        // bitwise
+        add_next_precedence(&[
+            TokenKind::Hat,
+            TokenKind::Ampersand,
+            TokenKind::Beam,
+        ]);
+        // term
+        add_next_precedence(&[TokenKind::Plus, TokenKind::Dash]);
+        // factor
+        add_next_precedence(&[TokenKind::Star, TokenKind::Slash]);
+
+        ret
+    });
