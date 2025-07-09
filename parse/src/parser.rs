@@ -7,7 +7,7 @@ use std::{
 
 use tokenize::{Token, TokenKind, tokens::CharPosition};
 
-use crate::{Expr, LiteralExpr, NoBlockExpr, UnaryExpr, UnaryOp};
+use crate::{BinaryOp, Expr, LiteralExpr, NoBlockExpr, UnaryExpr, UnaryOp};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -207,4 +207,27 @@ static BIN_OP_PRECEDENCE: LazyLock<HashMap<TokenKind, (u16, u16)>> =
         add_next_left_precedence(&mut ret, &[TokenKind::Dot], &mut precedence);
 
         ret
+    });
+
+static KIND_TO_BIN_OP: LazyLock<HashMap<TokenKind, BinaryOp>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            (TokenKind::Equal, BinaryOp::Assign),
+            (TokenKind::And, BinaryOp::And),
+            (TokenKind::Or, BinaryOp::Or),
+            (TokenKind::Eq, BinaryOp::Eq),
+            (TokenKind::Neq, BinaryOp::Neq),
+            (TokenKind::LessEqual, BinaryOp::Le),
+            (TokenKind::GreaterEqual, BinaryOp::Ge),
+            (TokenKind::Less, BinaryOp::Lt),
+            (TokenKind::Greater, BinaryOp::Gt),
+            (TokenKind::Hat, BinaryOp::XOr),
+            (TokenKind::Beam, BinaryOp::Or),
+            (TokenKind::Ampersand, BinaryOp::And),
+            (TokenKind::Plus, BinaryOp::Plus),
+            (TokenKind::Dash, BinaryOp::Minus),
+            (TokenKind::Star, BinaryOp::Mul),
+            (TokenKind::Slash, BinaryOp::Div),
+            (TokenKind::Dot, BinaryOp::Member),
+        ])
     });

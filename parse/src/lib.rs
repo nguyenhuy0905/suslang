@@ -40,8 +40,6 @@ pub enum NoBlockExpr {
     /// If matching the rule "." IDENTIFIER, forward to [`NoBlockExpr::Access`]
     /// rule. Otherwise, return this variant if parsing succeeds.
     ProcCall(ProcCallExpr),
-    /// \<access\> ::= \<lit\> "." IDENTIFIER
-    Access(AccessExpr),
     /// \<unary\> ::= ("+" | "-" | "!")? \<lit\>
     ///
     /// If there is ("+" | "-" | "!"), return this variant if parsing succeeds,
