@@ -49,26 +49,11 @@
           - [x] Procedure
           - [ ] Struct (need new keyword)
 
-- Do I add type info?
-  - Do I add type info *during* tokenization instead?
-  - If yes, think about module or namespace system, and generics
-    - How to declare a module/namespace?
-      - Explicit declaration?
-      - Or based on file name?
-    - How to refer to a type?
-      - I will need to modify how `Identifier` is parsed.
-      - In the same module/namespace?
-      - In a different module/namespace?
-        - Import a module/namespace?
-        - Relative path to refer to children modules/namespaces?
-        - Aliasing? With `Let` or `Def`/`Const`?
-    - Sizes of types?
-    - Generics? Conversion between types? Or simply type annotation that gets
-      checked in runtime?
-      - Name mangling?
-  - If I wanna make this into a query language (with flares), Imma just rely on
-    runtime type checking.
-
-- [ ] Semantics analysis
-  - [ ] Assign scope to blocks
-    - Or, do I do this way up during parsing a `Block`?
+- [ ] Parsing
+  - [ ] Literal expr (not done until `Expr` is parsed)
+  - [x] Unary expr
+  - [ ] Binary expr
+    - [ ] This time let's try Pratt, instead of recursive descend; I'm creating
+          a lot of rules with nonsense names with the latter already.
+  - [ ] Block expressions
+  - TODO: fill this later.
