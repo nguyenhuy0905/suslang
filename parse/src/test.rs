@@ -47,6 +47,7 @@ fn build_token_deque(tokens: &[(TokenKind, Option<&str>)]) -> VecDeque<Token> {
                     (Proc, 4),
                     (Return, 6),
                     (BlockReturn, 12),
+                    (Struct, 7),
                 ]
                 .into_iter(),
             );

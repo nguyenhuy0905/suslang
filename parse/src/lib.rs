@@ -28,17 +28,16 @@ pub enum NoBlockExpr {
     ///            | NUMBER
     ///            | FLOAT
     ///            | "(" \<expr\> ")"
+    ///            | \<block\>
     ///
     /// If matching the rule "(" \<expr\> ")", forward to [`NoBlockExpr`]'s rule.
     /// Otherwise, return this variant if parsing succeeds.
+    /// If matching the rule \<block\>, forward to [`WithBlockExpr`]'s rule.
     Literal(LiteralExpr),
-    /// \<proc-call\> ::= \<lit\> (\<param-lst\> | "." IDENTIFIER)
+    /// \<proc-call\> ::= \<expr\> "(" \<params\>")"
+    /// \<params\> ::= (\<expr\> ("," \<expr\>)* ","?)?
     ///
-    /// \<param-lst\> ::= "(" \<params\>? ")"
-    /// \<params\> ::= \<expr\> ("," \<expr\>)*
-    ///
-    /// If matching the rule "." IDENTIFIER, forward to [`NoBlockExpr::Access`]
-    /// rule. Otherwise, return this variant if parsing succeeds.
+    /// Yes, you can do something like `if 1 == 1 {a} else {b} ("hello")`
     ProcCall(ProcCallExpr),
     /// \<unary\> ::= ("+" | "-" | "!")? \<lit\>
     ///
@@ -46,18 +45,24 @@ pub enum NoBlockExpr {
     /// otherwise, forward to [`NoBlockExpr::Literal`]'s rule. Otherwise,
     /// return this variant if parsing succeeds.
     Unary(UnaryExpr),
-    /// \<binary\> ::= \<assignment\>
-    /// \<assignment\> ::= \<or-or\> ("=" \<expr\>)?
-    /// \<or-or\> ::= \<and-and\> ("||" \<and-and\>)?
-    /// \<and-and\> ::= \<bit-or\> ("&&" \<bit-or\>)?
-    /// \<bit-or\> ::= \<bit-xor\> ("|" \<bit-xor\>)?
-    /// \<bit-xor\> ::= \<bit-and\> ("^" \<bit-and\>)?
-    /// \<bit-and\> ::= \<term\> ("&" \<term\>)?
-    /// \<term\> ::= \<factor\> (("+" | "-") \<factor\>)?
-    /// \<factor\> ::= \<unary\> (("*" | "/") \<unary\>)?
-    ///
-    /// If only a single \<unary\> is matched, forward to [`NoBlockExpr::Unary`]'s
-    /// rule. Otherwise, return this variant if parsing succeeds.
+    /// \<binary\> ::= \<unary\> \<bin-op\> \<unary\>
+    /// \<bin-op\> ::= "+"
+    ///              | "-"
+    ///              | "*"
+    ///              | "/"
+    ///              | "&"
+    ///              | "|"
+    ///              | "^"
+    ///              | "eq"
+    ///              | "neq"
+    ///              | ">"
+    ///              | "<"
+    ///              | ">="
+    ///              | "<="
+    ///              | "and"
+    ///              | "or"
+    ///              | "not"
+    ///              | "."
     Binary(BinaryExpr),
 }
 
@@ -181,10 +186,12 @@ pub struct ElifBranch {
 pub struct WhileExpr {}
 
 /// Statement.
+/// `Stmt::Decl` contains an `Rc` because it will be put inside a `HashMap`
+/// most likely
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expr(ExprStmt),
-    Decl(DeclStmt),
+    Decl(Rc<DeclStmt>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -193,24 +200,61 @@ pub enum DeclStmt {
     LetMut(MutableLetStmt),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExprStmt {
-    NoBlock,
-    Block,
+impl DeclStmt {
+    pub fn get_id(&self) -> &str {
+        match self {
+            DeclStmt::Let(let_stmt) => let_stmt.id.as_ref(),
+            DeclStmt::LetMut(mutable_let_stmt) => mutable_let_stmt.id.as_ref(),
+        }
+    }
 }
 
-// Using Rc<str> for identifier name here instead of Box<str> because we will
-// also be putting the names inside a HashMap.
+impl std::hash::Hash for DeclStmt {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // we only allow one definition for each ID.
+        match self {
+            DeclStmt::Let(let_stmt) => let_stmt.id.hash(state),
+            DeclStmt::LetMut(mutable_let_stmt) => {
+                mutable_let_stmt.id.hash(state)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExprStmt {
+    /// should have a semicolon at the end.
+    NoBlock(NoBlockExprStmt),
+    /// doesn't need to be followed by a semicolon.
+    Block(WithBlockExpr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NoBlockExprStmt {
+    Return(ReturnStmt),
+    Expr(NoBlockExpr),
+    BlockReturn(BlockReturnStmt),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReturnStmt {
+    pub val: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockReturnStmt {
+    pub val: Expr,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LetStmt {
-    pub id: Rc<str>,
+    pub id: Box<str>,
     pub val: LetDefn,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MutableLetStmt {
-    pub id: Rc<str>,
+    pub id: Box<str>,
     pub val: Expr,
 }
 
@@ -225,12 +269,16 @@ pub enum LetDefn {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProcDefn {
-    pub name: Rc<str>,
-    pub params: Vec<Rc<str>>,
+    pub params: Vec<Box<str>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructDefn {
-    pub name: Rc<str>,
-    pub members: HashSet<Rc<str>>,
+    pub members: HashSet<Box<str>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scope {
+    pub stmts: Vec<Stmt>,
+    pub decls: Vec<Rc<DeclStmt>>,
 }

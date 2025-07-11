@@ -113,6 +113,8 @@ pub enum TokenKind {
     #[allow(clippy::doc_markdown)]
     /// Keyword "block_return"
     BlockReturn,
+    /// Keyword "struct"
+    Struct,
 }
 
 /// If the `key` matches a keyword, return the `TokenKind` corresponding to
@@ -143,6 +145,7 @@ pub fn keyword_lookup(key: &str) -> TokenKind {
                 ("proc", TokenKind::Proc),
                 ("return", TokenKind::Return),
                 ("block_return", TokenKind::BlockReturn),
+                ("struct", TokenKind::Struct),
             ])
         });
 

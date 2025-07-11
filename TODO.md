@@ -36,24 +36,31 @@
     - [x] `If`
     - [x] `While`
 
-- [ ] Enum `Stmt`:
-  - [ ] `Expr` statement
-    - [ ] `Return`, `BlockReturn`
-    - [ ] `Semicolon` (an `Expr` followed by a semicolon)
-  - [ ] `Let` statement
+- [x] Enum `Stmt`:
+  - [x] `Expr` statement
+    - [x] `Return`, `BlockReturn`
+    - [x] `Semicolon` (an `Expr` followed by a semicolon) (new name, just,
+          `Expr`)
+  - [x] `Let` statement
     - Do I add a `Def`/`Const` statement for all immutable types (say, function
       decl)?
     - [x] Or, `Let` with `Mut`?
       - [x] If not `Mut`, allow some more declaration types?
         - [x] Need a new enum for that probably (`LetDefn`):
           - [x] Procedure
-          - [ ] Struct (need new keyword)
+          - [x] Struct (need new keyword)
 
 - [ ] Parsing
-  - [ ] Literal expr (not done until `Expr` is parsed)
+  - [ ] Literal expr (not done until `Expr` can be parsed)
   - [x] Unary expr
   - [ ] Binary expr
     - [ ] This time let's try Pratt, instead of recursive descend; I'm creating
           a lot of rules with nonsense names with the latter already.
+  - [ ] Procedure call expr
+    - [ ] Be very careful. One possible form of this is `(<expr>)(<expr>)`,
+          which looks *very* similar to two `LiteralExpr` next to one another.
+    - Also, I may rename that to `PrimaryExpr`, since `(<expr>)` isn't really
+      a literal expr.
   - [ ] Block expressions
+    - At this point, let's mark a TODO on `Stmt::parse_tokens`.
   - TODO: fill this later.
