@@ -3,7 +3,8 @@ use std::{collections::VecDeque, error::Error, fmt::Display};
 use tokenize::{Token, TokenKind, tokens::CharPosition};
 
 use crate::{
-    BinaryExpr, BinaryOp, Expr, LiteralExpr, NoBlockExpr, UnaryExpr, UnaryOp,
+    BinaryExpr, BinaryOp, Expr, LiteralExpr, NoBlockExpr, ProcCallExpr,
+    UnaryExpr, UnaryOp,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,6 +40,15 @@ pub trait ParseExpr {
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
     ) -> Result<(Expr, CharPosition), ParseError>;
+}
+
+impl ParseExpr for Expr {
+    fn parse_tokens(
+        tokens: &mut VecDeque<Token>,
+        prev_pos: CharPosition,
+    ) -> Result<(Expr, CharPosition), ParseError> {
+        todo!()
+    }
 }
 
 impl ParseExpr for LiteralExpr {
@@ -247,5 +257,46 @@ impl ParseExpr for BinaryExpr {
                 BinaryExpr::parse_with_op(lhs, op, tokens, lhs_pos)?;
         }
         Ok((lhs, lhs_pos))
+    }
+}
+
+impl ProcCallExpr {
+    /// Parse the parameter list of a `ProcCallExpr`.
+    pub(crate) fn parse_params(
+        tokens: &mut VecDeque<Token>,
+        prev_pos: CharPosition,
+    ) -> Result<(Vec<Expr>, CharPosition), ParseError> {
+        let lp_pos = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken(prev_pos))
+            .and_then(|tok| {
+                if tok.kind == TokenKind::LParen {
+                    Ok(tok.pos)
+                } else {
+                    Err(ParseError::UnexpectedToken(tok))
+                }
+            })?;
+        let mut ret: Vec<Expr> = Vec::new();
+        // will be position of right-paren when it exits the loop
+        let mut last_pos = lp_pos;
+        loop {
+            let (exp, exp_pos) = Expr::parse_tokens(tokens, last_pos)?;
+            ret.push(exp);
+            let next_tok = tokens
+                .pop_front()
+                .ok_or(ParseError::ExpectedToken(exp_pos))?;
+            match next_tok.kind {
+                TokenKind::RParen => {
+                    last_pos = next_tok.pos;
+                    break;
+                }
+                TokenKind::Comma => {
+                    last_pos = next_tok.pos;
+                    continue;
+                }
+                _ => return Err(ParseError::UnexpectedToken(next_tok)),
+            }
+        }
+        Ok((ret, last_pos))
     }
 }

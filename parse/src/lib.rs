@@ -77,7 +77,7 @@ pub enum LiteralExpr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProcCallExpr {
-    pub id: Box<str>,
+    pub id_expr: Box<Expr>,
     pub params: Vec<Expr>,
 }
 
