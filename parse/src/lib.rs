@@ -118,10 +118,14 @@ pub enum BinaryOp {
     /// /
     Div,
     /// &
-    And,
+    BitAnd,
     /// ^
-    XOr,
+    BitXOr,
     /// |
+    BitOr,
+    /// and
+    And,
+    /// or
     Or,
     /// ==
     Eq,

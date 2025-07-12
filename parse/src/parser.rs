@@ -1,13 +1,10 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    error::Error,
-    fmt::Display,
-    sync::LazyLock,
-};
+use std::{collections::VecDeque, error::Error, fmt::Display};
 
 use tokenize::{Token, TokenKind, tokens::CharPosition};
 
-use crate::{BinaryOp, Expr, LiteralExpr, NoBlockExpr, UnaryExpr, UnaryOp};
+use crate::{
+    BinaryExpr, BinaryOp, Expr, LiteralExpr, NoBlockExpr, UnaryExpr, UnaryOp,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -129,105 +126,126 @@ impl ParseExpr for UnaryExpr {
     }
 }
 
-/// Binary operator precedence table.
-/// (binary operator, (left-side binding power, right-side binding power))
-static BIN_OP_PRECEDENCE: LazyLock<HashMap<TokenKind, (u16, u16)>> =
-    LazyLock::new(|| {
-        let mut ret = HashMap::new();
-        let mut precedence = 0;
-        let add_next_left_precedence =
-            |map: &mut HashMap<TokenKind, (u16, u16)>,
-             kinds: &[TokenKind],
-             prec: &mut u16| {
-                map.extend(
-                    kinds
-                        .iter()
-                        .copied()
-                        .map(|kind| (kind, (*prec, *prec + 1))),
-                );
-                *prec += 2;
-            };
-        let add_next_right_precedence =
-            |map: &mut HashMap<TokenKind, (u16, u16)>,
-             kinds: &[TokenKind],
-             prec: &mut u16| {
-                map.extend(
-                    kinds
-                        .iter()
-                        .copied()
-                        .map(|kind| (kind, (*prec + 1, *prec))),
-                );
-                *prec += 2;
-            };
+pub(crate) struct BinaryOpPrecedence {
+    pub lhs: usize,
+    pub rhs: usize,
+}
 
-        // assignment
-        add_next_right_precedence(
-            &mut ret,
-            &[TokenKind::Equal],
-            &mut precedence,
-        );
-        // logic gate(?)
-        add_next_left_precedence(
-            &mut ret,
-            &[TokenKind::And, TokenKind::Or],
-            &mut precedence,
-        );
-        // comparison
-        add_next_left_precedence(
-            &mut ret,
-            &[
-                TokenKind::Eq,
-                TokenKind::Neq,
-                TokenKind::Less,
-                TokenKind::LessEqual,
-                TokenKind::Greater,
-                TokenKind::GreaterEqual,
-            ],
-            &mut precedence,
-        );
-        // bitwise
-        add_next_left_precedence(
-            &mut ret,
-            &[TokenKind::Hat, TokenKind::Ampersand, TokenKind::Beam],
-            &mut precedence,
-        );
-        // term
-        add_next_left_precedence(
-            &mut ret,
-            &[TokenKind::Plus, TokenKind::Dash],
-            &mut precedence,
-        );
-        // factor
-        add_next_left_precedence(
-            &mut ret,
-            &[TokenKind::Star, TokenKind::Slash],
-            &mut precedence,
-        );
-        // member access
-        add_next_left_precedence(&mut ret, &[TokenKind::Dot], &mut precedence);
+impl BinaryOp {
+    pub(crate) fn precedence(self) -> BinaryOpPrecedence {
+        // lhs < rhs == right associative
+        // lhs > rhs == left associative
+        match self {
+            BinaryOp::Assign => BinaryOpPrecedence { lhs: 1, rhs: 0 },
+            BinaryOp::And | BinaryOp::Or => {
+                BinaryOpPrecedence { lhs: 2, rhs: 3 }
+            }
+            BinaryOp::Eq
+            | BinaryOp::Neq
+            | BinaryOp::Lt
+            | BinaryOp::Gt
+            | BinaryOp::Le
+            | BinaryOp::Ge => BinaryOpPrecedence { lhs: 4, rhs: 5 },
+            BinaryOp::BitAnd | BinaryOp::BitXOr | BinaryOp::BitOr => {
+                BinaryOpPrecedence { lhs: 6, rhs: 7 }
+            }
+            BinaryOp::Plus | BinaryOp::Minus => {
+                BinaryOpPrecedence { lhs: 8, rhs: 9 }
+            }
+            BinaryOp::Mul | BinaryOp::Div => {
+                BinaryOpPrecedence { lhs: 10, rhs: 11 }
+            }
+            BinaryOp::Member => BinaryOpPrecedence { lhs: 12, rhs: 13 },
+        }
+    }
 
-        ret
-    });
+    pub(crate) fn from_token_kind(kind: TokenKind) -> Option<Self> {
+        match kind {
+            TokenKind::Equal => Some(BinaryOp::Assign),
+            TokenKind::And => Some(BinaryOp::And),
+            TokenKind::Or => Some(BinaryOp::Or),
+            TokenKind::Eq => Some(BinaryOp::Eq),
+            TokenKind::Neq => Some(BinaryOp::Neq),
+            TokenKind::LessEqual => Some(BinaryOp::Le),
+            TokenKind::GreaterEqual => Some(BinaryOp::Ge),
+            TokenKind::Less => Some(BinaryOp::Lt),
+            TokenKind::Greater => Some(BinaryOp::Gt),
+            TokenKind::Hat => Some(BinaryOp::BitXOr),
+            TokenKind::Beam => Some(BinaryOp::BitOr),
+            TokenKind::Ampersand => Some(BinaryOp::BitAnd),
+            TokenKind::Plus => Some(BinaryOp::Plus),
+            TokenKind::Dash => Some(BinaryOp::Minus),
+            TokenKind::Star => Some(BinaryOp::Mul),
+            TokenKind::Slash => Some(BinaryOp::Div),
+            TokenKind::Dot => Some(BinaryOp::Member),
+            _ => None,
+        }
+    }
+}
 
-static KIND_TO_BIN_OP: LazyLock<HashMap<TokenKind, BinaryOp>> =
-    LazyLock::new(|| {
-        HashMap::from([
-            (TokenKind::Equal, BinaryOp::Assign),
-            (TokenKind::And, BinaryOp::And),
-            (TokenKind::Or, BinaryOp::Or),
-            (TokenKind::Eq, BinaryOp::Eq),
-            (TokenKind::Neq, BinaryOp::Neq),
-            (TokenKind::LessEqual, BinaryOp::Le),
-            (TokenKind::GreaterEqual, BinaryOp::Ge),
-            (TokenKind::Less, BinaryOp::Lt),
-            (TokenKind::Greater, BinaryOp::Gt),
-            (TokenKind::Hat, BinaryOp::XOr),
-            (TokenKind::Beam, BinaryOp::Or),
-            (TokenKind::Ampersand, BinaryOp::And),
-            (TokenKind::Plus, BinaryOp::Plus),
-            (TokenKind::Dash, BinaryOp::Minus),
-            (TokenKind::Star, BinaryOp::Mul),
-            (TokenKind::Slash, BinaryOp::Div),
-            (TokenKind::Dot, BinaryOp::Member),
-        ])
-    });
+impl BinaryExpr {
+    // Given \<expr\> \<op\>, try parse right-hand side, then combine all that
+    // into one \<expr\>.
+    pub(crate) fn parse_with_op(
+        lhs: Expr,
+        op: BinaryOp,
+        tokens: &mut VecDeque<Token>,
+        prev_pos: CharPosition,
+    ) -> Result<(Expr, CharPosition), ParseError> {
+        let (mut rhs, mut rhs_pos) = UnaryExpr::parse_tokens(tokens, prev_pos)?;
+        let mut min_precd = op.precedence().rhs;
+
+        while let Some(next_op) = tokens
+            .front()
+            .and_then(|tok| BinaryOp::from_token_kind(tok.kind))
+        {
+            let next_op_precd = next_op.precedence();
+            if next_op_precd.lhs > min_precd {
+                tokens.pop_front();
+                min_precd = next_op_precd.rhs;
+                (rhs, rhs_pos) =
+                    Self::parse_with_op(rhs, next_op, tokens, rhs_pos)?;
+                continue;
+            }
+
+            return Ok((
+                Expr::NoBlock(NoBlockExpr::Binary(Self {
+                    op,
+                    lhs: Box::from(lhs),
+                    rhs: Box::from(rhs),
+                })),
+                rhs_pos,
+            ));
+        }
+
+        Ok((
+            Expr::NoBlock(NoBlockExpr::Binary(Self {
+                op,
+                lhs: Box::from(lhs),
+                rhs: Box::from(rhs),
+            })),
+            rhs_pos,
+        ))
+    }
+}
+
+impl ParseExpr for BinaryExpr {
+    fn parse_tokens(
+        tokens: &mut VecDeque<Token>,
+        prev_pos: CharPosition,
+    ) -> Result<(Expr, CharPosition), ParseError> {
+        let (mut lhs, mut lhs_pos) = UnaryExpr::parse_tokens(tokens, prev_pos)?;
+        // damn it, borrow checker.
+        while let Some(op) = tokens
+            .front()
+            .and_then(|tok| BinaryOp::from_token_kind(tok.kind))
+            .inspect(|_| {
+                tokens.pop_front();
+            })
+        {
+            (lhs, lhs_pos) =
+                BinaryExpr::parse_with_op(lhs, op, tokens, lhs_pos)?;
+        }
+        Ok((lhs, lhs_pos))
+    }
+}
