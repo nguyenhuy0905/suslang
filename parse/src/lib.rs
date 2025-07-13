@@ -33,7 +33,7 @@ pub enum NoBlockExpr {
     /// If matching the rule "(" \<expr\> ")", forward to [`NoBlockExpr`]'s rule.
     /// Otherwise, return this variant if parsing succeeds.
     /// If matching the rule \<block\>, forward to [`WithBlockExpr`]'s rule.
-    Literal(LiteralExpr),
+    Primary(PrimaryExpr),
     /// \<proc-call\> ::= \<expr\> "(" \<params\>")"
     /// \<params\> ::= (\<expr\> ("," \<expr\>)* ","?)?
     ///
@@ -67,7 +67,7 @@ pub enum NoBlockExpr {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LiteralExpr {
+pub enum PrimaryExpr {
     String(Box<str>),
     Integer(u64),
     Float(f64),

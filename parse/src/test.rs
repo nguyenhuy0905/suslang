@@ -75,7 +75,7 @@ fn build_token_deque(tokens: &[(TokenKind, Option<&str>)]) -> VecDeque<Token> {
 }
 
 #[test]
-fn parse_literal() {
+fn parse_primary() {
     let mut deque = build_token_deque(&[
         (TokenKind::Integer, Some("12345")),
         (TokenKind::Float, Some("123.45")),
@@ -91,7 +91,7 @@ fn parse_literal() {
         let mut prev_pos = CharPosition { line: 1, column: 1 };
         while !deque.is_empty() {
             ret.push(
-                LiteralExpr::parse_tokens(&mut deque, prev_pos)
+                PrimaryExpr::parse_tokens(&mut deque, prev_pos)
                     .inspect(|(_, pos)| prev_pos = *pos)
                     .map(|(tok, _)| tok)
                     .unwrap(),
@@ -103,13 +103,13 @@ fn parse_literal() {
     assert_eq!(
         asts,
         [
-            LiteralExpr::Integer(12345),
-            LiteralExpr::Float(123.45),
-            LiteralExpr::String(Box::from("hello")),
-            LiteralExpr::Char('c'),
-            LiteralExpr::Identifier(Box::from("sus1")),
+            PrimaryExpr::Integer(12345),
+            PrimaryExpr::Float(123.45),
+            PrimaryExpr::String(Box::from("hello")),
+            PrimaryExpr::Char('c'),
+            PrimaryExpr::Identifier(Box::from("sus1")),
         ]
-        .map(|lit| Expr::NoBlock(NoBlockExpr::Literal(lit)))
+        .map(|lit| Expr::NoBlock(NoBlockExpr::Primary(lit)))
     );
 }
 
@@ -125,7 +125,7 @@ fn parse_proc_call() {
             (TokenKind::LParen, None),
             (TokenKind::RParen, None),
         ]);
-        let proc = LiteralExpr::parse_tokens(
+        let proc = PrimaryExpr::parse_tokens(
             &mut deque,
             CharPosition { line: 1, column: 1 },
         )
@@ -133,8 +133,8 @@ fn parse_proc_call() {
         assert_eq!(
             proc.0,
             Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
-                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Integer(123)
+                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
                 ))),
                 params: vec![]
             }))
@@ -156,7 +156,7 @@ fn parse_unary() {
         .0;
         assert_eq!(
             unary,
-            Expr::NoBlock(NoBlockExpr::Literal(LiteralExpr::String(
+            Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::String(
                 Box::from("hello")
             )))
         );
@@ -189,20 +189,20 @@ fn parse_unary() {
             [
                 UnaryExpr {
                     op: UnaryOp::Negate,
-                    val: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    val: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
                 },
                 UnaryExpr {
                     op: UnaryOp::Minus,
-                    val: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    val: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
                 },
                 UnaryExpr {
                     op: UnaryOp::Plus,
-                    val: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    val: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
                 }
             ]
@@ -232,8 +232,8 @@ fn binary_expr() {
             binary,
             Expr::NoBlock(NoBlockExpr::Unary(UnaryExpr {
                 op: UnaryOp::Minus,
-                val: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Integer(123)
+                val: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
                 )))
             }))
         );
@@ -256,11 +256,11 @@ fn binary_expr() {
             binary,
             Expr::NoBlock(NoBlockExpr::Binary(BinaryExpr {
                 op: BinaryOp::Plus,
-                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Integer(123)
+                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
                 ))),
-                rhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Integer(123)
+                rhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
                 ))),
             }))
         );
@@ -288,15 +288,15 @@ fn binary_expr() {
                 op: BinaryOp::Minus,
                 lhs: Box::new(Expr::NoBlock(NoBlockExpr::Binary(BinaryExpr {
                     op: BinaryOp::Plus,
-                    lhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    lhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
-                    rhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    rhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
                 }))),
-                rhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Integer(123)
+                rhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
                 ))),
             }))
         );
@@ -323,16 +323,16 @@ fn binary_expr() {
             // 123 + (123 * 123)
             Expr::NoBlock(NoBlockExpr::Binary(BinaryExpr {
                 op: BinaryOp::Plus,
-                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Integer(123)
+                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
                 ))),
                 rhs: Box::new(Expr::NoBlock(NoBlockExpr::Binary(BinaryExpr {
                     op: BinaryOp::Mul,
-                    lhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    lhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
-                    rhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    rhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
                 })))
             }))
@@ -359,16 +359,16 @@ fn binary_expr() {
             binary,
             Expr::NoBlock(NoBlockExpr::Binary(BinaryExpr {
                 op: BinaryOp::Assign,
-                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Identifier(Box::from("hello")),
+                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Identifier(Box::from("hello")),
                 ))),
                 rhs: Box::new(Expr::NoBlock(NoBlockExpr::Binary(BinaryExpr {
                     op: BinaryOp::Plus,
-                    lhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    lhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
-                    rhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    rhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     ))),
                 })))
             }))
@@ -394,13 +394,13 @@ fn binary_expr() {
             binary,
             Expr::NoBlock(NoBlockExpr::Binary(BinaryExpr {
                 op: BinaryOp::Plus,
-                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                    LiteralExpr::Integer(123)
+                lhs: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
                 ))),
                 rhs: Box::new(Expr::NoBlock(NoBlockExpr::Unary(UnaryExpr {
                     op: UnaryOp::Plus,
-                    val: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
-                        LiteralExpr::Integer(123)
+                    val: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                        PrimaryExpr::Integer(123)
                     )))
                 })))
             }))

@@ -3,7 +3,7 @@ use std::{collections::VecDeque, error::Error, fmt::Display};
 use tokenize::{tokens::CharPosition, Token, TokenKind};
 
 use crate::{
-    BinaryExpr, BinaryOp, Expr, LiteralExpr, NoBlockExpr, ProcCallExpr,
+    BinaryExpr, BinaryOp, Expr, NoBlockExpr, PrimaryExpr, ProcCallExpr,
     UnaryExpr, UnaryOp,
 };
 
@@ -51,7 +51,7 @@ impl ParseExpr for Expr {
     }
 }
 
-impl ParseExpr for LiteralExpr {
+impl ParseExpr for PrimaryExpr {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -61,31 +61,31 @@ impl ParseExpr for LiteralExpr {
             .ok_or(ParseError::ExpectedToken(prev_pos))
             .and_then(|tok| match tok.kind {
                 TokenKind::Identifier => Ok((
-                    Expr::NoBlock(NoBlockExpr::Literal(Self::Identifier(
+                    Expr::NoBlock(NoBlockExpr::Primary(Self::Identifier(
                         tok.repr.unwrap(),
                     ))),
                     tok.pos,
                 )),
                 TokenKind::Integer => Ok((
-                    Expr::NoBlock(NoBlockExpr::Literal(Self::Integer(
+                    Expr::NoBlock(NoBlockExpr::Primary(Self::Integer(
                         tok.repr.unwrap().parse().unwrap(),
                     ))),
                     tok.pos,
                 )),
                 TokenKind::Float => Ok((
-                    Expr::NoBlock(NoBlockExpr::Literal(Self::Float(
+                    Expr::NoBlock(NoBlockExpr::Primary(Self::Float(
                         tok.repr.unwrap().parse().unwrap(),
                     ))),
                     tok.pos,
                 )),
                 TokenKind::String => Ok((
-                    Expr::NoBlock(NoBlockExpr::Literal(Self::String(
+                    Expr::NoBlock(NoBlockExpr::Primary(Self::String(
                         tok.repr.unwrap(),
                     ))),
                     tok.pos,
                 )),
                 TokenKind::Char => Ok((
-                    Expr::NoBlock(NoBlockExpr::Literal(Self::Char(
+                    Expr::NoBlock(NoBlockExpr::Primary(Self::Char(
                         tok.repr.unwrap().parse().unwrap(),
                     ))),
                     tok.pos,
@@ -135,7 +135,7 @@ impl ParseExpr for UnaryExpr {
             .inspect(|_| {
                 tokens.pop_front();
             })
-            .map(|(op, op_pos)| (op, LiteralExpr::parse_tokens(tokens, op_pos)))
+            .map(|(op, op_pos)| (op, PrimaryExpr::parse_tokens(tokens, op_pos)))
             .map(|(op, res)| {
                 // construct the `UnaryExpr` only if the `LiteralExpr` parsing
                 // step above succeeds.
@@ -149,7 +149,7 @@ impl ParseExpr for UnaryExpr {
                     )
                 })
             })
-            .unwrap_or_else(|| LiteralExpr::parse_tokens(tokens, prev_pos))
+            .unwrap_or_else(|| PrimaryExpr::parse_tokens(tokens, prev_pos))
     }
 }
 
