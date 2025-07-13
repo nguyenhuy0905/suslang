@@ -263,6 +263,20 @@ fn parse_proc_call() {
             }))
         );
     }
+    // no closing right-paren
+    {
+        let mut deque = build_token_deque(&[
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::LParen, None),
+        ]);
+        let last_pos = deque.back().unwrap().pos;
+        let proc = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        );
+        assert_eq!(proc, Err(ParseError::ExpectedToken(last_pos)));
+    }
+}
 }
 
 #[test]

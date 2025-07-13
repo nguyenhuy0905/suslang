@@ -314,10 +314,7 @@ impl ProcCallExpr {
         let mut ret: Vec<Expr> = Vec::new();
         // will be position of right-paren when it exits the loop
         let mut last_pos = lp_pos;
-        while !matches!(
-            tokens.front().map(|tok| tok.kind),
-            Some(TokenKind::RParen) | None
-        ) {
+        while tokens.front().map(|tok| tok.kind) != Some(TokenKind::RParen) {
             let (exp, exp_pos) = Expr::parse_tokens(tokens, last_pos)?;
             ret.push(exp);
             let next_tok = tokens
