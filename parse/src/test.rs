@@ -277,6 +277,39 @@ fn parse_proc_call() {
         assert_eq!(proc, Err(ParseError::ExpectedToken(last_pos)));
     }
 }
+
+#[test]
+fn parse_nested_expr() {
+    // simple
+    {
+        let mut deque = build_token_deque(&[
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::RParen, None),
+        ]);
+        let expr = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            expr.0,
+            Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(123)))
+        );
+    }
+    // forgetting close paren
+    {
+        let mut deque = build_token_deque(&[
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("123")),
+        ]);
+        let last_pos = deque.back().unwrap().pos;
+        let expr = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        );
+        assert_eq!(expr, Err(ParseError::ExpectedToken(last_pos)));
+    }
 }
 
 #[test]

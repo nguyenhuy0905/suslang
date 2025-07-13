@@ -108,6 +108,16 @@ impl ParseExpr for PrimaryExpr {
                     ))),
                     tok.pos,
                 )),
+                TokenKind::LParen => {
+                    let ret = Expr::parse_tokens(tokens, prev_pos)?;
+                    tokens
+                        .pop_front()
+                        .ok_or(ParseError::ExpectedToken(ret.1))
+                        .and_then(|tok| match tok.kind {
+                            TokenKind::RParen => Ok((ret.0, tok.pos)),
+                            _ => Err(ParseError::UnexpectedToken(tok)),
+                        })
+                }
                 _ => {
                     tokens.push_front(tok);
                     Expr::parse_tokens(tokens, prev_pos)
