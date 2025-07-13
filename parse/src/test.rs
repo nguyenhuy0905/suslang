@@ -115,11 +115,9 @@ fn parse_primary() {
 
 #[test]
 fn parse_proc_call() {
-    // at the time of testing, Expr::parse is still on `todo!()`, so the only
-    // parse-able `ProcCallExpr` is with an empty parameter list.
+    // no args
     {
-        // according to the parsing rules, `123()` is a valid proc call.
-        // Begin the "everything is a function" arc.
+        // 123()
         let mut deque = build_token_deque(&[
             (TokenKind::Integer, Some("123")),
             (TokenKind::LParen, None),
@@ -137,6 +135,131 @@ fn parse_proc_call() {
                     PrimaryExpr::Integer(123)
                 ))),
                 params: vec![]
+            }))
+        );
+    }
+    // 1 arg, no trailing comma
+    {
+        // 123(456)
+        let mut deque = build_token_deque(&[
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("456")),
+            (TokenKind::RParen, None),
+        ]);
+        let proc = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            proc.0,
+            Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
+                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
+                ))),
+                params: vec![Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(456)
+                ))]
+            }))
+        );
+    }
+    // 1 arg, trailing comma
+    {
+        // 123(456, )
+        let mut deque = build_token_deque(&[
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("456")),
+            (TokenKind::Comma, None),
+            (TokenKind::RParen, None),
+        ]);
+        let proc = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            proc.0,
+            Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
+                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
+                ))),
+                params: vec![Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(456)
+                ))]
+            }))
+        );
+    }
+    // 2+ args, no trailing comma
+    {
+        // 123(456, 789)
+        let mut deque = build_token_deque(&[
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("456")),
+            (TokenKind::Comma, None),
+            (TokenKind::Integer, Some("789")),
+            (TokenKind::RParen, None),
+        ]);
+        let proc = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            proc.0,
+            Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
+                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
+                ))),
+                params: vec![
+                    Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(
+                        456
+                    ))),
+                    Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(
+                        789
+                    ))),
+                ]
+            }))
+        );
+    }
+    // 2+ args, trailing comma
+    {
+        // 123(456, 789, )
+        let mut deque = build_token_deque(&[
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("456")),
+            (TokenKind::Comma, None),
+            (TokenKind::Integer, Some("789")),
+            (TokenKind::Comma, None),
+            (TokenKind::String, Some("hello")),
+            (TokenKind::Comma, None),
+            (TokenKind::RParen, None),
+        ]);
+        let proc = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            proc.0,
+            Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
+                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
+                ))),
+                params: vec![
+                    Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(
+                        456
+                    ))),
+                    Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(
+                        789
+                    ))),
+                    Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::String(
+                        Box::from("hello")
+                    )))
+                ]
             }))
         );
     }
