@@ -205,6 +205,7 @@ pub enum DeclStmt {
 }
 
 impl DeclStmt {
+    #[must_use]
     pub fn get_id(&self) -> &str {
         match self {
             DeclStmt::Let(let_stmt) => let_stmt.id.as_ref(),
@@ -219,7 +220,7 @@ impl std::hash::Hash for DeclStmt {
         match self {
             DeclStmt::Let(let_stmt) => let_stmt.id.hash(state),
             DeclStmt::LetMut(mutable_let_stmt) => {
-                mutable_let_stmt.id.hash(state)
+                mutable_let_stmt.id.hash(state);
             }
         }
     }

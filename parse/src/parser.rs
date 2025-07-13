@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, error::Error, fmt::Display};
 
-use tokenize::{Token, TokenKind, tokens::CharPosition};
+use tokenize::{tokens::CharPosition, Token, TokenKind};
 
 use crate::{
     BinaryExpr, BinaryOp, Expr, LiteralExpr, NoBlockExpr, ProcCallExpr,
@@ -292,7 +292,6 @@ impl ProcCallExpr {
                 }
                 TokenKind::Comma => {
                     last_pos = next_tok.pos;
-                    continue;
                 }
                 _ => return Err(ParseError::UnexpectedToken(next_tok)),
             }
