@@ -187,15 +187,15 @@ pub struct ElifBranch {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct WhileExpr {}
+pub struct WhileExpr {
+    pub cond: Box<Expr>,
+    pub block: Box<Expr>,
+}
 
-/// Statement.
-/// `Stmt::Decl` contains an `Rc` because it will be put inside a `HashMap`
-/// most likely
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expr(ExprStmt),
-    Decl(Rc<DeclStmt>),
+    Decl(DeclStmt),
 }
 
 #[derive(Debug, Clone, PartialEq)]
