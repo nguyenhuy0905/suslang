@@ -4,7 +4,7 @@ use std::{
     sync::LazyLock,
 };
 
-use tokenize::{Token, TokenKind, tokens::CharPosition};
+use tokenize::{tokens::CharPosition, Token, TokenKind};
 
 use super::*;
 
@@ -111,6 +111,35 @@ fn parse_literal() {
         ]
         .map(|lit| Expr::NoBlock(NoBlockExpr::Literal(lit)))
     );
+}
+
+#[test]
+fn parse_proc_call() {
+    // at the time of testing, Expr::parse is still on `todo!()`, so the only
+    // parse-able `ProcCallExpr` is with an empty parameter list.
+    {
+        // according to the parsing rules, `123()` is a valid proc call.
+        // Begin the "everything is a function" arc.
+        let mut deque = build_token_deque(&[
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::LParen, None),
+            (TokenKind::RParen, None),
+        ]);
+        let proc = LiteralExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            proc.0,
+            Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
+                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Literal(
+                    LiteralExpr::Integer(123)
+                ))),
+                params: vec![]
+            }))
+        );
+    }
 }
 
 #[test]

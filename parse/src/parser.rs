@@ -56,7 +56,7 @@ impl ParseExpr for LiteralExpr {
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
     ) -> Result<(Expr, CharPosition), ParseError> {
-        tokens
+        let lhs = tokens
             .pop_front()
             .ok_or(ParseError::ExpectedToken(prev_pos))
             .and_then(|tok| match tok.kind {
@@ -90,8 +90,25 @@ impl ParseExpr for LiteralExpr {
                     ))),
                     tok.pos,
                 )),
-                _ => todo!(),
-            })
+                _ => {
+                    tokens.push_front(tok);
+                    Expr::parse_tokens(tokens, prev_pos)
+                }
+            });
+
+        if tokens.front().map(|tok| tok.kind) != Some(TokenKind::LParen) {
+            return lhs;
+        }
+        let lhs = lhs?;
+
+        let proc_rhs = ProcCallExpr::parse_params(tokens, lhs.1)?;
+        Ok((
+            Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
+                id_expr: Box::from(lhs.0),
+                params: proc_rhs.0,
+            })),
+            proc_rhs.1,
+        ))
     }
 }
 
@@ -279,7 +296,10 @@ impl ProcCallExpr {
         let mut ret: Vec<Expr> = Vec::new();
         // will be position of right-paren when it exits the loop
         let mut last_pos = lp_pos;
-        loop {
+        while !matches!(
+            tokens.front().map(|tok| tok.kind),
+            Some(TokenKind::RParen) | None
+        ) {
             let (exp, exp_pos) = Expr::parse_tokens(tokens, last_pos)?;
             ret.push(exp);
             let next_tok = tokens
