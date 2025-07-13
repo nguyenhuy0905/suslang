@@ -47,7 +47,25 @@ impl ParseExpr for Expr {
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
     ) -> Result<(Expr, CharPosition), ParseError> {
-        todo!()
+        match tokens
+            .front()
+            .ok_or(ParseError::ExpectedToken(prev_pos))
+            .map(|tok| tok.kind)?
+        {
+            // block expr
+            TokenKind::If | TokenKind::While | TokenKind::LBrace => todo!(),
+            // either non-block expr, or an error.
+            _ => NoBlockExpr::parse_tokens(tokens, prev_pos),
+        }
+    }
+}
+
+impl ParseExpr for NoBlockExpr {
+    fn parse_tokens(
+        tokens: &mut VecDeque<Token>,
+        prev_pos: CharPosition,
+    ) -> Result<(Expr, CharPosition), ParseError> {
+        BinaryExpr::parse_tokens(tokens, prev_pos)
     }
 }
 
