@@ -147,6 +147,7 @@ fn parse_proc_call() {
             (TokenKind::Integer, Some("456")),
             (TokenKind::RParen, None),
         ]);
+        let last_pos = deque.back().unwrap().pos;
         let proc = PrimaryExpr::parse_tokens(
             &mut deque,
             CharPosition { line: 1, column: 1 },
@@ -163,6 +164,8 @@ fn parse_proc_call() {
                 ))]
             }))
         );
+        assert_eq!(proc.1, last_pos);
+        assert_eq!(deque, []);
     }
     // 1 arg, trailing comma
     {
@@ -174,6 +177,7 @@ fn parse_proc_call() {
             (TokenKind::Comma, None),
             (TokenKind::RParen, None),
         ]);
+        let last_pos = deque.back().unwrap().pos;
         let proc = PrimaryExpr::parse_tokens(
             &mut deque,
             CharPosition { line: 1, column: 1 },
@@ -190,6 +194,8 @@ fn parse_proc_call() {
                 ))]
             }))
         );
+        assert_eq!(proc.1, last_pos);
+        assert_eq!(deque, []);
     }
     // 2+ args, no trailing comma
     {
@@ -202,6 +208,7 @@ fn parse_proc_call() {
             (TokenKind::Integer, Some("789")),
             (TokenKind::RParen, None),
         ]);
+        let last_pos = deque.back().unwrap().pos;
         let proc = PrimaryExpr::parse_tokens(
             &mut deque,
             CharPosition { line: 1, column: 1 },
@@ -223,6 +230,8 @@ fn parse_proc_call() {
                 ]
             }))
         );
+        assert_eq!(proc.1, last_pos);
+        assert_eq!(deque, []);
     }
     // 2+ args, trailing comma
     {
@@ -238,6 +247,7 @@ fn parse_proc_call() {
             (TokenKind::Comma, None),
             (TokenKind::RParen, None),
         ]);
+        let last_pos = deque.back().unwrap().pos;
         let proc = PrimaryExpr::parse_tokens(
             &mut deque,
             CharPosition { line: 1, column: 1 },
@@ -262,6 +272,9 @@ fn parse_proc_call() {
                 ]
             }))
         );
+        // expected to consume all tokens.
+        assert_eq!(proc.1, last_pos);
+        assert_eq!(deque, []);
     }
     // no closing right-paren
     {

@@ -1,8 +1,8 @@
 use tokenize::{tokens::CharPosition, Token, TokenKind};
 
 use crate::{
-    BinaryExpr, BinaryOp, Expr, NoBlockExpr, PrimaryExpr, ProcCallExpr,
-    UnaryExpr, UnaryOp,
+    BinaryExpr, BinaryOp, BlockExpr, Expr, NoBlockExpr, PrimaryExpr,
+    ProcCallExpr, UnaryExpr, UnaryOp,
 };
 use std::collections::VecDeque;
 
@@ -312,6 +312,38 @@ impl ProcCallExpr {
                 _ => return Err(ParseError::UnexpectedToken(next_tok)),
             }
         }
+        // if the while-loop condition fails, the RParen
+        tokens
+            .front()
+            .and_then(|tok| {
+                if tok.kind == TokenKind::RParen {
+                    last_pos = tok.pos;
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .inspect(|()| {
+                tokens.pop_front();
+            });
         Ok((ret, last_pos))
+    }
+}
+
+impl ParseTokens for BlockExpr {
+    type Node = Expr;
+
+    fn parse_tokens(
+        tokens: &mut VecDeque<Token>,
+        prev_pos: CharPosition,
+    ) -> Result<(Self::Node, CharPosition), ParseError> {
+        let lbrace_pos = tokens
+            .pop_front()
+            .ok_or(ParseError::ExpectedToken(prev_pos))
+            .and_then(|tok| match tok.kind {
+                TokenKind::LBrace => Ok(tok.pos),
+                _ => Err(ParseError::UnexpectedToken(tok)),
+            })?;
+        todo!()
     }
 }
