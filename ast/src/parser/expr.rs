@@ -9,6 +9,7 @@ use std::collections::VecDeque;
 use super::{ParseError, ParseTokens};
 
 impl ParseTokens for Expr {
+    type Node = Expr;
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -27,6 +28,7 @@ impl ParseTokens for Expr {
 }
 
 impl ParseTokens for NoBlockExpr {
+    type Node = Expr;
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -36,6 +38,7 @@ impl ParseTokens for NoBlockExpr {
 }
 
 impl ParseTokens for PrimaryExpr {
+    type Node = Expr;
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -107,6 +110,7 @@ impl ParseTokens for PrimaryExpr {
 }
 
 impl ParseTokens for UnaryExpr {
+    type Node = Expr;
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -251,6 +255,7 @@ impl BinaryExpr {
 }
 
 impl ParseTokens for BinaryExpr {
+    type Node = Expr;
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,

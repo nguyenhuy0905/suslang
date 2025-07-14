@@ -3,10 +3,11 @@ use std::{collections::VecDeque, error::Error, fmt::Display};
 use tokenize::{tokens::CharPosition, Token};
 
 mod expr;
-
-use crate::Expr;
+mod stmt;
 
 pub trait ParseTokens {
+    type Node;
+
     /// Given a [`VecDeque`] of [`Token`]s, convert part of the iterator into
     /// a parse node.
     ///
@@ -23,7 +24,7 @@ pub trait ParseTokens {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
-    ) -> Result<(Expr, CharPosition), ParseError>;
+    ) -> Result<(Self::Node, CharPosition), ParseError>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
