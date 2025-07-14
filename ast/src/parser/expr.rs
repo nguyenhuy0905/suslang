@@ -6,29 +6,9 @@ use crate::{
 };
 use std::collections::VecDeque;
 
-use super::ParseError;
+use super::{ParseError, ParseTokens};
 
-pub trait ParseExpr {
-    /// Given a [`VecDeque`] of [`Token`]s, convert part of the iterator into
-    /// a parse node.
-    ///
-    /// # Note
-    /// - If there is no previous token (meaning no available `prev_pos`), use
-    ///   [`CharPosition`] `{line: 1, column: 1}`.
-    ///
-    /// # Errors
-    /// - If parsing fails, returns a [`ParseErrType`].
-    ///
-    /// # Return
-    /// - The parsed struct.
-    /// - The position of the last token popped.
-    fn parse_tokens(
-        tokens: &mut VecDeque<Token>,
-        prev_pos: CharPosition,
-    ) -> Result<(Expr, CharPosition), ParseError>;
-}
-
-impl ParseExpr for Expr {
+impl ParseTokens for Expr {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -46,7 +26,7 @@ impl ParseExpr for Expr {
     }
 }
 
-impl ParseExpr for NoBlockExpr {
+impl ParseTokens for NoBlockExpr {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -55,7 +35,7 @@ impl ParseExpr for NoBlockExpr {
     }
 }
 
-impl ParseExpr for PrimaryExpr {
+impl ParseTokens for PrimaryExpr {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -126,7 +106,7 @@ impl ParseExpr for PrimaryExpr {
     }
 }
 
-impl ParseExpr for UnaryExpr {
+impl ParseTokens for UnaryExpr {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
@@ -270,7 +250,7 @@ impl BinaryExpr {
     }
 }
 
-impl ParseExpr for BinaryExpr {
+impl ParseTokens for BinaryExpr {
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
