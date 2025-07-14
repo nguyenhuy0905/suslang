@@ -310,6 +310,35 @@ fn parse_nested_expr() {
             Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(123)))
         );
     }
+    // nested expr followed by proc call
+    {
+        // (123)(123)
+        // very funky but it's still valid, grammatically.
+        let mut deque = build_token_deque(&[
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::RParen, None),
+            (TokenKind::LParen, None),
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::RParen, None),
+        ]);
+        let expr = PrimaryExpr::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            expr.0,
+            Expr::NoBlock(NoBlockExpr::ProcCall(ProcCallExpr {
+                id_expr: Box::new(Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
+                ))),
+                params: vec![Expr::NoBlock(NoBlockExpr::Primary(
+                    PrimaryExpr::Integer(123)
+                ))]
+            }))
+        );
+    }
     // forgetting close paren
     {
         let mut deque = build_token_deque(&[
