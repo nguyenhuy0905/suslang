@@ -2,7 +2,7 @@ use tokenize::{tokens::CharPosition, Token, TokenKind};
 
 use crate::{
     BinaryExpr, BinaryOp, BlockExpr, Expr, NoBlockExpr, PrimaryExpr,
-    ProcCallExpr, UnaryExpr, UnaryOp,
+    ProcCallExpr, Stmt, UnaryExpr, UnaryOp, WithBlockExpr,
 };
 use std::collections::VecDeque;
 
@@ -99,7 +99,10 @@ impl ParseTokens for PrimaryExpr {
                             _ => Err(ParseError::UnexpectedToken(tok)),
                         })
                 }
-                TokenKind::LBrace => BlockExpr::parse_tokens(tokens, prev_pos),
+                TokenKind::LBrace => BlockExpr::parse_tokens(tokens, prev_pos)
+                    .map(|(blk, pos)| {
+                        (Expr::WithBlock(WithBlockExpr::Block(blk)), pos)
+                    }),
                 // TODO: add more forward rules as we add more stuff into the
                 // language.
                 // For example, keyword-ed expressions such as `if` should have
@@ -347,19 +350,39 @@ impl ProcCallExpr {
 }
 
 impl ParseTokens for BlockExpr {
-    type Node = Expr;
+    type Node = Self;
 
     fn parse_tokens(
         tokens: &mut VecDeque<Token>,
         prev_pos: CharPosition,
     ) -> Result<(Self::Node, CharPosition), ParseError> {
-        let lbrace_pos = tokens
+        let mut ret_pos = tokens
             .pop_front()
             .ok_or(ParseError::ExpectedToken(prev_pos))
             .and_then(|tok| match tok.kind {
                 TokenKind::LBrace => Ok(tok.pos),
                 _ => Err(ParseError::UnexpectedToken(tok)),
             })?;
-        todo!()
+
+        let mut stmts: Vec<Stmt> = Vec::new();
+        loop {
+            if tokens.front().is_some_and(|tok| {
+                if tok.kind == TokenKind::RBrace {
+                    ret_pos = tok.pos;
+                    true
+                } else {
+                    false
+                }
+            }) {
+                tokens.pop_front();
+                break;
+            }
+
+            let (stmt, stmt_pos) = Stmt::parse_tokens(tokens, ret_pos)?;
+            ret_pos = stmt_pos;
+            stmts.push(stmt);
+        }
+
+        Ok((BlockExpr { stmts }, ret_pos))
     }
 }

@@ -624,6 +624,23 @@ fn binary_expr() {
 }
 
 #[test]
+fn parse_empty_block_expr() {
+    let mut deque = build_token_deque(&[
+        (TokenKind::LBrace, None),
+        (TokenKind::RBrace, None),
+    ]);
+    let last_pos = deque.back().unwrap().pos;
+    let (blk, blk_pos) = BlockExpr::parse_tokens(
+        &mut deque,
+        CharPosition { line: 1, column: 1 },
+    )
+    .unwrap();
+    assert_eq!(blk, BlockExpr { stmts: vec![] });
+    assert_eq!(blk_pos, last_pos);
+    assert_eq!(deque, []);
+}
+
+#[test]
 fn parse_ret_and_block_ret() {
     // return 123
     {
