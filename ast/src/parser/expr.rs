@@ -99,10 +99,14 @@ impl ParseTokens for PrimaryExpr {
                             _ => Err(ParseError::UnexpectedToken(tok)),
                         })
                 }
-                _ => {
-                    tokens.push_front(tok);
-                    Expr::parse_tokens(tokens, prev_pos)
-                }
+                TokenKind::LBrace => BlockExpr::parse_tokens(tokens, prev_pos),
+                // TODO: add more forward rules as we add more stuff into the
+                // language.
+                // For example, keyword-ed expressions such as `if` should have
+                // the same precedence as any primary expression. Mainly
+                // because we don't have any other structures that use those
+                // keyword, right?
+                _ => Err(ParseError::UnexpectedToken(tok)),
             });
 
         if tokens.front().map(|tok| tok.kind) != Some(TokenKind::LParen) {
