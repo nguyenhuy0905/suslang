@@ -729,4 +729,25 @@ fn parse_no_block_expr_stmt() {
         );
         assert_eq!(ret, Err(ParseError::ExpectedToken(last_pos)));
     }
+    // just an expr with a semicolon
+    {
+        let mut deque = build_token_deque(&[
+            (TokenKind::Integer, Some("123")),
+            (TokenKind::Semicolon, None),
+        ]);
+        let last_pos = deque.back().unwrap().pos;
+        let ret = NoBlockExprStmt::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            ret.0,
+            NoBlockExprStmt::Expr(NoBlockExpr::Primary(PrimaryExpr::Integer(
+                123
+            )))
+        );
+        assert_eq!(ret.1, last_pos);
+        assert_eq!(deque, []);
+    }
 }
