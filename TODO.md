@@ -51,18 +51,24 @@
           - [x] Struct (need new keyword)
 
 - [ ] Parsing
-  - [ ] Literal expr (not done until `Expr` can be parsed)
+  - [ ] Primary expr (not done until `Expr` can be parsed)
   - [x] Unary expr
   - [x] Binary expr
     - [x] This time let's try Pratt, instead of recursive descend; I'm creating
           a lot of rules with nonsense names with the latter already.
-  - [ ] Procedure call expr
+  - [ ] Some expressions starting with keywords (e.g. `if`) should have the
+        same precedence as any `PrimaryExpr`. Add them.
+  - [x] Procedure call expr
     - [x] Kind-of done, but cannot be thoroughly tested until
           `Expr::parse_tokens` is ready to go.
-    - [ ] Be very careful. One possible form of this is `(<expr>)(<expr>)`,
-          which looks *very* similar to two `LiteralExpr` next to one another.
+    - [x] Be very careful. One possible form of this is `(<expr>)(<expr>)`,
+          which looks *very* similar to two `PrimaryExpr` next to one another.
     - [x] Also, I may rename that to `PrimaryExpr`, since `(<expr>)` isn't really
-      a literal expr.
-  - [ ] Block expressions
+      a primary expr.
+  - [x] Block expressions
     - At this point, let's mark a TODO on `Stmt::parse_tokens`.
-  - TODO: fill this later.
+  - [ ] Statements
+    - [ ] No-block
+      - [x] `Return` and `BlockReturn`.
+      - [x] Check for the semicolon at end.
+      - [ ] An expression followed by semicolon.
