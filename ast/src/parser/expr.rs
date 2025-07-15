@@ -77,6 +77,18 @@ impl ParseTokens for PrimaryExpr {
                     ))),
                     tok.pos,
                 )),
+                TokenKind::Ya => Ok((
+                    Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Bool(
+                        true,
+                    ))),
+                    tok.pos,
+                )),
+                TokenKind::Na => Ok((
+                    Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Bool(
+                        false,
+                    ))),
+                    tok.pos,
+                )),
                 TokenKind::LParen => {
                     let ret = Expr::parse_tokens(tokens, prev_pos)?;
                     tokens

@@ -82,8 +82,8 @@ fn parse_primary() {
         (TokenKind::String, Some("hello")),
         (TokenKind::Char, Some("c")),
         (TokenKind::Identifier, Some("sus1")),
-        // while '(' <expr> ')' has the same precedence as any literal expr,
-        // let's face it, that's not a literal expr.
+        (TokenKind::Ya, None),
+        (TokenKind::Na, None),
     ]);
 
     let asts = {
@@ -108,6 +108,8 @@ fn parse_primary() {
             PrimaryExpr::String(Box::from("hello")),
             PrimaryExpr::Char('c'),
             PrimaryExpr::Identifier(Box::from("sus1")),
+            PrimaryExpr::Bool(true),
+            PrimaryExpr::Bool(false),
         ]
         .map(|lit| Expr::NoBlock(NoBlockExpr::Primary(lit)))
     );

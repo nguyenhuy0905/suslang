@@ -73,6 +73,7 @@ pub enum PrimaryExpr {
     Float(f64),
     Identifier(Box<str>),
     Char(char),
+    Bool(bool),
 }
 
 #[derive(Debug, Clone, PartialEq)]
