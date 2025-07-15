@@ -89,5 +89,17 @@ impl ParseTokens for NoBlockExprStmt {
                     }
                 }
             })
+            .and_then(|(ret, ret_pos)| {
+                tokens
+                    .pop_front()
+                    .ok_or(ParseError::ExpectedToken(ret_pos))
+                    .and_then(|tok| {
+                        if tok.kind == TokenKind::Semicolon {
+                            Ok((ret, tok.pos))
+                        } else {
+                            Err(ParseError::UnexpectedToken(tok))
+                        }
+                    })
+            })
     }
 }
