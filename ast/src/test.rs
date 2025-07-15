@@ -620,3 +620,53 @@ fn binary_expr() {
         assert_eq!(pos, last_pos);
     }
 }
+
+#[test]
+fn parse_ret_and_block_ret() {
+    // return 123
+    {
+        let mut deque = build_token_deque(&[
+            (TokenKind::Return, None),
+            (TokenKind::Integer, Some("123")),
+        ]);
+        let last_pos = deque.back().unwrap().pos;
+        let (ret, ret_pos) = ReturnStmt::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            ret,
+            ReturnStmt {
+                val: Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(
+                    123
+                )))
+            }
+        );
+        assert_eq!(deque, []);
+        assert_eq!(ret_pos, last_pos);
+    }
+    // block_return 123
+    {
+        let mut deque = build_token_deque(&[
+            (TokenKind::BlockReturn, None),
+            (TokenKind::Integer, Some("123")),
+        ]);
+        let last_pos = deque.back().unwrap().pos;
+        let (ret, ret_pos) = BlockReturnStmt::parse_tokens(
+            &mut deque,
+            CharPosition { line: 1, column: 1 },
+        )
+        .unwrap();
+        assert_eq!(
+            ret,
+            BlockReturnStmt {
+                val: Expr::NoBlock(NoBlockExpr::Primary(PrimaryExpr::Integer(
+                    123
+                )))
+            }
+        );
+        assert_eq!(deque, []);
+        assert_eq!(ret_pos, last_pos);
+    }
+}
